@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic 
 */
-#define _FW_VERSION "v0.0.1 (11-09-2019)"
+#define _FW_VERSION "v0.0.2 (14-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -59,11 +59,12 @@ const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
 typedef struct {
   int8_t  index;
-  char    address[20];
+  char    sensorID[20];
   uint8_t position;
-  char    name[50];
+  char    name[20];
   float   tempOffset;
   float   tempFactor;
+  float   tempC;
 } sensorStruct;
 
 sensorStruct  sensorArray[_MAX_SENSORS];
@@ -79,6 +80,14 @@ bool      readRaw = false;
 uint8_t   wsClientID;
 
 
+//===========================================================================================
+void handleIndexPage() 
+{
+  DebugTln("now in handleIndexPage() ..");
+  String indexHtml = serverIndex;
+  httpServer.send(200, "text/html", indexHtml);
+}
+
 
 //===========================================================================================
 String upTime() 
@@ -88,60 +97,9 @@ String upTime()
   sprintf(calcUptime, "%d(d):%02d(h):%02d", int((upTimeSeconds / (60 * 60 * 24)) % 365)
                                           , int((upTimeSeconds / (60 * 60)) % 24)
                                           , int((upTimeSeconds / (60)) % 60));
-
   return calcUptime;
 
 } // upTime()
-
-
-//===========================================================================================
-void handleIndexPage() 
-{
-  DebugTln("now in handleIndexPage() ..");
-  String indexHtml = serverIndex;
-  httpServer.send(200, "text/html", indexHtml);
-}
-
-// function to print a device address
-//===========================================================================================
-void getDevAddress(DeviceAddress deviceAddress, char* devAddr)
-{
-  sprintf(devAddr, "0x%02x%02x%02x%02x%02x%02x%02x%02x", deviceAddress[0], deviceAddress[1]
-                                                       , deviceAddress[2], deviceAddress[3]
-                                                       , deviceAddress[4], deviceAddress[5]
-                                                       , deviceAddress[6], deviceAddress[7]);
-} // getDevAddress()
-
-// function to print the temperature for a device
-//===========================================================================================
-void printTemperature(int8_t devNr)
-{
-  float tempC = sensors.getTempCByIndex(sensorArray[devNr].index);
-  //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
-  if (!readRaw) {
-    //---- realTemp/sensorTemp = tempFactor
-    tempC = ( (tempC + sensorArray[devNr].tempOffset) * sensorArray[devNr].tempFactor );
-  }
-  Debugf("Temp C: %6.2f / %6.3f", tempC, tempC);
-  sprintf(cMsg, "tempC%d=%6.2f ℃", devNr, tempC);
-  webSocket.sendTXT(wsClientID, cMsg);
-
-
-} // printTemperature
-
-// main function to print information about a device
-//===========================================================================================
-void printData(int8_t devNr)
-{
-  char devAddr[20];
-
-  //getDevAddress(deviceAddress, devAddr);
-  Debugf("Device Address: [%s] [%-30.30s] ", sensorArray[devNr].address, sensorArray[devNr].name);
-  //printTemperature(sensorArray[devNr].address);
-  printTemperature(devNr);
-  Debugln();
-  
-} // printData()
 
 
 //===========================================================================================
@@ -191,13 +149,13 @@ void setup()
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   
-  httpServer.on("/",           HTTP_GET, handleIndexPage);
-  httpServer.on("/index.html", HTTP_GET, handleIndexPage);
+  httpServer.on("/",           handleIndexPage);
+  httpServer.on("/index.html", handleIndexPage);
   httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
 
-  //httpServer.on("/restAPI", HTTP_GET, restAPI);
-  //httpServer.on("/restapi", HTTP_GET, restAPI);
-  httpServer.on("/ReBoot", HTTP_POST, handleReBoot);
+  //httpServer.on("/restAPI", restAPI);
+  //httpServer.on("/restapi", restAPI);
+  httpServer.on("/ReBoot", handleReBoot);
 
 #if defined (HAS_FSEXPLORER)
   httpServer.on("/FSexplorer", HTTP_POST, handleFileDelete);

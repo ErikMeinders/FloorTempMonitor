@@ -155,12 +155,12 @@ String wsString;
 void updateDOM() 
 {
   for (int i=0; i<noSensors; i++) {
-    DebugTf("Add Sensor[%2d]: address[%d] name[%s]\n", i
-                                        , sensorArray[i].address
+    DebugTf("Add Sensor[%2d]: sensorID[%d] name[%s]\n", i
+                                        , sensorArray[i].sensorID
                                         , sensorArray[i].name);
                                         
-    sprintf(cMsg, "index%d=%d:adres%d=%s:name%d=%s:tempC%d=-", i, i
-                                                     , i, sensorArray[i].address
+    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-", i, i
+                                                     , i, sensorArray[i].sensorID
                                                      , i, sensorArray[i].name
                                                      , i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));

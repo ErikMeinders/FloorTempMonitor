@@ -42,10 +42,12 @@ static const char serverIndex[] PROGMEM =
   </div>  
   <h3>Aangesloten DS18B20 sensoren</h3>
   <table id="Sensors">
+    <thead>
     <tr>
       <th align='left'>Index</th><th align='left'>unieke ID</th>
       <th align='left' width='250px'>Naam</th><th align='right' width='200px'>Temperatuur</th>
     </tr>
+    </thead>
   </table>
   <hr>
   <!-- REST -->
@@ -63,6 +65,8 @@ static const char serverIndex[] PROGMEM =
   let singlePair;
   let singleFld;
   let DOMloaded = false;
+  let addHeader = true;
+  let readRaw   = false;
   
   window.onload=bootsTrap;
   window.onfocus = function() {
@@ -126,22 +130,48 @@ static const char serverIndex[] PROGMEM =
       console.log("parsePayload(): Data[" + payloadData + "]");
       singlePair = payloadData.split(":");
       var MyTable = document.getElementById("Sensors"); 
+      if (addHeader) {
+        addTableHeader(MyTable); 
+        addHeader = false;       
+      }
       // insert new row. 
       var TR = MyTable.insertRow(-1); 
-      for (let i=0; i<singlePair.length; i++) {
-        singleFld = singlePair[i].split("=");
-        console.log("TD id="+singleFld[0]+" Val="+singleFld[1]);
-        var TD = TR.insertCell(i); 
-        TD.innerHTML = singleFld[1]; 
-        TD.setAttribute("id", singleFld[0], 0);
-        if (singleFld[0].indexOf('name') !== -1) {
-          TD.setAttribute("style", "font-size: 20pt;");
-        } else if (singleFld[0].indexOf('tempC') !== -1) {
-          TD.setAttribute("align", "right");
-          TD.setAttribute("style", "font-size: 20pt;");
+      if (readRaw) {
+        for (let i=0; i<singlePair.length; i++) {
+          singleFld = singlePair[i].split("=");
+          console.log("TD id="+singleFld[0]+" Val="+singleFld[1]);
+          var TD = TR.insertCell(i); 
+          TD.innerHTML = singleFld[1]; 
+          TD.setAttribute("id", singleFld[0], 0);
+          if (singleFld[0].indexOf('name') !== -1) {
+            TD.setAttribute("style", "font-size: 20pt;");
+          } else if (singleFld[0].indexOf('tempC') !== -1) {
+            TD.setAttribute("align", "right");
+            TD.setAttribute("style", "font-size: 20pt;");
+          } else if (singleFld[0].indexOf('index') !== -1) {
+            TD.setAttribute("align", "center");
+          } else {
+            TD.setAttribute("align", "left");
+          }
+          webSocketConn.send("DOMloaded");
         }
+      } else {
+        // compensated mode -- skip first two fields --
+        for (let i=2; i<singlePair.length; i++) {
+          singleFld = singlePair[i].split("=");
+          console.log("TD id="+singleFld[0]+" Val="+singleFld[1]);
+          var TD = TR.insertCell(i-2); 
+          TD.innerHTML = singleFld[1]; 
+          TD.setAttribute("id", singleFld[0], 0);
+          if (singleFld[0].indexOf('name') !== -1) {
+            TD.setAttribute("style", "font-size: 20pt;");
+          } else if (singleFld[0].indexOf('tempC') !== -1) {
+            TD.setAttribute("align", "right");
+            TD.setAttribute("style", "font-size: 20pt;");
+          }
+        }
+        webSocketConn.send("DOMloaded");
       }
-      webSocketConn.send("DOMloaded");
     
     } else {
       singleFld = payload.split("=");
@@ -155,15 +185,73 @@ static const char serverIndex[] PROGMEM =
     }
     //addLogLine("parsePayload(): Don't know: [" + payload + "]\r\n");
   };
+
+  function addTableHeader(table) {
+    console.log("==> set tHeader ..");
+    table.innerHTML = "";
+
+    // Create an empty <thead> element and add it to the table:
+    console.log("==> Create empty <thead> element ..");
+    var header = table.createTHead();
+
+    // Create an empty <tr> element and add it to the first position of <thead>:
+    console.log("==> Create empty <tr> element to thead ..");
+    var TR = header.insertRow(0);    
+
+    // Insert a new cell (<th>) at the first position of the "new" <tr> element:
+    if (readRaw) {
+      console.log("==> [readRaw] --> insert 4 cell's");
+      var TH = TR.insertCell(0);
+      TH.innerHTML = "index";
+      TH.setAttribute("align", "left");
+      TH.setAttribute("style", "font-size: 12pt; width: 50px;");
+
+      TH = TR.insertCell(1);
+      TH.innerHTML = "sensorID";
+      TH.setAttribute("align", "left");
+      TH.setAttribute("style", "font-size: 12pt; width: 170px;");
+
+      TH = TR.insertCell(2);
+      TH.innerHTML = "Naam";
+      TH.setAttribute("align", "left");
+      TH.setAttribute("style", "font-size: 16pt; width: 300px;");
+
+      TH = TR.insertCell(3);
+      TH.innerHTML = "Temperatuur";
+      TH.setAttribute("align", "right");
+      TH.setAttribute("style", "font-size: 16pt; width: 150px;");
+      
+    } else {
+      console.log("==> [!readRaw] --> insert 2 cell's");
+      var TH = TR.insertCell(0);
+      TH.innerHTML = "Naam";
+      TH.setAttribute("align", "left");
+      TH.setAttribute("style", "font-size: 16pt; width: 250px;");
+      TH = TR.insertCell(1);
+      TH.innerHTML = "Temperatuur";
+      TH.setAttribute("align", "right");
+      TH.setAttribute("style", "font-size: 16pt; width: 150px;");
+      
+    }
+
+  }
  
   function setRawMode() {
     if (document.getElementById('rawTemp').checked)  {
       addLogLine("rawTemp checked!");
+      console.log("rawTemp checked!");
       webSocketConn.send("rawMode");
+      readRaw = true;
     } else {
       addLogLine("rawTemp unchecked");
+      console.log("rawTemp unchecked");
       webSocketConn.send("calibratedMode");
+      readRaw = false;
     }
+    addHeader = true;
+    console.log("send(updateDOM) ..");
+    webSocketConn.send("updateDOM");
+    
   } // setDebugMode()
  
   function setDebugMode() {

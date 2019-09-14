@@ -71,14 +71,14 @@ bool appendIniFile(int8_t index, char* devAddr) {
   
   yield();
   sensorArray[index].index = index;
-  sprintf(sensorArray[index].address, "%s", devAddr);
+  sprintf(sensorArray[index].sensorID, "%s", devAddr);
   sensorArray[index].position = 90;
   sprintf(sensorArray[index].name, "unKnown sensor");
   sensorArray[index].tempOffset = 0.00000;
   sensorArray[index].tempFactor = 1.00000;
  
   yield();
-  dataFile.print(sensorArray[index].address);       dataFile.print("; ");
+  dataFile.print(sensorArray[index].sensorID);       dataFile.print("; ");
   dataFile.print(sensorArray[index].position);      dataFile.print("; ");
   dataFile.print(sensorArray[index].name);          dataFile.print("; ");
   dataFile.print(sensorArray[index].tempOffset, 6); dataFile.print("; ");
@@ -117,7 +117,8 @@ bool readIniFile(int8_t index, char *devAddr) {
     tmpS.trim();
     if (String(devAddr) == String(tmpS)) {
       sensorArray[index].index = index;
-      sprintf(sensorArray[index].address, "%s", tmpS.c_str());
+      sensorArray[index].tempC = -99;
+      sprintf(sensorArray[index].sensorID, "%s", tmpS.c_str());
       sensorArray[index].position    = dataFile.readStringUntil(';').toInt();
       tmpS     = dataFile.readStringUntil(';');
       tmpS.trim();
@@ -139,71 +140,6 @@ bool readIniFile(int8_t index, char *devAddr) {
   return false;
 
 } // readIniFile()
-
-//=======================================================================
-bool lookupSensor(int8_t index, char* devAddr)
-{
-  int8_t s;
-  //DebugTf("Testing for [%s]\n", devAddr);
-  for(s=0; s<noSensors; s++) {
-    //DebugTf("[%d] => Testing devAddr [%s] == [%s]", s, devAddr,  sensorArray[s].address);
-    if( String(sensorArray[s].address) == String(devAddr) ) {
-      Debugf("-> found [%s]\n", sensorArray[s].address);
-      sensorArray[s].index = index;
-      return true;
-    }
-    //Debugln();
-    if (sensorArray[s].address[0] == '\0') {
-      //Debugln(" --> slot is empty!");
-      //DebugTln("--> new sensor!"); 
-      sensorArray[s].index = index;
-      sprintf(sensorArray[s].address, "%s", devAddr);
-      sensorArray[s].position   = (s + 1);
-      sprintf(sensorArray[s].name, "unKnown");
-      sensorArray[s].tempOffset = 0.000000;
-      sensorArray[s].tempFactor = 1.000000;
-      return false;
-    }
-  }
-
-  return false;
-  
-} // lookupSensor()
-
-//=======================================================================
-void printSensorArray()
-{
-  for(int8_t s=0; s<noSensors; s++) {
-    Debugf("[%2d] => [%2d], [%02d], [%s], [%-20.20s], [%7.6f], [%7.6f]\n", s
-                      , sensorArray[s].index
-                      , sensorArray[s].position
-                      , sensorArray[s].address
-                      , sensorArray[s].name
-                      , sensorArray[s].tempOffset
-                      , sensorArray[s].tempFactor);
-  }
-} // printSensorArray()
-
-//=======================================================================
-void sortSensors() 
-{
-  int x, y;
-  
-    for (int8_t y = 0; y < noSensors; y++) {
-        yield();
-        for (int8_t x = y + 1; x < noSensors; x++)  {
-            //DebugTf("y[%d], x[%d] => seq[x][%d] ", y, x, sensorArray[x].position);
-            if (sensorArray[x].position < sensorArray[y].position)  {
-                sensorStruct temp = sensorArray[y];
-                sensorArray[y] = sensorArray[x];
-                sensorArray[x] = temp;
-            } /* end if */
-            //Debugln();
-        } /* end for */
-    } /* end for */
- 
-} // sortSensors()
-
 
 
 /***************************************************************************

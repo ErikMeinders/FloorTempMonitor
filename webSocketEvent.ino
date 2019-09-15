@@ -159,10 +159,10 @@ void updateDOM()
                                         , sensorArray[i].sensorID
                                         , sensorArray[i].name);
                                         
-    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-", i, i
+    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0", i, i
                                                      , i, sensorArray[i].sensorID
                                                      , i, sensorArray[i].name
-                                                     , i);
+                                                     , i, i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }
 

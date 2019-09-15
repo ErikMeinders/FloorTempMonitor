@@ -13,10 +13,9 @@ static const char serverIndex[] PROGMEM =
     .nav-right { flex: 1 1 0; text-align: right; width: 20%; }
     .nav-img { top: 1px; display: inline-block; width: 40px; height: 40px; }
     .nav-item { display: inline-block; font-size: 16px; padding: 10px 0; height: 20px; border: none; color: black; }
+    .progressBar { width: 100%; height: 20px; background: lightgray; display: block; }
+    .tempBar { width: 1%; height: 16px; margin-top: 2px; background: green;}
     #logWindow { font-size: 14px; margin-left: 20px; width: 90vw; height: 20vh; }
-    [tooltip]:before { content: attr(tooltip);  position: absolute; width: 250px; opacity: 0; transition: all 0.15s ease;  padding: 10px; color: black; border-radius: 10px; box-shadow: 2px 2px 1px silver; }
-    [tooltip]:hover:before { opacity: 1;  background: lightgray;  margin-top: -50px; margin-left: 20px;}
-    [tooltip]:not([tooltip-persistent]):before {  pointer-events: none;}
     .footer { position: fixed; left: 0; bottom: 0; width: 100%; color: gray; font-size: small; text-align: right; }
   </style>
   <body>
@@ -44,8 +43,9 @@ static const char serverIndex[] PROGMEM =
   <table id="Sensors">
     <thead>
     <tr>
-      <th align='left'>Index</th><th align='left'>unieke ID</th>
-      <th align='left' width='250px'>Naam</th><th align='right' width='200px'>Temperatuur</th>
+      <th align='left' width='250px'>Naam</th>
+      <th align='right' width='200px'>Temperatuur</th>
+      <th align='right'>Bar</th>
     </tr>
     </thead>
   </table>
@@ -127,7 +127,7 @@ static const char serverIndex[] PROGMEM =
     if ( payload.indexOf('updateDOM:') !== -1 ) { 
       addLogLine("parsePayload(): received 'updateDOM:'");
       let payloadData = payload.replace("updateDOM:", "");
-      console.log("parsePayload(): Data[" + payloadData + "]");
+      addLogLine("parsePayload(): Data[" + payloadData + "]");
       singlePair = payloadData.split(":");
       var MyTable = document.getElementById("Sensors"); 
       if (addHeader) {
@@ -139,19 +139,26 @@ static const char serverIndex[] PROGMEM =
       if (readRaw) {
         for (let i=0; i<singlePair.length; i++) {
           singleFld = singlePair[i].split("=");
-          console.log("TD id="+singleFld[0]+" Val="+singleFld[1]);
+          addLogLine("TD id="+singleFld[0]+" Val="+singleFld[1]);
           var TD = TR.insertCell(i); 
-          TD.innerHTML = singleFld[1]; 
-          TD.setAttribute("id", singleFld[0], 0);
+          TD.setAttribute("id", singleFld[0]);
           if (singleFld[0].indexOf('name') !== -1) {
-            TD.setAttribute("style", "font-size: 20pt;");
+            TD.innerHTML = singleFld[1]; 
+            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
           } else if (singleFld[0].indexOf('tempC') !== -1) {
+            TD.innerHTML = singleFld[1]; 
             TD.setAttribute("align", "right");
-            TD.setAttribute("style", "font-size: 20pt;");
+            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
+          } else if (singleFld[0].indexOf('tempBar') !== -1) {
+            // skip
           } else if (singleFld[0].indexOf('index') !== -1) {
+            TD.innerHTML = singleFld[1]; 
             TD.setAttribute("align", "center");
+            TD.setAttribute("style", "padding-left:10px;");
           } else {
+            TD.innerHTML = singleFld[1]; 
             TD.setAttribute("align", "left");
+            TD.setAttribute("style", "padding-left:10px;");
           }
           webSocketConn.send("DOMloaded");
         }
@@ -159,16 +166,28 @@ static const char serverIndex[] PROGMEM =
         // compensated mode -- skip first two fields --
         for (let i=2; i<singlePair.length; i++) {
           singleFld = singlePair[i].split("=");
-          console.log("TD id="+singleFld[0]+" Val="+singleFld[1]);
+          addLogLine("TD id="+singleFld[0]+" Val="+singleFld[1]);
           var TD = TR.insertCell(i-2); 
-          TD.innerHTML = singleFld[1]; 
-          TD.setAttribute("id", singleFld[0], 0);
+          TD.setAttribute("id", singleFld[0]);
           if (singleFld[0].indexOf('name') !== -1) {
-            TD.setAttribute("style", "font-size: 20pt;");
+            TD.innerHTML = singleFld[1]; 
+            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
           } else if (singleFld[0].indexOf('tempC') !== -1) {
+            TD.innerHTML = singleFld[1]; 
             TD.setAttribute("align", "right");
-            TD.setAttribute("style", "font-size: 20pt;");
+            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
+          } else if (singleFld[0].indexOf('tempBar') !== -1) {
+            TD.setAttribute("align", "left");
+            TD.setAttribute("style", "padding-left:30px; width:300px; height: 20px;");
+            var SPAN = document.createElement("span");
+            SPAN.setAttribute("class", "progressBar");
+            var DIV = document.createElement("div");
+            DIV.setAttribute("id", singleFld[0]+"B");
+            DIV.setAttribute("class", "tempBar");
+            SPAN.appendChild(DIV);
+            TD.appendChild(SPAN);
           }
+
         }
         webSocketConn.send("DOMloaded");
       }
@@ -176,8 +195,22 @@ static const char serverIndex[] PROGMEM =
     } else {
       singleFld = payload.split("=");
       if (singleFld[0].indexOf("tempC") > -1) {
-        console.log(singleFld[0]+"=>"+singleFld[1]);
+        addLogLine(singleFld[0]+"=>"+singleFld[1]);
         document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+      } else if (singleFld[0].indexOf("tempBar") > -1) {
+        if (readRaw) {
+          addLogLine("found tempBar: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
+        } else {
+          addLogLine("found tempBar: "+singleFld[0]+" =>"+singleFld[1]);
+          moveBar(singleFld[0], singleFld[1]);
+        }
+      } else if (singleFld[0].indexOf("barRange") > -1) {
+        if (readRaw) {
+          addLogLine("found barRange: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
+        } else {
+          addLogLine("found barRange: "+singleFld[0]+" =>"+singleFld[1]);
+          document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+        }
       }
       else {  
         document.getElementById( singleFld[0]).innerHTML = singleFld[1];
@@ -187,54 +220,67 @@ static const char serverIndex[] PROGMEM =
   };
 
   function addTableHeader(table) {
-    console.log("==> set tHeader ..");
+    addLogLine("==> set tHeader ..");
     table.innerHTML = "";
 
     // Create an empty <thead> element and add it to the table:
-    console.log("==> Create empty <thead> element ..");
     var header = table.createTHead();
 
     // Create an empty <tr> element and add it to the first position of <thead>:
-    console.log("==> Create empty <tr> element to thead ..");
     var TR = header.insertRow(0);    
 
     // Insert a new cell (<th>) at the first position of the "new" <tr> element:
     if (readRaw) {
-      console.log("==> [readRaw] --> insert 4 cell's");
+      addLogLine("==> [readRaw] --> insert 4 cell's");
       var TH = TR.insertCell(0);
       TH.innerHTML = "index";
       TH.setAttribute("align", "left");
-      TH.setAttribute("style", "font-size: 12pt; width: 50px;");
+      TH.setAttribute("style", "font-size: 12pt; width: 50px; padding-left:10px;");
 
       TH = TR.insertCell(1);
       TH.innerHTML = "sensorID";
       TH.setAttribute("align", "left");
-      TH.setAttribute("style", "font-size: 12pt; width: 170px;");
+      TH.setAttribute("style", "font-size: 12pt; width: 170px; padding-left:10px;");
 
       TH = TR.insertCell(2);
       TH.innerHTML = "Naam";
       TH.setAttribute("align", "left");
-      TH.setAttribute("style", "font-size: 16pt; width: 300px;");
+      TH.setAttribute("style", "font-size: 16pt; width: 300px; padding-left:10px;");
 
       TH = TR.insertCell(3);
       TH.innerHTML = "Temperatuur";
       TH.setAttribute("align", "right");
-      TH.setAttribute("style", "font-size: 16pt; width: 150px;");
+      TH.setAttribute("style", "font-size: 16pt; width: 150px; padding-left:10px;");
       
     } else {
-      console.log("==> [!readRaw] --> insert 2 cell's");
+      addLogLine("==> [!readRaw (compensated)] --> insert 3 cell's");
       var TH = TR.insertCell(0);
       TH.innerHTML = "Naam";
       TH.setAttribute("align", "left");
-      TH.setAttribute("style", "font-size: 16pt; width: 250px;");
+      TH.setAttribute("style", "font-size: 16pt; width: 250px; padding-left:10px;");
       TH = TR.insertCell(1);
       TH.innerHTML = "Temperatuur";
       TH.setAttribute("align", "right");
-      TH.setAttribute("style", "font-size: 16pt; width: 150px;");
+      TH.setAttribute("style", "font-size: 16pt; width: 150px; padding-left:10px;");
+      TH = TR.insertCell(2);
+      TH.innerHTML = "temp Bar";
+      TH.setAttribute("id", "barRange");
+      TH.setAttribute("style", "padding-left:30px;");
+      TH.setAttribute("align", "left");
       
     }
 
   }
+   
+  function moveBar(barID, perc) {
+    addLogLine("moveBar("+barID+", "+perc+")");
+    var elem = document.getElementById(barID);
+    frame(perc);
+    function frame(w) {
+        elem.style.width = w + '%';
+    }
+  } // moveBar
+
  
   function setRawMode() {
     if (document.getElementById('rawTemp').checked)  {
@@ -249,7 +295,7 @@ static const char serverIndex[] PROGMEM =
       readRaw = false;
     }
     addHeader = true;
-    console.log("send(updateDOM) ..");
+    addLogLine("send(updateDOM) ..");
     webSocketConn.send("updateDOM");
     
   } // setDebugMode()

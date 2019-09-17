@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
-**  Program  : webSocketEvent, part of this program
-**  Version  : v1.0.3
+**  Program  : webSocketEvent, part of FloorTempMonitor
+**  Version  : v0.4.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -40,6 +40,8 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
                  DebugTf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", wsClient, ip[0], ip[1], ip[2], ip[3], payload);
                  isConnected = true;
                  webSocket.sendTXT(wsClient, "state=Connected");
+                 sprintf(cMsg, "noSensors=%d", noSensors);
+                 webSocket.sendTXT(wsClient, cMsg);
                  //updateDOM();
                 }
         
@@ -55,6 +57,7 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
             if (wsPayload.indexOf("updateDOM") > -1) {
               DebugTln("now updateDOM()!");
               updateDOM();
+              printDatapoints() ;
             } 
             if (wsPayload.indexOf("DOMloaded") > -1) {
               DebugTln("set doUpdateDOM = false;");
@@ -159,10 +162,10 @@ void updateDOM()
                                         , sensorArray[i].sensorID
                                         , sensorArray[i].name);
                                         
-    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-", i, i
+    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0", i, i
                                                      , i, sensorArray[i].sensorID
                                                      , i, sensorArray[i].name
-                                                     , i);
+                                                     , i, i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }
 

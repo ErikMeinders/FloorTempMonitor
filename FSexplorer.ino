@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
-**  Program  : FSexplorer, part of this program
-**  Version  : v1.0.3 (WS)
+**  Program  : FSexplorer, part of FloorTempMonitor
+**  Version  : v0.4.0 
 **
 **  Mostly stolen from https://www.arduinoforum.de/User-Fips
 **  See also https://www.arduinoforum.de/arduino-Thread-SPIFFS-DOWNLOAD-UPLOAD-DELETE-Esp8266-NodeMCU

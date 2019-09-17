@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : spiffsStuff, part of FloorTempMonitor
-**  Version  : v1.0.3
+**  Version  : v0.4.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -52,9 +52,8 @@ void listSPIFFS() {
 
 
 //===========================================================================================
-bool appendIniFile(int8_t index, char* devAddr) {
-//===========================================================================================
-
+bool appendIniFile(int8_t index, char* devAddr) 
+{
   DebugTf("appendIniFile(/sensors.ini) .. [%d] - Address[%s] ", index, devAddr);
 
   if (!SPIFFSmounted) {
@@ -97,8 +96,8 @@ bool appendIniFile(int8_t index, char* devAddr) {
 
 
 //===========================================================================================
-bool readIniFile(int8_t index, char *devAddr) {
-//===========================================================================================
+bool readIniFile(int8_t index, char *devAddr) 
+{
   File    dataFile;
   String  tmpS;
   
@@ -141,6 +140,149 @@ bool readIniFile(int8_t index, char *devAddr) {
 
 } // readIniFile()
 
+
+//===========================================================================================
+bool writeDataPoints() 
+{
+  DebugTln("writeDataPoints(/dataPoints.csv) ..");
+
+  if (!SPIFFSmounted) {
+    Debugln("No SPIFFS filesystem..ABORT!!!\r");
+    return false;
+  }
+  
+  // --- check if the file exists and can be opened ---
+  File dataFile  = SPIFFS.open("/dataPoints.csv", "w");    // open for writing
+  if (!dataFile) {
+    Debugln("Some error opening [dataPoints.csv] .. bailing out!");
+    return false;
+  } // if (!dataFile)
+  
+  yield();
+  for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
+    dataFile.print(p);                        dataFile.print(";");
+    dataFile.print(dataStore[p].timestamp);   dataFile.print(";");
+    for(int s=0; s < noSensors; s++) {
+      dataFile.print(s);                      dataFile.print(";");
+      dataFile.print(dataStore[p].tempC[s]);  dataFile.print(";");
+    }
+    dataFile.println();
+  }
+  dataFile.println("EOF");
+
+  dataFile.close();  
+
+  Debugln(" .. Done\r");
+
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+
+  return true;
+  
+} // writeDataPoints()
+
+
+//===========================================================================================
+bool readDataPoints() 
+{
+  String tmpS;
+  float pf, sf, tempC, tmpf;
+  int p, s;
+  
+  DebugTln("readDataPoints(/dataPoints.csv) ..");
+
+  if (!SPIFFSmounted) {
+    Debugln("No SPIFFS filesystem..ABORT!!!\r");
+    return false;
+  }
+  
+  // --- check if the file exists and can be opened ---
+  File dataFile  = SPIFFS.open("/dataPoints.csv", "r");    // open for reading
+  if (!dataFile) {
+    Debugln("Some error opening [dataPoints.csv] .. bailing out!");
+    return false;
+  } // if (!dataFile)
+  
+  while (dataFile.available() > 0) {
+  yield();
+    tmpS     = dataFile.readStringUntil('\n');
+    DebugTf("Record[%s]\n", tmpS.c_str());
+    if (tmpS == "EOF") break;
+ 
+    getFloat(tmpS, pf);
+    p = (int)pf;
+    getFloat(tmpS, pf);
+    dataStore[p].timestamp = (int)pf;
+    while (getFloat(tmpS, sf)) {
+      yield();
+      s = (int)sf;
+      getFloat(tmpS, tempC);
+      dataStore[p].tempC[s] = tempC;
+    }
+    //dataFile.print(dataStore[p].tempC[s]);  dataFile.print(";");
+  }    
+
+  dataFile.close();  
+
+  Debugln("========================================================================================");
+
+  char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
+  char cLine[(sizeof(cPoints) + 20)];
+  
+  for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
+    sprintf(cMsg, "plotPoint=%d:TS=%d", p, dataStore[p].timestamp);
+    for(int s=0; s < noSensors; s++) {
+      if (s == 0)
+            sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
+      else  sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
+    }
+    sprintf(cLine, "%s:%s", cMsg, cPoints);
+    if (dataStore[p].timestamp > 0) {
+      DebugTf("[%s]\n", cLine);
+    }
+
+  }
+  Debugln("========================================================================================");
+
+  Debugln(" .. Done\r");
+
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+
+  return true;
+  
+} // readDataPoints()
+
+
+//===========================================================================================
+bool getFloat(String &in, float &f)
+{
+  char  field[in.length()];
+  int   p = 0;
+  bool  gotChar = false;
+
+  //DebugTf("in is [%s]\n", in.c_str());
+  for(int i = 0; i < in.length(); i++) {
+    //--- copy chars up until ; \0 \r \n
+    if (in[i] != ';' && in[i] != '\r' && in[i] != '\n' && in[i] != '\0') {
+      field[p++] = in[i];
+      gotChar = true;
+    } else {
+      field[p++] = '\0';
+      break;
+    }
+  }
+  //--- nothing copied ---
+  if (!gotChar) {
+    f = 0.0;
+    return false;
+  }
+  String out = in.substring(p);
+  in = out;
+  //DebugTf("p[%d], in is now[%s]\n", p, in.c_str());
+
+  f = String(field).toFloat();
+  return true;
+  
+} // getFloat()
 
 /***************************************************************************
 *

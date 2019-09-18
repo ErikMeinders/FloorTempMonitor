@@ -27,9 +27,14 @@ void printTemperature(int8_t devNr)
   //-- time to shift datapoints?
   if ( ((now() / _PLOT_INTERVAL) > lastPlotTime) && (devNr == 0)) {
     lastPlotTime = (now() / _PLOT_INTERVAL);
+    dataStore[(_MAX_DATAPOINTS -1)].timestamp = now();
     shiftUpDatapoints();
     printDatapoints();
-    writeDataPoints();
+    //-- no point in wear out the flash memory 
+    if (hour() != lastSaveHour) {
+      lastSaveHour = hour();
+      writeDataPoints();
+    }
   }
 
   float tempR = sensors.getTempCByIndex(sensorArray[devNr].index);
@@ -141,6 +146,7 @@ void printDatapoints()
 
   Debugln();
   for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
+    yield();
     sprintf(cMsg, "plotPoint=%d:TS=%d", p, dataStore[p].timestamp);
     //DebugTf("[%s]\n", cMsg);
     cPoints[0] = '\0';
@@ -152,8 +158,9 @@ void printDatapoints()
     }
     sprintf(cLine, "%s:%s", cMsg, cPoints);
     if (dataStore[p].timestamp > 0) {
-      DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
+      //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
       webSocket.sendTXT(wsClientID, cLine);
+      delay(10);  //-- give it some time to finish
     }
   }
   

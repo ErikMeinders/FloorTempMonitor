@@ -23,8 +23,9 @@ static const char serverIndex[] PROGMEM =
     .nav-right { flex: 1 1 0; text-align: right; width: 20%; }
     .nav-img { top: 1px; display: inline-block; width: 40px; height: 40px; }
     .nav-item { display: inline-block; font-size: 16px; padding: 10px 0; height: 20px; border: none; color: black; }
-    .progressBar { width: 100%; height: 20px; background: lightgray; display: block; }
-    .tempBar { width: 1%; height: 16px; margin-top: 2px; background: green;}
+    .progressBar { width: 100%; height: 16px; background: white; display: block; }
+    //.tempBar { width: 1%; height: 16px; margin-top: 2px; background: green;}
+    .tempBar { width: 1%; height: 16px; margin-top: 2px;}
     #logWindow { font-size: 14px; margin-left: 20px; width: 90vw; height: 20vh; }
     .footer { position: fixed; left: 0; bottom: 0; width: 100%; color: gray; font-size: small; text-align: right; }
   </style>
@@ -65,8 +66,11 @@ static const char serverIndex[] PROGMEM =
   <p><input type="checkbox" id="rawTemp" value="doRawTemp" onChange="setRawMode()"> Raw temp. readings</p>
   <p><input type="checkbox" id="debug" value="doDebug" onChange="setDebugMode()"> Debug</p>
   <div id="Redirect"></div>
-  <canvas id="sensorsChart" width="900" height="400"></canvas>
+  <canvas id="sensorsChart" width="900" height="350"></canvas>
   <textarea id="logWindow"></textarea>
+  <p> </p>
+  <p> </p>
+
   <!--============================================================================-->
   <script>
   
@@ -76,13 +80,14 @@ static const char serverIndex[] PROGMEM =
   let needReload = true;
   let singlePair;
   let singleFld;
+  let sensorNr;
   let DOMloaded = false;
   let addHeader = true;
   let readRaw   = false;
-  let _MAX_DATAPOINTS = 50 -1;  // last one is invalid
+  let _MAX_DATAPOINTS = 100 -1;  // must be the same as in FloorTempMonitor in mail .ino -1 (last one is zero)
   let noSensors    = 1;
   //----- chartJS --------
-  var colors          = ['red', 'green', 'blue', 'orange', 'gray', 'purple'];
+  var colors          = ['Green', 'CornflowerBlue', 'Red', 'Blue', 'Orange', 'Gray', 'Purple', 'Brown', 'BurlyWood'];
   var Labels          = [];
   var sensorL         = [];
   var sensorData      = {};     //declare an object
@@ -166,7 +171,7 @@ static const char serverIndex[] PROGMEM =
             labels: Labels,
             data: sensorData,
             options : {
-              responsive: false,
+              responsive: true,
               maintainAspectRatio: true,
               scales: {
                 yAxes: [{
@@ -185,7 +190,13 @@ static const char serverIndex[] PROGMEM =
       });
 
   function parsePayload(payload) {
-    console.log("parsePayload(): [" + payload + "]\r\n");
+    if (   (payload.indexOf('plotPoint') == -1) 
+        && (payload.indexOf('barRange') == -1)
+        && (payload.indexOf('dataPoint') == -1)
+        && (payload.indexOf('tempBar') == -1)
+        && (payload.indexOf('clock') == -1)) {
+      console.log("parsePayload(): [" + payload + "]\r\n");
+    }
     if ( payload.indexOf('updateDOM:') !== -1 ) { 
       addLogLine("parsePayload(): received 'updateDOM:'");
       let payloadData = payload.replace("updateDOM:", "");
@@ -201,16 +212,18 @@ static const char serverIndex[] PROGMEM =
       if (readRaw) {
         for (let i=0; i<singlePair.length; i++) {
           singleFld = singlePair[i].split("=");
-          addLogLine("TD id="+singleFld[0]+" Val="+singleFld[1]);
+          if (singleFld[0].indexOf("name") !== -1) {
+            sensorNr = singleFld[0].replace("name", "") * 1;
+          }
           var TD = TR.insertCell(i); 
           TD.setAttribute("id", singleFld[0]);
           if (singleFld[0].indexOf('name') !== -1) {
             TD.innerHTML = singleFld[1]; 
-            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
+            TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
           } else if (singleFld[0].indexOf('tempC') !== -1) {
             TD.innerHTML = singleFld[1]; 
             TD.setAttribute("align", "right");
-            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
+            TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
           } else if (singleFld[0].indexOf('tempBar') !== -1) {
             // skip
           } else if (singleFld[0].indexOf('index') !== -1) {
@@ -228,24 +241,27 @@ static const char serverIndex[] PROGMEM =
         // compensated mode -- skip first two fields --
         for (let i=2; i<singlePair.length; i++) {
           singleFld = singlePair[i].split("=");
-          addLogLine("TD id="+singleFld[0]+" Val="+singleFld[1]);
+          if (singleFld[0].indexOf("name") !== -1) {
+            sensorNr = singleFld[0].replace("name", "") * 1;
+          }
           var TD = TR.insertCell(i-2); 
           TD.setAttribute("id", singleFld[0]);
           if (singleFld[0].indexOf('name') !== -1) {
             TD.innerHTML = singleFld[1]; 
-            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
+            TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
           } else if (singleFld[0].indexOf('tempC') !== -1) {
             TD.innerHTML = singleFld[1]; 
             TD.setAttribute("align", "right");
-            TD.setAttribute("style", "font-size: 20pt; padding-left:10px;");
+            TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
           } else if (singleFld[0].indexOf('tempBar') !== -1) {
             TD.setAttribute("align", "left");
-            TD.setAttribute("style", "padding-left:30px; width:300px; height: 20px;");
+            TD.setAttribute("style", "padding-left:30px; width:300px; height: 18px;");
             var SPAN = document.createElement("span");
             SPAN.setAttribute("class", "progressBar");
             var DIV = document.createElement("div");
             DIV.setAttribute("id", singleFld[0]+"B");
             DIV.setAttribute("class", "tempBar");
+            DIV.setAttribute("style", "background-color:"+colors[(sensorNr%colors.length)]+";");
             SPAN.appendChild(DIV);
             TD.appendChild(SPAN);
           }
@@ -286,37 +302,34 @@ static const char serverIndex[] PROGMEM =
         singlePair = payload.split(":");
         for (let i=0; i<singlePair.length; i++) {
           singleFld = singlePair[i].split("=");
-          //let sensorNr = singleFld[1] * 1;
-          console.log("plotPoint fldnr["+i+"] fldName["+singleFld[0]+"]fldVal["+singleFld[1]+"]");
+          //console.log("plotPoint fldnr["+i+"] fldName["+singleFld[0]+"]fldVal["+singleFld[1]+"]");
           if (i == 0) { // this is the dataPoint for the next itterations
             var dataPoint = singleFld[1] * 1;
-            console.log("dataPoint ["+dataPoint+"]");
+            //console.log("dataPoint ["+dataPoint+"]");
             
           } else if (i==1) {  // this gives timestamp
             let timeStamp = timestamp2Date(singleFld[1] * 1); // timeStamp
             //Labels[dataPoint] = timeStamp; // timeStamp
             sensorData.labels[dataPoint] = timeStamp;
-            console.log("sensorData.labels["+dataPoint+"] is ["+sensorData.labels[dataPoint]+"]");
+            //console.log("sensorData.labels["+dataPoint+"] is ["+sensorData.labels[dataPoint]+"]");
             
           } else if (i>1) { // this gives the tempC for every sensorID
             var sensorID = singleFld[0].replace("S", "") * 1;
-            //sensorL[sensorID] = singleFld[0];
             sensorData.datasets[sensorID].label = singleFld[0];
-            //console.log("sensorID["+sensorID+"] tempC["+sensorL[sensorID]+"]");
-            //dataSet[dataPoint] = singleFld[1];
-            sensorData.datasets[sensorID].data[dataPoint] = singleFld[1];
-            console.log("["+sensorData.datasets[sensorID].label+"] sensorData.datasets["+sensorID+"].data["
-                                  +dataPoint+"] => tempC["+sensorData.datasets[sensorID].data[dataPoint]+"]");
+            sensorData.datasets[sensorID].data[dataPoint] = parseFloat(singleFld[1]).toFixed(1);
+            //console.log("["+sensorData.datasets[sensorID].label+"] sensorData.datasets["+sensorID+"].data["
+            //                      +dataPoint+"] => tempC["+sensorData.datasets[sensorID].data[dataPoint]+"]");
           }
         } // for i ..
         
+        /**
         for(let p=0; p<_MAX_DATAPOINTS; p++) {
             console.log("sensorData.labels["+p+"]:"+sensorData.labels[p]);
             for(let s=0; s<noSensors; s++) {
               console.log("sensorL["+s+"]["+sensorL[s]+"] -> sensorData.datasets["+s+"].data["+p+"]:"+sensorData.datasets[s].data[p]);
             }
         }
-
+        **/
         myChart.update();
       }
       else {  
@@ -352,23 +365,23 @@ static const char serverIndex[] PROGMEM =
       TH = TR.insertCell(2);
       TH.innerHTML = "Naam";
       TH.setAttribute("align", "left");
-      TH.setAttribute("style", "font-size: 16pt; width: 300px; padding-left:10px;");
+      TH.setAttribute("style", "font-size: 14pt; width: 300px; padding-left:10px;");
 
       TH = TR.insertCell(3);
       TH.innerHTML = "Temperatuur";
       TH.setAttribute("align", "right");
-      TH.setAttribute("style", "font-size: 16pt; width: 150px; padding-left:10px;");
+      TH.setAttribute("style", "font-size: 14pt; width: 150px; padding-left:10px;");
       
     } else {
       addLogLine("==> [!readRaw (compensated)] --> insert 3 cell's");
       var TH = TR.insertCell(0);
       TH.innerHTML = "Naam";
       TH.setAttribute("align", "left");
-      TH.setAttribute("style", "font-size: 16pt; width: 250px; padding-left:10px;");
+      TH.setAttribute("style", "font-size: 14pt; width: 250px; padding-left:10px;");
       TH = TR.insertCell(1);
       TH.innerHTML = "Temperatuur";
       TH.setAttribute("align", "right");
-      TH.setAttribute("style", "font-size: 16pt; width: 150px; padding-left:10px;");
+      TH.setAttribute("style", "font-size: 14pt; width: 150px; padding-left:10px;");
       TH = TR.insertCell(2);
       TH.innerHTML = "temp Bar";
       TH.setAttribute("id", "barRange");
@@ -396,7 +409,7 @@ static const char serverIndex[] PROGMEM =
       var dataSet = sensorData.datasets[s];
       dataSet.label = null; //"S"+s; //contains the 'Y; axis label
       dataSet.fill  = 'false';
-      dataSet.borderColor = colors[(s%6)];
+      dataSet.borderColor = colors[(s%colors.length)];
       dataSet.data = []; //contains the 'Y; axis data
 
       for (let p = 0; p < _MAX_DATAPOINTS; p++) {
@@ -418,10 +431,15 @@ static const char serverIndex[] PROGMEM =
     var day = date.getDate();
     var hours = date.getHours();
     var minutes = date.getMinutes();
-    return day+" "+hours+":"+minutes;
+    return "("+day+") "+pad(hours, 2)+":"+pad(minutes, 2);
     
   } // timestamp2Date()  
 
+  function pad(num, size) {
+    var s = num+"";
+    while (s.length < size) s = "0" + s;
+    return s;
+  }
   
   function setRawMode() {
     if (document.getElementById('rawTemp').checked)  {

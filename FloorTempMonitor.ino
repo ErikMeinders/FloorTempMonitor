@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic 
 */
-#define _FW_VERSION "v0.4.0 (15-09-2019)"
+#define _FW_VERSION "v0.4.0 (18-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -41,11 +41,11 @@
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
-#define ONE_WIRE_BUS          0   // Data wire is plugged into GPIO-00
+#define ONE_WIRE_BUS          0     // Data wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
 #define _MAX_SENSORS          20
-#define _MAX_DATAPOINTS       50
-#define _PLOT_INTERVAL        300  // in seconds
+#define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
+#define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -86,14 +86,16 @@ int8_t    noSensors;
 bool      readRaw = false;
 uint8_t   wsClientID;
 uint32_t  lastPlotTime  = 0;
+int8_t    lastSaveHour = 0;
 
 
 //===========================================================================================
 void handleIndexPage() 
 {
   DebugTln("now in handleIndexPage() ..");
-  String indexHtml = serverIndex;
-  httpServer.send(200, "text/html", indexHtml);
+  //String indexHtml = serverIndex;
+  httpServer.send(200, "text/html", String(serverIndex));
+  //httpServer.send(200, "text/html", indexHtml);
 }
 
 

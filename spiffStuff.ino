@@ -159,8 +159,8 @@ bool writeDataPoints()
   } // if (!dataFile)
   
   yield();
-  for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
-    dataFile.print(p);                        dataFile.print(";");
+  for (int p=(_MAX_DATAPOINTS -1); p >= 0 ; p--) {  // last dataPoint is alway's zero
+    //dataFile.print(p);                        dataFile.print(";");
     dataFile.print(dataStore[p].timestamp);   dataFile.print(";");
     for(int s=0; s < noSensors; s++) {
       dataFile.print(s);                      dataFile.print(";");
@@ -187,6 +187,7 @@ bool readDataPoints()
   String tmpS;
   float pf, sf, tempC, tmpf;
   int p, s;
+  int16_t plotNr;
   
   DebugTln("readDataPoints(/dataPoints.csv) ..");
 
@@ -201,28 +202,29 @@ bool readDataPoints()
     Debugln("Some error opening [dataPoints.csv] .. bailing out!");
     return false;
   } // if (!dataFile)
-  
-  while (dataFile.available() > 0) {
-  yield();
+
+  plotNr = _MAX_DATAPOINTS;
+  while ((dataFile.available() > 0) && (plotNr > 0)) {
+    plotNr--;
+    yield();
     tmpS     = dataFile.readStringUntil('\n');
-    DebugTf("Record[%s]\n", tmpS.c_str());
+    //Debugf("Record[%d][%s]\n", plotNr, tmpS.c_str());
     if (tmpS == "EOF") break;
  
     getFloat(tmpS, pf);
-    p = (int)pf;
-    getFloat(tmpS, pf);
-    dataStore[p].timestamp = (int)pf;
+    dataStore[plotNr].timestamp = (int)pf;
     while (getFloat(tmpS, sf)) {
       yield();
       s = (int)sf;
       getFloat(tmpS, tempC);
-      dataStore[p].tempC[s] = tempC;
+      dataStore[plotNr].tempC[s] = tempC;
     }
     //dataFile.print(dataStore[p].tempC[s]);  dataFile.print(";");
   }    
 
   dataFile.close();  
 
+  /*********
   Debugln("========================================================================================");
 
   char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
@@ -242,8 +244,9 @@ bool readDataPoints()
 
   }
   Debugln("========================================================================================");
+  *********/
 
-  Debugln(" .. Done\r");
+  Debugln(" .. Done \r");
 
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 

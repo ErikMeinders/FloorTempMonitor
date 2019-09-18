@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic 
 */
-#define _FW_VERSION "v0.0.2 (14-09-2019)"
+#define _FW_VERSION "v0.4.0 (18-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -20,7 +20,7 @@
     - VTables: "Flash"
     - Flash Frequency: "40MHz"
     - CPU Frequency: "80 MHz"
-    - Buildin Led: "2"  // ESP-01 (Black) GPIO01 - Pin 2 // "2" for Wemos and ESP-01S
+    - Buildin Led: "2"  //  "2" for Wemos and ESP-12
     - Upload Speed: "115200"                                                                                                                                                                                                                                                 
     - Erase Flash: "Only Sketch"
     - Port: <select correct port>
@@ -38,13 +38,14 @@
 #include "networkStuff.h"
 #include "indexPage.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
-#include <OneWire.h>
-#include <DallasTemperature.h>
+#include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
+#include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
-// Data wire is plugged into GPIO-00
-#define ONE_WIRE_BUS 0
+#define ONE_WIRE_BUS          0     // Data wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
-#define _MAX_SENSORS  25
+#define _MAX_SENSORS          20
+#define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
+#define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -67,7 +68,13 @@ typedef struct {
   float   tempC;
 } sensorStruct;
 
+typedef struct {
+  uint32_t  timestamp;
+  float     tempC[_MAX_SENSORS];
+} dataStruct;
+
 sensorStruct  sensorArray[_MAX_SENSORS];
+dataStruct    dataStore[_MAX_DATAPOINTS];
 
 bool      SPIFFSmounted = false;
 char      cMsg[150], fChar[10];
@@ -78,14 +85,17 @@ uint32_t  nextPollTimer;
 int8_t    noSensors;
 bool      readRaw = false;
 uint8_t   wsClientID;
+uint32_t  lastPlotTime  = 0;
+int8_t    lastSaveHour = 0;
 
 
 //===========================================================================================
 void handleIndexPage() 
 {
   DebugTln("now in handleIndexPage() ..");
-  String indexHtml = serverIndex;
-  httpServer.send(200, "text/html", indexHtml);
+  //String indexHtml = serverIndex;
+  httpServer.send(200, "text/html", String(serverIndex));
+  //httpServer.send(200, "text/html", indexHtml);
 }
 
 
@@ -211,8 +221,8 @@ void setup()
   oneWire.reset_search();
   for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
     oneWire.search(DS18B20);
-    getDevAddress(DS18B20, cMsg);
-    DebugTf("Device %2d Address: [%s] ..\n", sensorNr, cMsg);
+    getSensorID(DS18B20, cMsg);
+    DebugTf("Device %2d sensorID: [%s] ..\n", sensorNr, cMsg);
     if (!readIniFile(sensorNr, cMsg)) {
       appendIniFile(sensorNr, cMsg);
     }
@@ -226,6 +236,10 @@ void setup()
   sortSensors();
   printSensorArray();
   Debugln("========================================================================================");
+
+  readDataPoints();
+  
+  lastPlotTime = now() / _PLOT_INTERVAL;
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());  
@@ -242,6 +256,7 @@ void loop()
 
   if ((millis() - nextPollTimer) > 5000) {
     nextPollTimer = millis();
+    digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
 
     // call sensors.requestTemperatures() to issue a global temperature
     // request to all devices on the bus

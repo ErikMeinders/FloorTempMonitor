@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : helperStuff, part of FloorTempMonitor
-**  Version  : v1.0.3
+**  Version  : v0.4.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -12,18 +12,31 @@
 
 // function to print a device address
 //===========================================================================================
-void getDevAddress(DeviceAddress deviceAddress, char* devAddr)
+void getSensorID(DeviceAddress deviceAddress, char* devAddr)
 {
   sprintf(devAddr, "0x%02x%02x%02x%02x%02x%02x%02x%02x", deviceAddress[0], deviceAddress[1]
                                                        , deviceAddress[2], deviceAddress[3]
                                                        , deviceAddress[4], deviceAddress[5]
                                                        , deviceAddress[6], deviceAddress[7]);
-} // getDevAddress()
+} // getSensorID()
 
 // function to print the temperature for a device
 //===========================================================================================
 void printTemperature(int8_t devNr)
 {
+  //-- time to shift datapoints?
+  if ( ((now() / _PLOT_INTERVAL) > lastPlotTime) && (devNr == 0)) {
+    lastPlotTime = (now() / _PLOT_INTERVAL);
+    dataStore[(_MAX_DATAPOINTS -1)].timestamp = now();
+    shiftUpDatapoints();
+    printDatapoints();
+    //-- no point in wear out the flash memory 
+    if (hour() != lastSaveHour) {
+      lastSaveHour = hour();
+      writeDataPoints();
+    }
+  }
+
   float tempR = sensors.getTempCByIndex(sensorArray[devNr].index);
   float tempC = tempR;
   //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
@@ -57,6 +70,9 @@ void printTemperature(int8_t devNr)
   int8_t mapTemp = map(tempC, 10, 60, 0, 100); // mappen naar 0-100% van de bar
   sprintf(cMsg, "tempBar%dB=%d", devNr, mapTemp);
   webSocket.sendTXT(wsClientID, cMsg);
+    
+  dataStore[(_MAX_DATAPOINTS -1)].timestamp = now();
+  dataStore[(_MAX_DATAPOINTS -1)].tempC[devNr] = tempC;
 
 } // printTemperature
 
@@ -67,8 +83,8 @@ void printData(int8_t devNr)
 {
   char devAddr[20];
 
-  //getDevAddress(deviceAddress, devAddr);
-  Debugf("Device Address: [%s] [%-30.30s] ", sensorArray[devNr].sensorID, sensorArray[devNr].name);
+  //getSensorID(deviceAddress, devAddr);
+  Debugf("SensorID: [%s] [%-30.30s] ", sensorArray[devNr].sensorID, sensorArray[devNr].name);
   //printTemperature(sensorArray[devNr].sensorID);
   printTemperature(devNr);
   Debugln();
@@ -110,7 +126,45 @@ void sortSensors()
  
 } // sortSensors()
 
+//=======================================================================
+void shiftUpDatapoints() 
+{
+  for (int p = 0; p < (_MAX_DATAPOINTS -1); p++) {
+    dataStore[p] = dataStore[(p+1)];
+  }
+  for (int s=0; s < _MAX_SENSORS; s++) {
+    dataStore[(_MAX_DATAPOINTS -1)].tempC[s] = 0;
+  }
+  
+} // shiftUpDatapoints()
 
+//=======================================================================
+void printDatapoints() 
+{
+  char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
+  char cLine[(sizeof(cPoints) + 20)];
+
+  Debugln();
+  for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
+    yield();
+    sprintf(cMsg, "plotPoint=%d:TS=%d", p, dataStore[p].timestamp);
+    //DebugTf("[%s]\n", cMsg);
+    cPoints[0] = '\0';
+    for(int s=0; s < noSensors; s++) {
+      if (s == 0)
+            sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
+      else  sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
+      //DebugTf("-->[%s]\n", cPoints);
+    }
+    sprintf(cLine, "%s:%s", cMsg, cPoints);
+    if (dataStore[p].timestamp > 0) {
+      //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
+      webSocket.sendTXT(wsClientID, cLine);
+      delay(10);  //-- give it some time to finish
+    }
+  }
+  
+} // printDatapoints()
 
 /***************************************************************************
 *

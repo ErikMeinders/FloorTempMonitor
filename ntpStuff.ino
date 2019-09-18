@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
-**  Program  : ntpStuff, part of this program
-**  Version  : v1.0.3
+**  Program  : ntpStuff, part of FloorTempMonitor
+**  Version  : v0.4.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **

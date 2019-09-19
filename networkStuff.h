@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : networkStuff.h, part of FloorTempMonitor
-**  Version  : v0.4.0
+**  Version  : v0.5.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -31,8 +31,8 @@ bool        isConnected = false;
 
 //gets called when WiFiManager enters configuration mode
 //===========================================================================================
-void configModeCallback (WiFiManager *myWiFiManager) {
-//===========================================================================================
+void configModeCallback (WiFiManager *myWiFiManager) 
+{
   DebugTln("Entered config mode\r");
   DebugTln(WiFi.softAPIP().toString());
   //if you used auto generated SSID, print it
@@ -42,8 +42,8 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 
 
 //===========================================================================================
-void startWiFi() {
-//===========================================================================================
+void startWiFi() 
+{
   WiFiManager manageWiFi;
 
   String thisAP = String(_HOSTNAME) + "-" + WiFi.macAddress();
@@ -84,9 +84,8 @@ void startWiFi() {
 
 
 //===========================================================================================
-void startTelnet() {
-//===========================================================================================
-        
+void startTelnet() 
+{
   TelnetStream.begin();
   DebugTln("\nTelnet server started ..");
   TelnetStream.flush();
@@ -95,8 +94,8 @@ void startTelnet() {
 
 
 //=======================================================================
-void startMDNS(const char *Hostname) {
-//=======================================================================
+void startMDNS(const char *Hostname) 
+{
   DebugTf("[1] mDNS setup as [%s.local]\r\n", Hostname);
   if (MDNS.begin(Hostname)) {              // Start the mDNS responder for Hostname.local
     DebugTf("[2] mDNS responder started as [%s.local]\r\n", Hostname);

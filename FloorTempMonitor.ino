@@ -1,12 +1,12 @@
 /*
-**  Program   : ESP8266_basic 
+**  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.4.0 (18-09-2019)"
+#define _FW_VERSION "v0.5.0 (19-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
-**  TERMS OF USE: MIT License. See bottom of file.                                                            
-***************************************************************************      
+**  TERMS OF USE: MIT License. See bottom of file.
+***************************************************************************
   Arduino-IDE settings for this program:
 
     - Board: "Generic ESP8266 Module"
@@ -16,12 +16,12 @@
     - DebugT Level: "None"
     - IwIP Variant: "v2 Lower Memory"
     - Reset Method: "none"   // but will depend on the programmer!
-    - Crystal Frequency: "26 MHz" 
+    - Crystal Frequency: "26 MHz"
     - VTables: "Flash"
     - Flash Frequency: "40MHz"
     - CPU Frequency: "80 MHz"
     - Buildin Led: "2"  //  "2" for Wemos and ESP-12
-    - Upload Speed: "115200"                                                                                                                                                                                                                                                 
+    - Upload Speed: "115200"
     - Erase Flash: "Only Sketch"
     - Port: <select correct port>
 */
@@ -33,7 +33,8 @@
 #define SHOW_PASSWRDS
 /******************** don't change anything below this comment **********************/
 
-#include <TimeLib.h>            //  https://github.com/PaulStoffregen/Time
+#include <Timezone.h>           // https://github.com/JChristensen/Timezone
+#include <TimeLib.h>            // https://github.com/PaulStoffregen/Time
 #include "Debug.h"
 #include "networkStuff.h"
 #include "indexPage.h"
@@ -45,6 +46,7 @@
 #define TEMPERATURE_PRECISION 12
 #define _MAX_SENSORS          20
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
+#define _POLL_INTERVAL        10000 // evry 10 seconds
 #define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -55,6 +57,12 @@ DallasTemperature sensors(&oneWire);
 
 // arrays to hold device addresses
 DeviceAddress DS18B20;
+
+// Central European Time (Frankfurt, Paris)
+TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};   // Central European Summer Time
+TimeChangeRule CET  = {"CET ", Last, Sun, Oct, 3, 60};    // Central European Standard Time
+Timezone CE(CEST, CET);
+TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ abbrev
 
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
@@ -79,18 +87,18 @@ dataStruct    dataStore[_MAX_DATAPOINTS];
 bool      SPIFFSmounted = false;
 char      cMsg[150], fChar[10];
 String    pTimestamp;
-int8_t    prevNtpHour = 0;
+int8_t    prevNtpHour   = 0;
 uint64_t  upTimeSeconds;
 uint32_t  nextPollTimer;
 int8_t    noSensors;
 bool      readRaw = false;
 uint8_t   wsClientID;
 uint32_t  lastPlotTime  = 0;
-int8_t    lastSaveHour = 0;
+int8_t    lastSaveHour  = 0;
 
 
 //===========================================================================================
-void handleIndexPage() 
+void handleIndexPage()
 {
   DebugTln("now in handleIndexPage() ..");
   //String indexHtml = serverIndex;
@@ -100,29 +108,30 @@ void handleIndexPage()
 
 
 //===========================================================================================
-String upTime() 
+String upTime()
 {
   char    calcUptime[20];
 
   sprintf(calcUptime, "%d(d):%02d(h):%02d", int((upTimeSeconds / (60 * 60 * 24)) % 365)
-                                          , int((upTimeSeconds / (60 * 60)) % 24)
-                                          , int((upTimeSeconds / (60)) % 60));
+          , int((upTimeSeconds / (60 * 60)) % 24)
+          , int((upTimeSeconds / (60)) % 60));
   return calcUptime;
 
 } // upTime()
 
 
 //===========================================================================================
-void setup() 
+void setup()
 {
   Serial.begin(115200);
   Debugln("\nBooting ... \n");
+  Debugf("[%s] %s  compiled [%s %s]\n", _HOSTNAME, _FW_VERSION, __DATE__, __TIME__);
 
   pinMode(LED_BUILTIN, OUTPUT);
 
   startWiFi();
   startTelnet();
-   
+
   Debug("Gebruik 'telnet ");
   Debug(WiFi.localIP());
   Debugln("' voor verdere debugging");
@@ -147,10 +156,10 @@ void setup()
   }
 //================ SPIFFS ===========================================
   if (!SPIFFS.begin()) {
-    DebugTln("SPIFFS Mount failed\r");   // Serious problem with SPIFFS 
+    DebugTln("SPIFFS Mount failed\r");   // Serious problem with SPIFFS
     SPIFFSmounted = false;
-    
-  } else { 
+
+  } else {
     DebugTln("SPIFFS Mount succesfull\r");
     SPIFFSmounted = true;
   }
@@ -158,7 +167,7 @@ void setup()
 
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  
+
   httpServer.on("/",           handleIndexPage);
   httpServer.on("/index.html", handleIndexPage);
   httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
@@ -202,7 +211,7 @@ void setup()
 
   //--- report parasite power requirements
   DebugT("Parasite power is: ");
-  if (sensors.isParasitePowerMode()) 
+  if (sensors.isParasitePowerMode())
         Debugln("ON");
   else  Debugln("OFF");
 
@@ -238,23 +247,23 @@ void setup()
   Debugln("========================================================================================");
 
   readDataPoints();
-  
+
   lastPlotTime = now() / _PLOT_INTERVAL;
 
   String DT = buildDateTimeString();
-  DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());  
+  DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
 
 } // setup()
 
 
-void loop() 
+void loop()
 {
   httpServer.handleClient();
   webSocket.loop();
   MDNS.update();
   handleWebSockRefresh();
 
-  if ((millis() - nextPollTimer) > 5000) {
+  if ((millis() - nextPollTimer) > _POLL_INTERVAL) {
     nextPollTimer = millis();
     digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
 
@@ -272,8 +281,7 @@ void loop()
 #if defined(USE_NTP_TIME)                                                         //USE_NTP
   if (timeStatus() == timeNeedsSync || prevNtpHour != hour()) {                   //USE_NTP
     prevNtpHour = hour();                                                         //USE_NTP
-    setSyncProvider(getNtpTime);                                                  //USE_NTP
-    setSyncInterval(600);                                                         //USE_NTP
+    synchronizeNTP();                                                             //USE_NTP
   }                                                                               //USE_NTP
 #endif                                                                            //USE_NTP
 

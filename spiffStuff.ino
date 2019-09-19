@@ -1,32 +1,32 @@
 /*
-***************************************************************************  
+***************************************************************************
 **  Program  : spiffsStuff, part of FloorTempMonitor
-**  Version  : v0.4.0
+**  Version  : v0.5.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
-**  TERMS OF USE: MIT License. See bottom of file.                                                            
-***************************************************************************      
+**  TERMS OF USE: MIT License. See bottom of file.
+***************************************************************************
 */
 
 static      FSInfo SPIFFSinfo;
 
 //===========================================================================================
-int32_t freeSpace() {
-//===========================================================================================
+int32_t freeSpace()
+{
   int32_t space;
-  
+
   SPIFFS.info(SPIFFSinfo);
 
   space = (int32_t)(SPIFFSinfo.totalBytes - SPIFFSinfo.usedBytes);
 
   return space;
-  
+
 } // freeSpace()
 
 //===========================================================================================
-void listSPIFFS() {
-//===========================================================================================
+void listSPIFFS()
+{
   Dir dir = SPIFFS.openDir("/");
 
   DebugTln("\r\n");
@@ -40,7 +40,7 @@ void listSPIFFS() {
 
   Debugln("\r");
   if (freeSpace() < (10 * SPIFFSinfo.blockSize))
-        Debugf("Available SPIFFS space [%6d]kB (LOW ON SPACE!!!)\r\n", (freeSpace() / 1024));
+    Debugf("Available SPIFFS space [%6d]kB (LOW ON SPACE!!!)\r\n", (freeSpace() / 1024));
   else  Debugf("Available SPIFFS space [%6d]kB\r\n", (freeSpace() / 1024));
   Debugf("           SPIFFS Size [%6d]kB\r\n", (SPIFFSinfo.totalBytes / 1024));
   Debugf("     SPIFFS block Size [%6d]bytes\r\n", SPIFFSinfo.blockSize);
@@ -52,7 +52,7 @@ void listSPIFFS() {
 
 
 //===========================================================================================
-bool appendIniFile(int8_t index, char* devAddr) 
+bool appendIniFile(int8_t index, char* devAddr)
 {
   DebugTf("appendIniFile(/sensors.ini) .. [%d] - Address[%s] ", index, devAddr);
 
@@ -60,14 +60,14 @@ bool appendIniFile(int8_t index, char* devAddr)
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
     return false;
   }
-  
+
   // --- check if the file exists and can be opened ---
   File dataFile  = SPIFFS.open("/sensors.ini", "a");    // open for append writing
   if (!dataFile) {
     Debugln("Some error opening [sensors.ini] .. bailing out!");
     return false;
   } // if (!dataFile)
-  
+
   yield();
   sensorArray[index].index = index;
   sprintf(sensorArray[index].sensorID, "%s", devAddr);
@@ -75,32 +75,37 @@ bool appendIniFile(int8_t index, char* devAddr)
   sprintf(sensorArray[index].name, "unKnown sensor");
   sensorArray[index].tempOffset = 0.00000;
   sensorArray[index].tempFactor = 1.00000;
- 
+
   yield();
-  dataFile.print(sensorArray[index].sensorID);       dataFile.print("; ");
-  dataFile.print(sensorArray[index].position);      dataFile.print("; ");
-  dataFile.print(sensorArray[index].name);          dataFile.print("; ");
-  dataFile.print(sensorArray[index].tempOffset, 6); dataFile.print("; ");
-  dataFile.print(sensorArray[index].tempFactor, 6); dataFile.print("; ");
+  dataFile.print(sensorArray[index].sensorID);
+  dataFile.print("; ");
+  dataFile.print(sensorArray[index].position);
+  dataFile.print("; ");
+  dataFile.print(sensorArray[index].name);
+  dataFile.print("; ");
+  dataFile.print(sensorArray[index].tempOffset, 6);
+  dataFile.print("; ");
+  dataFile.print(sensorArray[index].tempFactor, 6);
+  dataFile.print("; ");
   dataFile.println();
 
-  dataFile.close();  
+  dataFile.close();
 
   Debugln(" .. Done\r");
 
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 
   return true;
-  
+
 } // appendIniFile()
 
 
 //===========================================================================================
-bool readIniFile(int8_t index, char *devAddr) 
+bool readIniFile(int8_t index, char *devAddr)
 {
   File    dataFile;
   String  tmpS;
-  
+
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 
   DebugTf("readIniFile(/sensors.ini) .. Address[%s] \r\n", devAddr);
@@ -125,13 +130,13 @@ bool readIniFile(int8_t index, char *devAddr)
       sensorArray[index].tempOffset  = dataFile.readStringUntil(';').toFloat();
       sensorArray[index].tempFactor  = dataFile.readStringUntil(';').toFloat();
       String n = dataFile.readStringUntil('\n');
-      dataFile.close();  
+      dataFile.close();
       return true;
     }
     String n = dataFile.readStringUntil('\n');  // goto next record
   }
-  
-  dataFile.close();  
+
+  dataFile.close();
 
   DebugTln(" .. Done not found!\r");
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
@@ -142,7 +147,7 @@ bool readIniFile(int8_t index, char *devAddr)
 
 
 //===========================================================================================
-bool writeDataPoints() 
+bool writeDataPoints()
 {
   DebugTln("writeDataPoints(/dataPoints.csv) ..");
 
@@ -150,52 +155,55 @@ bool writeDataPoints()
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
     return false;
   }
-  
+
   // --- check if the file exists and can be opened ---
   File dataFile  = SPIFFS.open("/dataPoints.csv", "w");    // open for writing
   if (!dataFile) {
     Debugln("Some error opening [dataPoints.csv] .. bailing out!");
     return false;
   } // if (!dataFile)
-  
+
   yield();
   for (int p=(_MAX_DATAPOINTS -1); p >= 0 ; p--) {  // last dataPoint is alway's zero
     //dataFile.print(p);                        dataFile.print(";");
-    dataFile.print(dataStore[p].timestamp);   dataFile.print(";");
+    dataFile.print(dataStore[p].timestamp);
+    dataFile.print(";");
     for(int s=0; s < noSensors; s++) {
-      dataFile.print(s);                      dataFile.print(";");
-      dataFile.print(dataStore[p].tempC[s]);  dataFile.print(";");
+      dataFile.print(s);
+      dataFile.print(";");
+      dataFile.print(dataStore[p].tempC[s]);
+      dataFile.print(";");
     }
     dataFile.println();
   }
   dataFile.println("EOF");
 
-  dataFile.close();  
+  dataFile.close();
 
   Debugln(" .. Done\r");
 
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 
   return true;
-  
+
 } // writeDataPoints()
 
 
 //===========================================================================================
-bool readDataPoints() 
+bool readDataPoints()
 {
   String tmpS;
   float pf, sf, tempC, tmpf;
   int p, s;
   int16_t plotNr;
-  
+
   DebugTln("readDataPoints(/dataPoints.csv) ..");
 
   if (!SPIFFSmounted) {
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
     return false;
   }
-  
+
   // --- check if the file exists and can be opened ---
   File dataFile  = SPIFFS.open("/dataPoints.csv", "r");    // open for reading
   if (!dataFile) {
@@ -210,53 +218,30 @@ bool readDataPoints()
     tmpS     = dataFile.readStringUntil('\n');
     //Debugf("Record[%d][%s]\n", plotNr, tmpS.c_str());
     if (tmpS == "EOF") break;
- 
-    getFloat(tmpS, pf);
+
+    extractFieldFromCsv(tmpS, pf);
     dataStore[plotNr].timestamp = (int)pf;
-    while (getFloat(tmpS, sf)) {
+    while (extractFieldFromCsv(tmpS, sf)) {
       yield();
       s = (int)sf;
-      getFloat(tmpS, tempC);
+      extractFieldFromCsv(tmpS, tempC);
       dataStore[plotNr].tempC[s] = tempC;
     }
     //dataFile.print(dataStore[p].tempC[s]);  dataFile.print(";");
-  }    
-
-  dataFile.close();  
-
-  /*********
-  Debugln("========================================================================================");
-
-  char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
-  char cLine[(sizeof(cPoints) + 20)];
-  
-  for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
-    sprintf(cMsg, "plotPoint=%d:TS=%d", p, dataStore[p].timestamp);
-    for(int s=0; s < noSensors; s++) {
-      if (s == 0)
-            sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
-      else  sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
-    }
-    sprintf(cLine, "%s:%s", cMsg, cPoints);
-    if (dataStore[p].timestamp > 0) {
-      DebugTf("[%s]\n", cLine);
-    }
-
   }
-  Debugln("========================================================================================");
-  *********/
+
+  dataFile.close();
 
   Debugln(" .. Done \r");
-
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 
   return true;
-  
+
 } // readDataPoints()
 
 
 //===========================================================================================
-bool getFloat(String &in, float &f)
+bool extractFieldFromCsv(String &in, float &f)
 {
   char  field[in.length()];
   int   p = 0;
@@ -284,8 +269,8 @@ bool getFloat(String &in, float &f)
 
   f = String(field).toFloat();
   return true;
-  
-} // getFloat()
+
+} // extractFieldFromCsv()
 
 /***************************************************************************
 *
@@ -307,5 +292,5 @@ bool getFloat(String &in, float &f)
 * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
 * OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-* 
+*
 ***************************************************************************/

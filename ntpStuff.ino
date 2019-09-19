@@ -1,19 +1,19 @@
 /*
-***************************************************************************  
+***************************************************************************
 **  Program  : ntpStuff, part of FloorTempMonitor
-**  Version  : v0.4.0
+**  Version  : v0.5.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
-**  TERMS OF USE: MIT License. See bottom of file.                                                            
-***************************************************************************      
+**  TERMS OF USE: MIT License. See bottom of file.
+***************************************************************************
 */
 #if defined(USE_NTP_TIME)
 
-#include <WiFiUdp.h>            //                - part of ESP8266 Core https://github.com/esp8266/Arduino
+#include <WiFiUdp.h>            //--- part of ESP8266 Core https://github.com/esp8266/Arduino
 WiFiUDP           Udp;
 
-const int         timeZone = 1;       // Central European (Winter) Time
+int               timeZone  = 0;      // UTC
 unsigned int      localPort = 8888;   // local port to listen for UDP packets
 
 // NTP Servers:
@@ -22,7 +22,7 @@ static const char ntpPool[][30] = { "time.google.com",
                                     "0.nl.pool.ntp.org",
                                     "1.nl.pool.ntp.org",
                                     "3.nl.pool.ntp.org"
-                                   };
+                                  };
 static int        ntpPoolIndx = 0;
 
 char              ntpServerName[50];
@@ -36,16 +36,14 @@ static IPAddress  ntpServerIP; // NTP server's ip address
 
 
 //=======================================================================
-bool startNTP() {
-//=======================================================================
-  
+bool startNTP()
+{
   DebugTln("Starting UDP");
   Udp.begin(localPort);
   DebugT("Local port: ");
   Debugln(String(Udp.localPort()));
   DebugTln("waiting for NTP sync");
-  setSyncProvider(getNtpTime);
-  setSyncInterval(60);
+  synchronizeNTP();
   if (timeStatus() == timeSet) {    // time is set,
     return true;                    // exit with time set
   }
@@ -53,10 +51,26 @@ bool startNTP() {
 
 } // startNTP()
 
+//=======================================================================
+void synchronizeNTP()
+{
+  timeZone = 0;
+  setSyncProvider(getNtpTime);
+  setSyncInterval(600);
+  time_t utc = now();
+  DebugTf("[%02d:%02d:%02d] (UTC) ->timeZone[%d]\n", hour(utc), minute(utc), second(utc), timeZone);
+  timeZone = hour();
+  time_t local = CE.toLocal(utc, &tcr);
+  setTime(local);
+  timeZone = hour() - timeZone;
+  DebugTf("[%02d:%02d:%02d] (Central European) ->timeZone[%d]\n", hour(), minute(), second(), timeZone);
+
+} // synchronizeNTP()
+
 
 //=======================================================================
-time_t getNtpTime() {
-//=======================================================================
+time_t getNtpTime()
+{
   while(true) {
     yield;
     ntpPoolIndx++;
@@ -66,9 +80,16 @@ time_t getNtpTime() {
     sprintf(ntpServerName, "%s", String(ntpPool[ntpPoolIndx]).c_str());
 
     while (Udp.parsePacket() > 0) ; // discard any previously received packets
-    TelnetStream.println("Transmit NTP Request");
+    Serial.printf("%41.41s Transmit NTP Request\n", " ");
+    TelnetStream.printf("%41.41s Transmit NTP Request\n", " ");
     // get a random server from the pool
     WiFi.hostByName(ntpServerName, ntpServerIP);
+    Serial.printf("%41.41s ", " ");
+    Serial.print(ntpServerName);
+    Serial.print(": ");
+    Serial.println(ntpServerIP);
+    Serial.flush();
+    TelnetStream.printf("%41.41s ", " ");
     TelnetStream.print(ntpServerName);
     TelnetStream.print(": ");
     TelnetStream.println(ntpServerIP);
@@ -78,7 +99,6 @@ time_t getNtpTime() {
     while (millis() - beginWait < 1500) {
       int size = Udp.parsePacket();
       if (size >= NTP_PACKET_SIZE) {
-        //TelnetStream.print("Receive NTP Response: ");
         Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
         unsigned long secsSince1900;
         // convert four bytes starting at location 40 to a long integer
@@ -87,80 +107,24 @@ time_t getNtpTime() {
         secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
         secsSince1900 |= (unsigned long)packetBuffer[43];
         time_t t = (secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR);
-        sprintf(cMsg, "%02d:%02d:%02d", hour(t), minute(t), second(t));   
-        TelnetStream.printf("[%s] Received NTP Response => new time [%s]  (Winter)\r\n", cMsg, cMsg);
-        // return epoch ..
+
         return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
       }
     }
-    TelnetStream.println("No NTP Response :-(");
+    Serial.printf("%41.41s No NTP Response :-(\n", " ");
+    TelnetStream.printf("%41.41s No NTP Response :-(\n", " ");
 
   } // while true ..
-  
+
   return 0; // return 0 if unable to get the time
 
 } // getNtpTime()
 
-/*
-//=======================================================================
-time_t getNtpTime() {
-//=======================================================================
-  //IPAddress ntpServerIP; // NTP server's ip address
-  
-  while (Udp.parsePacket() > 0) { yield(); }  // discard any previously received packets
-
-  // get a random server from the pool
-  switch(ntpServerNr) {
-    case 0:   WiFi.hostByName(ntpServerName0, ntpServerIP);
-              ntpServerNr = 1;
-              break;
-    case 1:   WiFi.hostByName(ntpServerName1, ntpServerIP);
-              ntpServerNr = 2;
-              break;
-    case 2:   WiFi.hostByName(ntpServerName2, ntpServerIP);
-              ntpServerNr = 3;
-              break;
-    case 3:   WiFi.hostByName(ntpServerName3, ntpServerIP);
-              ntpServerNr = 1;
-              break;
-    case 4:   WiFi.hostByName(ntpServerName4, ntpServerIP);
-              ntpServerNr = 0;
-              break;
-    default:  WiFi.hostByName(ntpServerName0, ntpServerIP);
-              ntpServerNr = 1;
-              break;
-  }
-  
-  sendNTPpacket(ntpServerIP);
-  uint32_t beginWait = millis();
-  while (millis() - beginWait < 1500) {
-    int size = Udp.parsePacket();
-    if (size >= NTP_PACKET_SIZE) {
-      Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
-      unsigned long secsSince1900;
-      // convert four bytes starting at location 40 to a long integer
-      secsSince1900 =  (unsigned long)packetBuffer[40] << 24;
-      secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
-      secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
-      secsSince1900 |= (unsigned long)packetBuffer[43];
-      externalNtpTime = true;
-      return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
-    }
-    yield();
-  }
-  ntpServerNr++;
-  if (ntpServerNr > 4) ntpServerNr = 0;
-  DebugTln("No NTP Response :-(");
-  externalNtpTime = false;
-  return 0; // return 0 if unable to get the time
-
-} // getNtpTime()
-*/
 
 // send an NTP request to the time server at the given address
 //=======================================================================
-void sendNTPpacket(IPAddress &address) {
-//=======================================================================
+void sendNTPpacket(IPAddress &address)
+{
   // set all bytes in the buffer to 0
   memset(packetBuffer, 0, NTP_PACKET_SIZE);
   // Initialize values needed to form NTP request
@@ -179,61 +143,18 @@ void sendNTPpacket(IPAddress &address) {
   Udp.beginPacket(address, 123); //NTP requests are to port 123
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
-  
+
 } // sendNTPpacket()
 
 
 //===========================================================================================
-String buildDateTimeString() 
+String buildDateTimeString()
 {
   sprintf(cMsg, "%02d-%02d-%04d  %02d:%02d:%02d", day(), month(), year()
-                                                , hour(), minute(), second());
+          , hour(), minute(), second());
   return cMsg;
-    
+
 } // buildDateTimeString()
-
-
-//=======================================================================
-time_t dateTime2Epoch(char const *date, char const *time) 
-{
-    char s_month[5];
-    int year, day, h, m, s;
-    tmElements_t t;
-
-    static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-
-    if (sscanf(date, "%s %d %d", s_month, &day, &year) != 3) {
-      DebugTf("Not a valid date string [%s]\r\n", date);
-      return 0;
-    }
-    t.Day  = day;
-    // Find where is s_month in month_names. Deduce month value.
-    t.Month = (strstr(month_names, s_month) - month_names) / 3 + 1;
-    
-  //DebugTf("date=>[%d-%02d-%02d]\r\n", t.Year, t.Month, t.Day);
-    
-    // Find where is s_month in month_names. Deduce month value.
-    t.Month = (strstr(month_names, s_month) - month_names) / 3 + 1;
-
-    if (sscanf(time, "%2d:%2d:%2d", &h, &m, &s) != 3) {
-      DebugTf("Not a valid time string [%s] (time set to '0')\r\n", time);
-      h = 0;
-      m = 0;
-      s = 0;
-    }
-    t.Hour    = h;
-    t.Minute  = m;
-    t.Second  = s;
-    
-  //DebugTf("time=>[%02d:%02d:%02d]\r\n", t.Hour, t.Minute, t.Second);
-
-    t.Year = CalendarYrToTm(year);
-    
-  //DebugTf("converted=>[%d-%02d-%02d @ %02d:%02d:%02d]\r\n", t.Year, t.Month, t.Day, t.Hour, t.Minute, t.Second);
-
-    return makeTime(t);
-    
-} // dateTime2Epoch()
 
 #endif
 /***************************************************************************
@@ -256,5 +177,5 @@ time_t dateTime2Epoch(char const *date, char const *time)
 * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
 * OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-* 
+*
 ***************************************************************************/

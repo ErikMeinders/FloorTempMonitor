@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : indexPage.h, part of FloorTempMonitor
-**  Version  : v0.4.0
+**  Version  : v0.5.0
 **
 **  Mostly stolen from https://www.arduinoforum.de/User-Fips
 **  See also https://www.arduinoforum.de/arduino-Thread-SPIFFS-DOWNLOAD-UPLOAD-DELETE-Esp8266-NodeMCU
@@ -24,7 +24,6 @@ static const char serverIndex[] PROGMEM =
     .nav-img { top: 1px; display: inline-block; width: 40px; height: 40px; }
     .nav-item { display: inline-block; font-size: 16px; padding: 10px 0; height: 20px; border: none; color: black; }
     .progressBar { width: 100%; height: 16px; background: white; display: block; }
-    //.tempBar { width: 1%; height: 16px; margin-top: 2px; background: green;}
     .tempBar { width: 1%; height: 16px; margin-top: 2px;}
     #logWindow { font-size: 14px; margin-left: 20px; width: 90vw; height: 20vh; }
     .footer { position: fixed; left: 0; bottom: 0; width: 100%; color: gray; font-size: small; text-align: right; }
@@ -87,26 +86,18 @@ static const char serverIndex[] PROGMEM =
   let _MAX_DATAPOINTS = 100 -1;  // must be the same as in FloorTempMonitor in mail .ino -1 (last one is zero)
   let noSensors    = 1;
   //----- chartJS --------
-  var colors          = ['Green', 'CornflowerBlue', 'Red', 'Blue', 'Orange', 'Gray', 'Purple', 'Brown', 'BurlyWood'];
+  var colors          = ['Green', 'CornflowerBlue', 'Red', 'Yellow', 'FireBrick', 'Blue', 'Orange'
+                          , 'DeepSkyBlue', 'Gray', 'Purple', 'Brown', 'MediumVioletRed', 'LightSalmon'
+                          , 'BurlyWood', 'Gold'
+                         ];
   var Labels          = [];
   var sensorL         = [];
   var sensorData      = {};     //declare an object
   sensorData.labels   = [];     // add 'labels' element to object (X axis)
   sensorData.datasets = [];     // add 'datasets' array element to object
   
-/***
-  for(let p=0; p<_MAX_DATAPOINTS; p++) {
-    console.log("sensorData.labels["+p+"]: ["+sensorData.labels[p]+"]");
-    for(let s=0; s<noSensors; s++) {
-       console.log(" ---> sensorData.datasets["+s+"].data["+p+"]: ["+sensorData.datasets[s].data[p]+"]");
-    }
-  }
-  console.log("===================================");
-  console.log(sensorData);
-  console.log("===================================");
-***/
-  
   window.onload=bootsTrap;
+  
   window.onfocus = function() {
     if (needReload) {
       window.location.reload(true);
@@ -136,6 +127,7 @@ static const char serverIndex[] PROGMEM =
     needReload  = false;
     addLogLine("updateDOM");
     webSocketConn.send("updateDOM");
+    setDebugMode();
 
   }; 
   webSocketConn.onclose     = function () { 
@@ -160,11 +152,7 @@ static const char serverIndex[] PROGMEM =
     parsePayload(e.data); 
   };
 
-  var config = {
-    type: 'line',
-    data: {sensorData}
-  }
-
+  //-------------------------------------------------------------------------------------------
   var ctx = document.getElementById("sensorsChart").getContext("2d");
   var myChart = new Chart(ctx, {
             type: 'line',
@@ -189,6 +177,7 @@ static const char serverIndex[] PROGMEM =
             }
       });
 
+  //-------------------------------------------------------------------------------------------
   function parsePayload(payload) {
     if (   (payload.indexOf('plotPoint') == -1) 
         && (payload.indexOf('barRange') == -1)
@@ -197,11 +186,18 @@ static const char serverIndex[] PROGMEM =
         && (payload.indexOf('clock') == -1)) {
       console.log("parsePayload(): [" + payload + "]\r\n");
     }
-    if ( payload.indexOf('updateDOM:') !== -1 ) { 
+    // updateDOM:index<n>=<n>:sensorID<n>=<sensodID>:name<n>=<name>:tempC<n>=<->:tempBar<n>=<0>
+    if ( payload.indexOf('updateDOM:') !== -1 ) {             
       addLogLine("parsePayload(): received 'updateDOM:'");
       let payloadData = payload.replace("updateDOM:", "");
+      // index<n>=<n>:sensorID<n>=<sensodID>:name<n>=<name>:tempC<n>=<->:tempBar<n>=<0>
       addLogLine("parsePayload(): Data[" + payloadData + "]");
       singlePair = payloadData.split(":");
+      // [0] index<n>=<n>
+      // [1] sensorID<n>=<sensodID>
+      // [2] name<n>=<name>
+      // [3] tempC<n>=<->
+      // [4] tempBar<n>=<0>
       var MyTable = document.getElementById("Sensors"); 
       if (addHeader) {
         addTableHeader(MyTable); 
@@ -272,6 +268,8 @@ static const char serverIndex[] PROGMEM =
     
     } else {
       singleFld = payload.split("=");
+      // [0] noSensors
+      // [1] <noSensors>
       if (singleFld[0].indexOf("noSensors") > -1) {
         noSensors = singleFld[1] * 1;
         addLogLine("noSensors =>"+noSensors);
@@ -279,10 +277,14 @@ static const char serverIndex[] PROGMEM =
         myChart.update();
         
       } else if (singleFld[0].indexOf("tempC") > -1) {
+        // [0] tempC<n>
+        // [1] <nnn.nnn℃>
         addLogLine(singleFld[0]+"=>"+singleFld[1]);
         document.getElementById( singleFld[0]).innerHTML = singleFld[1];
         
       } else if (singleFld[0].indexOf("tempBar") > -1) {
+        // [0] tempBar<n>B
+        // [1] <perc>
         if (readRaw) {
           addLogLine("found tempBar: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
         } else {
@@ -291,6 +293,8 @@ static const char serverIndex[] PROGMEM =
         }
         
       } else if (singleFld[0].indexOf("barRange") > -1) {
+        // [0] barRange
+        // [1] <low x℃ - high y℃"
         if (readRaw) {
           addLogLine("found barRange: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
         } else {
@@ -300,36 +304,35 @@ static const char serverIndex[] PROGMEM =
         
       } else if (payload.indexOf("plotPoint") > -1) {
         singlePair = payload.split(":");
+        // plotPoint=<n>:TS=<(day) HH-MM>:S<n>=<tempC>:..:S<nn>=<tempC
         for (let i=0; i<singlePair.length; i++) {
           singleFld = singlePair[i].split("=");
           //console.log("plotPoint fldnr["+i+"] fldName["+singleFld[0]+"]fldVal["+singleFld[1]+"]");
           if (i == 0) { // this is the dataPoint for the next itterations
+            // [0] plotPoint
+            // [1] <n>
             var dataPoint = singleFld[1] * 1;
             //console.log("dataPoint ["+dataPoint+"]");
             
           } else if (i==1) {  // this gives timestamp
-            let timeStamp = timestamp2Date(singleFld[1] * 1); // timeStamp
-            //Labels[dataPoint] = timeStamp; // timeStamp
+            // [0] TS
+            // [1] <(day) HH-MM>
+            let timeStamp = singleFld[1].replace("-",":");     // timeStamp
+            // timeStamp = "<(day) HH:MM>"
             sensorData.labels[dataPoint] = timeStamp;
             //console.log("sensorData.labels["+dataPoint+"] is ["+sensorData.labels[dataPoint]+"]");
             
           } else if (i>1) { // this gives the tempC for every sensorID
+            // [0] S<n>
+            // [1] <tempC>
             var sensorID = singleFld[0].replace("S", "") * 1;
+            // sensorID = "<n>"
             sensorData.datasets[sensorID].label = singleFld[0];
             sensorData.datasets[sensorID].data[dataPoint] = parseFloat(singleFld[1]).toFixed(1);
             //console.log("["+sensorData.datasets[sensorID].label+"] sensorData.datasets["+sensorID+"].data["
             //                      +dataPoint+"] => tempC["+sensorData.datasets[sensorID].data[dataPoint]+"]");
           }
         } // for i ..
-        
-        /**
-        for(let p=0; p<_MAX_DATAPOINTS; p++) {
-            console.log("sensorData.labels["+p+"]:"+sensorData.labels[p]);
-            for(let s=0; s<noSensors; s++) {
-              console.log("sensorL["+s+"]["+sensorL[s]+"] -> sensorData.datasets["+s+"].data["+p+"]:"+sensorData.datasets[s].data[p]);
-            }
-        }
-        **/
         myChart.update();
       }
       else {  
@@ -339,6 +342,7 @@ static const char serverIndex[] PROGMEM =
     //addLogLine("parsePayload(): Don't know: [" + payload + "]\r\n");
   };
 
+  //-------------------------------------------------------------------------------------------
   function addTableHeader(table) {
     addLogLine("==> set tHeader ..");
     table.innerHTML = "";
@@ -392,6 +396,7 @@ static const char serverIndex[] PROGMEM =
 
   }
    
+  //-------------------------------------------------------------------------------------------
   function moveBar(barID, perc) {
     addLogLine("moveBar("+barID+", "+perc+")");
     var elem = document.getElementById(barID);
@@ -401,7 +406,7 @@ static const char serverIndex[] PROGMEM =
     }
   } // moveBar
 
-  //----------- fill sensorData object ----------------------
+  //----------- fill sensorData object --------------------------------------------------------
   function buildDataSet(noSensors) {
     for (let s=0; s<noSensors; s++) {
       var y = [];
@@ -422,25 +427,8 @@ static const char serverIndex[] PROGMEM =
     
   } // buildDataSet();
 
-
-  function timestamp2Date(epoch) {
-    var date = new Date(epoch * 1000);
   
-    //var year = date.getFullYear();
-    //var month = date.getMonth() + 1;
-    var day = date.getDate();
-    var hours = date.getHours();
-    var minutes = date.getMinutes();
-    return "("+day+") "+pad(hours, 2)+":"+pad(minutes, 2);
-    
-  } // timestamp2Date()  
-
-  function pad(num, size) {
-    var s = num+"";
-    while (s.length < size) s = "0" + s;
-    return s;
-  }
-  
+  //-------------------------------------------------------------------------------------------
   function setRawMode() {
     if (document.getElementById('rawTemp').checked)  {
       addLogLine("rawTemp checked!");
@@ -459,6 +447,7 @@ static const char serverIndex[] PROGMEM =
     
   } // setRawMode()
  
+  //-------------------------------------------------------------------------------------------
   function setDebugMode() {
     if (document.getElementById('debug').checked)  {
       addLogLine("DebugMode checked!");
@@ -469,6 +458,7 @@ static const char serverIndex[] PROGMEM =
     }
   } // setDebugMode()
   
+  //-------------------------------------------------------------------------------------------
   function addLogLine(text) {
     if (document.getElementById('debug').checked) {
       let logWindow = document.getElementById("logWindow");

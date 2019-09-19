@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : Debug.h, part of FloorTempMonitor
-**  Version  : v0.4.0
+**  Version  : v0.5.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **

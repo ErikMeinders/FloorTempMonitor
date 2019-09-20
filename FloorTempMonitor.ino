@@ -45,7 +45,7 @@
 #define TEMPERATURE_PRECISION 12
 #define _MAX_SENSORS          20
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
-#define _POLL_INTERVAL        10000 // evry 10 seconds
+#define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
 #define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -169,6 +169,7 @@ void setup()
  
   
   httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
+  httpServer.serveStatic("/",                 SPIFFS, "/index.html");
   httpServer.serveStatic("/index.html",       SPIFFS, "/index.html");
   httpServer.serveStatic("/floortempmon.js",  SPIFFS, "/floortempmon.js");
   

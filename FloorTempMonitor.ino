@@ -37,7 +37,6 @@
 #include <TimeLib.h>            // https://github.com/PaulStoffregen/Time
 #include "Debug.h"
 #include "networkStuff.h"
-#include "indexPage.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
@@ -96,15 +95,6 @@ uint8_t   wsClientID;
 uint32_t  lastPlotTime  = 0;
 int8_t    lastSaveHour  = 0;
 
-
-//===========================================================================================
-void handleIndexPage()
-{
-  DebugTln("now in handleIndexPage() ..");
-  //String indexHtml = serverIndex;
-  httpServer.send(200, "text/html", String(serverIndex));
-  //httpServer.send(200, "text/html", indexHtml);
-}
 
 
 //===========================================================================================
@@ -168,12 +158,20 @@ void setup()
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
 
-  httpServer.on("/",           handleIndexPage);
-  httpServer.on("/index.html", handleIndexPage);
-  httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
+  httpServer.begin(); // before .ons
 
-  //httpServer.on("/restAPI", restAPI);
-  //httpServer.on("/restapi", restAPI);
+  // httpServer.on("/",           handleIndexPage);
+  // httpServer.on("/index.html", handleIndexPage);
+
+  httpServer.on("/api",  nothingAtAll);
+  httpServer.on("/api/list_sensors", handleAPI_list_sensors);
+  httpServer.on("/api/describe_sensor", handleAPI_describe_sensor);
+ 
+  
+  httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
+  httpServer.serveStatic("/index.html",       SPIFFS, "/index.html");
+  httpServer.serveStatic("/floortempmon.js",  SPIFFS, "/floortempmon.js");
+  
   httpServer.on("/ReBoot", handleReBoot);
 
 #if defined (HAS_FSEXPLORER)
@@ -182,24 +180,18 @@ void setup()
   httpServer.on("/FSexplorer/upload", HTTP_POST, []() {
     httpServer.send(200, "text/plain", "");
   }, handleFileUpload);
-#else
-  httpServer.on("/FSexplorer", HTTP_GET, handleIndexPage);
 #endif
   httpServer.onNotFound([]() {
     if (httpServer.uri() == "/update") {
       httpServer.send(200, "text/html", "/update" );
     } else {
       DebugTf("onNotFound(%s)\r\n", httpServer.uri().c_str());
-      if (httpServer.uri() == "/" || httpServer.uri() == "/index.html") {
-        handleIndexPage();
-      }
     }
     if (!handleFileRead(httpServer.uri())) {
       httpServer.send(404, "text/plain", "FileNotFound");
     }
   });
 
-  httpServer.begin();
   DebugTln( "HTTP server gestart\r" );
 
   //--- Start up the library for the DS18B20 sensors

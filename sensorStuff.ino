@@ -12,9 +12,9 @@
 
 // function to print a device address
 //===========================================================================================
-void getSensorID(DeviceAddress deviceAddress, char* devAddr)
+void getSensorID(DeviceAddress deviceAddress, char* devID)
 {
-  sprintf(devAddr, "0x%02x%02x%02x%02x%02x%02x%02x%02x", deviceAddress[0], deviceAddress[1]
+  sprintf(devID, "0x%02x%02x%02x%02x%02x%02x%02x%02x", deviceAddress[0], deviceAddress[1]
           , deviceAddress[2], deviceAddress[3]
           , deviceAddress[4], deviceAddress[5]
           , deviceAddress[6], deviceAddress[7]);
@@ -40,7 +40,7 @@ void printTemperature(int8_t devNr)
   float tempR = sensors.getTempCByIndex(sensorArray[devNr].index);
   float tempC = tempR;
 
-  if (tempR < -10.0 || tempR > 100.0) {
+  if (tempR < 5.0 || tempR > 100.0) {
     Debug("invalid reading");
     return;
   }
@@ -82,7 +82,7 @@ void printTemperature(int8_t devNr)
 //===========================================================================================
 void printData(int8_t devNr)
 {
-  char devAddr[20];
+  char devID[20];
 
   Debugf("SensorID: [%s] [%-30.30s] ", sensorArray[devNr].sensorID, sensorArray[devNr].name);
   printTemperature(devNr);
@@ -166,6 +166,113 @@ void publishDatapoints()
   }
 
 } // publishDatapoints()
+
+//=======================================================================
+int8_t sendSensor(int8_t recNr)
+{
+  sensorStruct tmpRec = readIniFileByRecNr(recNr);
+  if (tmpRec.sensorID == "-") {
+    DebugTf("Error: something wrong reading record [%d] from [/sensor.ini]\n", recNr);
+    return -1;
+  }
+  sprintf(cMsg, "msgType=editSensor,sensorNr=%d,sID=%s,sName=%s,sPosition=%d,sTempOffset=%.6f,sTempFactor=%.6f,sServo=%d,sDeltaTemp=%.1f,sLoopTime=%d"
+                              , recNr
+                              , tmpRec.sensorID
+                              , tmpRec.name
+                              , tmpRec.position
+                              , tmpRec.tempOffset
+                              , tmpRec.tempFactor
+                              , tmpRec.servoNr
+                              , tmpRec.deltaTemp
+                              , tmpRec.loopTime);
+   DebugTln(cMsg);                           
+   webSocket.sendTXT(wsClientID, cMsg);
+   return recNr;
+  
+} // sendSensor()
+
+//=======================================================================
+void updSensor(char *payload)
+{
+  char*   pch;
+  int8_t  recNr;
+  sensorStruct tmpRec;
+  
+  DebugTf("payload[%s] \n", payload);
+
+  pch = strtok (payload, ",");
+  while (pch != NULL)  {
+    DebugTf ("%s ==> \n",pch);
+    if (strncmp(pch, "updSensorNr", 11) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        recNr = String(cMsg).toInt();
+        tmpRec = readIniFileByRecNr(recNr);
+    } else if (strncmp(pch, "sensorID", 8) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        memcpy(tmpRec.sensorID, cMsg, sizeof(cMsg));
+    } else if (strncmp(pch, "name", 4) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        memcpy(tmpRec.name, cMsg, sizeof(cMsg));
+    } else if (strncmp(pch, "position", 8) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        tmpRec.position = String(cMsg).toInt();
+    } else if (strncmp(pch, "tempOffset", 10) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        tmpRec.tempOffset = String(cMsg).toFloat();
+    } else if (strncmp(pch, "tempFactor", 10) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        tmpRec.tempFactor = String(cMsg).toFloat();
+    } else if (strncmp(pch, "servoNr", 7) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        tmpRec.servoNr = String(cMsg).toInt();
+    } else if (strncmp(pch, "deltaTemp", 9) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        tmpRec.deltaTemp = String(cMsg).toFloat();
+    } else if (strncmp(pch, "loopTime", 8) == 0) { 
+        sprintf(cMsg, "%s", splitFldVal(pch, '='));
+        tmpRec.loopTime = String(cMsg).toInt();
+    } else {
+        Debugf("Don't know what to do with[%s]\n", pch);
+    }
+    pch = strtok (NULL, ",");
+  }
+
+  Debugf("tmpRec ID[%s], name[%s], position[%d]\n   tempOffset[%.6f], tempFactor[%.6f]\n   Servo[%d], deltaTemp[%.1f], loopTime[%d]\n"
+                                                , tmpRec.sensorID
+                                                , tmpRec.name
+                                                , tmpRec.position
+                                                , tmpRec.tempOffset
+                                                , tmpRec.tempFactor
+                                                , tmpRec.servoNr
+                                                , tmpRec.deltaTemp
+                                                , tmpRec.loopTime);
+
+  updateIniRec(tmpRec);
+  
+} // updSensor()
+
+//=======================================================================
+char* splitFldVal(char *pair, char del)
+{
+  bool    isVal = false;
+  char    Value[50];
+  int8_t  inxVal = 0;
+
+  DebugTf("pair[%s] (length[%d]) del[%c] \n", pair, strlen(pair), del);
+
+  for(int i=0; i<strlen(pair); i++) {
+    if (isVal) {
+      Value[inxVal++] = pair[i];
+      Value[inxVal]   = '\0';
+    } else if (pair[i] == del) {
+      isVal   = true;
+      inxVal  = 0;
+    }
+  }
+  DebugTf("Value [%s]\n", Value);
+  return Value;
+  
+} // splitFldVal()
 
 /***************************************************************************
 *

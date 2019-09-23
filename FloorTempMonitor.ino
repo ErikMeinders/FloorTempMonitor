@@ -240,20 +240,6 @@ void setup()
     DebugTf("Device %2d Resolution: %d\n", sensorNr, sensors.getResolution(DS18B20));
   } // for sensorNr ..
 
-  memcpy(sensorArray[1].name,"LivingS",7);
-  if (updateIniRec(sensorArray[1])) {
-    DebugTln("Update went well!!");
-  } else {
-    DebugTln("Update error!!");
-  }
-
-  memcpy(sensorArray[0].name,"Aanvoer Hot", 11);
-  if (updateIniRec(sensorArray[0])) {
-    DebugTln("Update went well!!");
-  } else {
-    DebugTln("Update error!!");
-  }
-//  writeIniFile();
   Debugln("========================================================================================");
   sortSensors();
   printSensorArray();

@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.5.0 (19-09-2019)"
+#define _FW_VERSION "v0.6.0 (23-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -44,8 +44,10 @@
 #define ONE_WIRE_BUS          0     // Data wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
 #define _MAX_SENSORS          20
+#define _MAX_NAME_LEN         12
+#define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
-#define _POLL_INTERVAL        10000 // evry 10 seconds
+#define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
 #define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -66,13 +68,16 @@ TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ a
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
 typedef struct {
-  int8_t  index;
-  char    sensorID[20];
-  uint8_t position;
-  char    name[20];
-  float   tempOffset;
-  float   tempFactor;
-  float   tempC;
+  int8_t    index;
+  char      sensorID[20];
+  uint8_t   position;
+  char      name[_MAX_NAME_LEN];
+  float     tempOffset;
+  float     tempFactor;
+  int8_t    servoNr;
+  float     deltaTemp;
+  uint16_t  loopTime;
+  float     tempC;
 } sensorStruct;
 
 typedef struct {
@@ -169,8 +174,11 @@ void setup()
  
   
   httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
+  httpServer.serveStatic("/",                 SPIFFS, "/index.html");
   httpServer.serveStatic("/index.html",       SPIFFS, "/index.html");
   httpServer.serveStatic("/floortempmon.js",  SPIFFS, "/floortempmon.js");
+  httpServer.serveStatic("/sensorEdit.html",  SPIFFS, "/sensorEdit.html");
+  httpServer.serveStatic("/sensorEdit.js",    SPIFFS, "/sensorEdit.js");
   
   httpServer.on("/ReBoot", handleReBoot);
 
@@ -232,7 +240,6 @@ void setup()
     DebugTf("Device %2d Resolution: %d\n", sensorNr, sensors.getResolution(DS18B20));
   } // for sensorNr ..
 
-//  writeIniFile();
   Debugln("========================================================================================");
   sortSensors();
   printSensorArray();

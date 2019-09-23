@@ -65,6 +65,22 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
       DebugTln("set readRaw = false;");
       readRaw = false;
     }
+    if (wsPayload.indexOf("getFirstSensor") > -1) {
+      DebugTln("getFirstSensor()!");
+      sendSensor(0);
+    }
+    if (wsPayload.indexOf("editSensorNr") > -1) {
+      wsPayload.replace("editSensorNr=", "");
+      DebugTf("editSensorNr(%d)!\n", wsPayload.toInt());
+      sendSensor(wsPayload.toInt());
+    }
+    if (wsPayload.indexOf("updSensorNr") > -1) {
+      //wsPayload.replace("updSensorNr=", "");
+      //DebugTf("updSensorNr(%d) .. \n", wsPayload.toInt());
+      char data[200];
+      sprintf(data, "%s", wsPayload.c_str());
+      updSensor(data);
+    }
     break;
 
   } // switch(type)

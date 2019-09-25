@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : webSocketEvent, part of FloorTempMonitor
-**  Version  : v0.5.0
+**  Version  : v0.6.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -34,7 +34,11 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
     if (!isConnected) {
       DebugTf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", wsClient, ip[0], ip[1], ip[2], ip[3], payload);
       isConnected = true;
-      webSocket.sendTXT(wsClient, "state=Connected");
+      if (connectToSX1509) {
+        webSocket.sendTXT(wsClient, "state=Connected");
+      } else {
+        webSocket.sendTXT(wsClient, "state=No Relais Module");
+      }
       sprintf(cMsg, "noSensors=%d", noSensors);
       webSocket.sendTXT(wsClient, cMsg);
       //updateDOM();
@@ -51,7 +55,9 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
 
     if (wsPayload.indexOf("updateDOM") > -1) {
       DebugTln("now updateDOM()!");
+      delay(100); // give it some time to load chartJS library and stuff
       updateDOM();
+      delay(200); // settle before updating
       publishDatapoints();
     }
     if (wsPayload.indexOf("DOMloaded") > -1) {
@@ -65,14 +71,15 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
       DebugTln("set readRaw = false;");
       readRaw = false;
     }
+    //---- sensorEdit.html ---------------------------------
     if (wsPayload.indexOf("getFirstSensor") > -1) {
       DebugTln("getFirstSensor()!");
-      sendSensor(0);
+      editSensor(0);
     }
     if (wsPayload.indexOf("editSensorNr") > -1) {
       wsPayload.replace("editSensorNr=", "");
       DebugTf("editSensorNr(%d)!\n", wsPayload.toInt());
-      sendSensor(wsPayload.toInt());
+      editSensor(wsPayload.toInt());
     }
     if (wsPayload.indexOf("updSensorNr") > -1) {
       //wsPayload.replace("updSensorNr=", "");
@@ -121,7 +128,7 @@ void updateSysInfo(uint8_t wsClient)
   wsString += ",FreeSketchSpace="   + String( (ESP.getFreeSketchSpace() / 1024.0), 3 ) + "kB";
 
   if ((ESP.getFlashChipId() & 0x000000ff) == 0x85)
-    sprintf(cMsg, "%08X (PUYA)", ESP.getFlashChipId());
+        sprintf(cMsg, "%08X (PUYA)", ESP.getFlashChipId());
   else  sprintf(cMsg, "%08X", ESP.getFlashChipId());
   wsString += ",FlashChipID="       + String(cMsg);  // flashChipId
   wsString += ",FlashChipSize="     + String( (float)(ESP.getFlashChipSize() / 1024.0 / 1024.0), 3 ) + "MB";
@@ -172,10 +179,11 @@ void updateDOM()
             , sensorArray[i].sensorID
             , sensorArray[i].name);
 
-    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0", i, i
-            , i, sensorArray[i].sensorID
-            , i, sensorArray[i].name
-            , i, i);
+    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0:servoState%d=-"
+                    , i, i
+                    , i, sensorArray[i].sensorID
+                    , i, sensorArray[i].name
+                    , i, i, i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }
 

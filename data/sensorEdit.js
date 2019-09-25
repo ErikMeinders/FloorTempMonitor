@@ -122,11 +122,21 @@
  		}
  		else {  
 			singleFld = singlePair[0].split("=");
-			if (   (singleFld[0].indexOf("clock") > -1) 
-   	  	  || (singleFld[0].indexOf("state") > -1)
-   	    	|| (singleFld[0].indexOf("iets anders") > -1)) {
-   			document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+			console.log("["+singleFld[0]+"] -> ["+singleFld[1]+"]");
+			if (   (singleFld[0].indexOf("tempC") !== -1) ) {
+				var sNr = "S"+singleFld[0].replace("tempC", "")+": ";
+   			document.getElementById( singleFld[0]).innerHTML = sNr+singleFld[1]+" ";
+   			document.getElementById( singleFld[0]).removeAttribute("style", "display: none");
+   			document.getElementById( singleFld[0]).setAttribute("style", "border: 1px solid darkGray; color: black; width:14%;");
+   		} else if ( (singleFld[0].indexOf("clock") !== -1) ) {
+				document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+   		} else if ( (singleFld[0].indexOf("state") !== -1) ) {
+				document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+				if (singleFld[1].indexOf('No Relais')  > -1) {
+					document.getElementById('state').setAttribute("style", "font-size: 14px; color: red; font-weight: bold;");
+				}
    		}
+
    	}
   };	// parsePayload()
 
@@ -150,14 +160,16 @@
 		console.log("saveSettings() ...");
 		var updRec = "updSensorNr="+sensorNr
 		             +",sensorID="+document.getElementById('sID').value
-		             +",name="+document.getElementById('sName').value
-		             +",position="+document.getElementById('sPosition').value
-		             +",tempOffset="+document.getElementById('sTempOffset').value
-		             +",tempFactor="+document.getElementById('sTempFactor').value
-		             +",servoNr="+document.getElementById('sServo').value
-		             +",deltaTemp="+document.getElementById('sDeltaTemp').value
-		             +",loopTime="+document.getElementById('sLoopTime').value;
+		             +",name="+document.getElementById('sName').value+" "
+		             +",position="+document.getElementById('sPosition').value * 1
+		             +",tempOffset="+document.getElementById('sTempOffset').value * 1.0
+		             +",tempFactor="+document.getElementById('sTempFactor').value * 1.0
+		             +",servoNr="+document.getElementById('sServo').value * 1
+		             +",deltaTemp="+document.getElementById('sDeltaTemp').value * 1.0
+		             +",loopTime="+document.getElementById('sLoopTime').value * 1;
 		webSocketConn.send(updRec);
+		var warning = document.getElementById('rebootWarning');
+		warning.setAttribute("style", "color: red; text-align: center");
 
  	}	// saveSensorValues()
  	

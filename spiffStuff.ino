@@ -40,7 +40,7 @@ void listSPIFFS()
 
   Debugln("\r");
   if (freeSpace() < (10 * SPIFFSinfo.blockSize))
-    Debugf("Available SPIFFS space [%6d]kB (LOW ON SPACE!!!)\r\n", (freeSpace() / 1024));
+        Debugf("Available SPIFFS space [%6d]kB (LOW ON SPACE!!!)\r\n", (freeSpace() / 1024));
   else  Debugf("Available SPIFFS space [%6d]kB\r\n", (freeSpace() / 1024));
   Debugf("           SPIFFS Size [%6d]kB\r\n", (SPIFFSinfo.totalBytes / 1024));
   Debugf("     SPIFFS block Size [%6d]bytes\r\n", SPIFFSinfo.blockSize);
@@ -78,7 +78,7 @@ bool appendIniFile(int8_t index, char* devID)
   sprintf(sensorArray[index].name, "new Sensor");
   sensorArray[index].tempOffset = 0.00000;
   sensorArray[index].tempFactor = 1.00000;
-  sensorArray[index].servoNr    = 0;
+  sensorArray[index].servoNr    = -1; // not attached to a servo
   sensorArray[index].deltaTemp  = 20.0;
   sensorArray[index].loopTime   = 30;
   sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f; %3d;"
@@ -111,10 +111,10 @@ bool appendIniFile(int8_t index, char* devID)
 
 
 //===========================================================================================
-bool updateIniRec(sensorStruct newRec)
+int8_t updateIniRec(sensorStruct newRec)
 {
   char    fixedRec[150];
-  int16_t recNr;
+  int8_t  recNr;
   bool    foundSensor = false;
   int16_t bytesWritten;
   
@@ -122,7 +122,7 @@ bool updateIniRec(sensorStruct newRec)
 
   if (!SPIFFSmounted) {
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
-    return false;
+    return -1;
   }
   String  tmpS;
 
@@ -145,7 +145,7 @@ bool updateIniRec(sensorStruct newRec)
   if (!foundSensor) {
     dataFile.close();
     DebugTf("sensorID [%s] not found. Bailing out!\n", newRec.sensorID);
-    return false;
+    return -1;
   }
 
   yield();
@@ -174,7 +174,7 @@ bool updateIniRec(sensorStruct newRec)
 
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 
-  return true;
+  return recNr;
 
 } // updateIniRec()
 

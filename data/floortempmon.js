@@ -1,3 +1,15 @@
+/*
+***************************************************************************  
+**  Program  : floortempmon.js, part of FloorTempMonitor
+**  Version  : v0.6.0
+**
+**  Copyright (c) 2019 Willem Aandewiel
+**
+**  TERMS OF USE: MIT License. See bottom of file.                                                            
+***************************************************************************      
+*/
+  
+
 'use strict';
 
 let webSocketConn;
@@ -11,7 +23,7 @@ let readRaw   = false;
 let _MAX_DATAPOINTS = 100 -1;  // must be the same as in FloorTempMonitor in main .ino -1 (last one is zero)
 let noSensors    = 1;
 //----- chartJS --------
-var colors          = ['Green', 'CornflowerBlue', 'Red', 'Yellow', 'FireBrick', 'Blue', 'Orange'
+var colors          = [   'Green', 'CornflowerBlue', 'Red', 'Yellow', 'FireBrick', 'Blue', 'Orange'
                         , 'DeepSkyBlue', 'Gray', 'Purple', 'Brown', 'MediumVioletRed', 'LightSalmon'
                         , 'BurlyWood', 'Gold'
                        ];
@@ -151,6 +163,8 @@ function parsePayload(payload) {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("align", "center");
           TD.setAttribute("style", "padding-left:10px;");
+        } else if (singleFld[0].indexOf('servoState') !== -1) {
+        	// skip
         } else {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("align", "left");
@@ -161,6 +175,7 @@ function parsePayload(payload) {
     } else {
       // compensated mode -- skip first two fields --
       for (let i=2; i<singlePair.length; i++) {
+      	console.log(singlePair[i]);
         singleFld = singlePair[i].split("=");
         if (singleFld[0].indexOf("name") !== -1) {
           sensorNr = singleFld[0].replace("name", "") * 1;
@@ -183,6 +198,15 @@ function parsePayload(payload) {
           DIV.setAttribute("id", singleFld[0]+"B");
           DIV.setAttribute("class", "tempBar");
           DIV.setAttribute("style", "background-color:"+colors[(sensorNr%colors.length)]+";");
+          SPAN.appendChild(DIV);
+          TD.appendChild(SPAN);
+        } else if (singleFld[0].indexOf('servoState') !== -1) {
+          //TD.setAttribute("align", "left");
+          TD.setAttribute("style", "padding-left:30px; height: 18px; font-size: 12px;");
+          var SPAN = document.createElement("span");
+          //SPAN.setAttribute("class", "servoState");
+          var DIV = document.createElement("div");
+          DIV.setAttribute("id", singleFld[0]+"S");	// +S needs to be different from the TD id
           SPAN.appendChild(DIV);
           TD.appendChild(SPAN);
         }
@@ -227,6 +251,25 @@ function parsePayload(payload) {
         document.getElementById( singleFld[0]).innerHTML = singleFld[1];
       }
       
+    } else if (singleFld[0].indexOf("servoState") > -1) {
+      // [0] servoState
+      // [1] <text"
+      if (readRaw) {
+        addLogLine("found servoState: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
+      } else {
+        addLogLine("found servoState: "+singleFld[0]+" =>"+singleFld[1]);
+        document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+        console.log("singleFld[1] => ["+singleFld[1]+"]");
+        var DIV = document.getElementById(singleFld[0]);
+        if (singleFld[1].indexOf("OPEN") !== -1) {
+       		DIV.setAttribute("style", "text-align: center; background-color: #e25822");	// "flame"
+        } else if (singleFld[1].indexOf("CLOSED") !== -1) {
+       		DIV.setAttribute("style", "text-align: center; background-color: blue; color: white;");	
+        } else if (singleFld[1].indexOf("LOOP") !== -1) {
+       		DIV.setAttribute("style", "text-align: center; background-color: #eb8b66");	
+        }
+      }
+      
     } else if (payload.indexOf("plotPoint") > -1) {
       singlePair = payload.split(":");
       // plotPoint=<n>:TS=<(day) HH-MM>:S<n>=<tempC>:..:S<nn>=<tempC
@@ -262,6 +305,9 @@ function parsePayload(payload) {
     }
     else {  
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
+      if (singleFld[1].indexOf('No Relais')  > -1) {
+      	document.getElementById('state').setAttribute("style", "font-size: 16px; color: red; font-weight: bold;");
+      }
     }
   }
   //addLogLine("parsePayload(): Don't know: [" + payload + "]\r\n");
@@ -302,7 +348,7 @@ function addTableHeader(table) {
     TH.setAttribute("style", "font-size: 14pt; width: 150px; padding-left:10px;");
     
   } else {
-    addLogLine("==> [!readRaw (compensated)] --> insert 3 cell's");
+    addLogLine("==> [!readRaw (compensated)] --> insert 4 cell's");
     var TH = TR.insertCell(0);
     TH.innerHTML = "Naam";
     TH.setAttribute("align", "left");
@@ -315,6 +361,11 @@ function addTableHeader(table) {
     TH.innerHTML = "temp Bar";
     TH.setAttribute("id", "barRange");
     TH.setAttribute("style", "padding-left:30px;");
+    TH.setAttribute("align", "left");
+    TH = TR.insertCell(3);
+    TH.innerHTML = "Servo/Valve";
+    TH.setAttribute("id", "servoState");
+    TH.setAttribute("style", "padding-left:90px;");
     TH.setAttribute("align", "left");
     
   }
@@ -393,3 +444,28 @@ function addLogLine(text) {
     document.getElementById("logWindow").scrollTop = document.getElementById("logWindow").scrollHeight 
   } 
 } // addLogLine()
+  
+/*
+***************************************************************************
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to permit
+* persons to whom the Software is furnished to do so, subject to the
+* following conditions:
+*
+* The above copyright notice and this permission notice shall be included
+* in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+* OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+* OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+* THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+* 
+***************************************************************************
+*/

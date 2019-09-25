@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.5.0 (23-09-2019)"
+#define _FW_VERSION "v0.6.0 (25-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -43,12 +43,37 @@
 
 #define ONE_WIRE_BUS          0     // Data wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
-#define _MAX_SENSORS          20
+#define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
 #define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
 #define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
+#define _DELTATEMP_CHECK      5     // when to check the deltaTemp's in minutes
+#define _MIN                  60000 // milliSecs in a minute
+
+/*********************************************************************************
+* Uitgangspunten:
+* 
+* S0 - Sensor op position '0' is verwarmingsketel water UIT
+*      deze sensor moet een servoNr '-1' hebben -> want geen klep
+*      de 'loopTime' van deze sensor wordt gebruikt om een eenmaal
+*      gesloten Servo/Klep dicht te houden.
+* S1 - Sensor op position '1' is retour naar verwarmingsketel
+*      servoNr '-1' -> want geen klep
+* 
+* Cyclus voor bijv S3:
+*                                          start S3.loopTime
+*  (S0.tempC - S3.tempC) < S3.deltaTemp    ^        einde S3.loopTime
+*                                v         |        v
+*  - servo/Klep open      -------+         +--------+------> wacht tot (S0.tempC - S3.tempC) < S3.deltaTemp 
+*                                |         |
+*  - Servo/Klep dicht            +---------+
+*                                ^         ^
+*                start S0.loopTime         |                       
+*                     S0.loopTime verstreken
+* 
+*********************************************************************************/
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -67,6 +92,8 @@ TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ a
 
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
+enum    { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, ERROR };
+
 typedef struct {
   int8_t    index;
   char      sensorID[20];
@@ -78,6 +105,8 @@ typedef struct {
   float     deltaTemp;
   uint16_t  loopTime;
   float     tempC;
+  uint8_t   servoState;
+  uint16_t  servoTimer;
 } sensorStruct;
 
 typedef struct {
@@ -99,6 +128,7 @@ bool      readRaw = false;
 uint8_t   wsClientID;
 uint32_t  lastPlotTime  = 0;
 int8_t    lastSaveHour  = 0;
+bool      connectToSX1509 = false;
 
 
 
@@ -247,6 +277,8 @@ void setup()
 
   readDataPoints();
 
+  setupSX1509();
+
   lastPlotTime = now() / _PLOT_INTERVAL;
 
   String DT = buildDateTimeString();
@@ -261,6 +293,7 @@ void loop()
   webSocket.loop();
   MDNS.update();
   handleWebSockRefresh();
+  checkDeltaTemps();
 
   if ((millis() - nextPollTimer) > _POLL_INTERVAL) {
     nextPollTimer = millis();
@@ -273,7 +306,7 @@ void loop()
     Debugln("DONE");
 
     for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
-      printData(sensorNr);
+      processSensorData(sensorNr);
     }
   } // pollTimer ..
 

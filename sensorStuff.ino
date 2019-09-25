@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : helperStuff, part of FloorTempMonitor
-**  Version  : v0.5.0
+**  Version  : v0.6.0
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -22,7 +22,7 @@ void getSensorID(DeviceAddress deviceAddress, char* devID)
 
 // function to print the temperature for a device
 //===========================================================================================
-void printTemperature(int8_t devNr)
+void sendSensorData(int8_t devNr)
 {
   //-- time to shift datapoints?
   if ( ((now() / _PLOT_INTERVAL) > lastPlotTime) && (devNr == 0)) {
@@ -72,23 +72,49 @@ void printTemperature(int8_t devNr)
   sprintf(cMsg, "tempBar%dB=%d", devNr, mapTemp);
   webSocket.sendTXT(wsClientID, cMsg);
 
+  uint32_t  stateTime = 0;
+  char      cStateTime[15];
+  
+  switch (sensorArray[devNr].servoState ) {
+    case SERVO_IS_OPEN:
+            sprintf(cMsg, "servoState%dS=OPEN", devNr);
+            break;
+    case SERVO_IS_CLOSED:
+            stateTime = (sensorArray[0].loopTime * _MIN) - (millis() - (sensorArray[devNr].servoTimer * _MIN));
+            if (stateTime > _MIN)
+                  sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // afronding
+            else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
+            sprintf(cMsg, "servoState%dS=CLOSED %s", devNr, cStateTime);
+            break;
+    case SERVO_IN_LOOP:
+            stateTime = (sensorArray[devNr].loopTime * _MIN) - (millis() - (sensorArray[devNr].servoTimer * _MIN));
+            if (stateTime > _MIN)
+                  sprintf(cStateTime, " (%d min.)", (stateTime + _MIN) / _MIN);  // afronding ...
+            else  sprintf(cStateTime, " (%d sec.)",  stateTime / 1000);
+            sprintf(cMsg, "servoState%dS=LOOP %s", devNr, cStateTime);
+            break;
+  }
+  if (devNr > 0) {  // devNr 0 and 1 are the the heater
+    webSocket.sendTXT(wsClientID, cMsg);
+  }
+  
   dataStore[(_MAX_DATAPOINTS -1)].timestamp = now();
   dataStore[(_MAX_DATAPOINTS -1)].tempC[devNr] = tempC;
 
-} // printTemperature
+} // sendSensorData
 
 
 // function to print information about a device
 //===========================================================================================
-void printData(int8_t devNr)
+void processSensorData(int8_t devNr)
 {
   char devID[20];
 
   Debugf("SensorID: [%s] [%-30.30s] ", sensorArray[devNr].sensorID, sensorArray[devNr].name);
-  printTemperature(devNr);
+  sendSensorData(devNr);
   Debugln();
 
-} // printData()
+} // processSensorData()
 
 
 //=======================================================================
@@ -153,7 +179,7 @@ void publishDatapoints()
     cPoints[0] = '\0';
     for(int s=0; s < noSensors; s++) {
       if (s == 0)
-        sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
+            sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
       else  sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
       //DebugTf("-->[%s]\n", cPoints);
     }
@@ -168,7 +194,7 @@ void publishDatapoints()
 } // publishDatapoints()
 
 //=======================================================================
-int8_t sendSensor(int8_t recNr)
+int8_t editSensor(int8_t recNr)
 {
   sensorStruct tmpRec = readIniFileByRecNr(recNr);
   if (tmpRec.sensorID == "-") {
@@ -189,7 +215,7 @@ int8_t sendSensor(int8_t recNr)
    webSocket.sendTXT(wsClientID, cMsg);
    return recNr;
   
-} // sendSensor()
+} // editSensor()
 
 //=======================================================================
 void updSensor(char *payload)
@@ -213,9 +239,15 @@ void updSensor(char *payload)
     } else if (strncmp(pch, "name", 4) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         memcpy(tmpRec.name, cMsg, sizeof(cMsg));
+        String(tmpRec.name).trim();
+        if (String(tmpRec.name).length() < 2) {
+          sprintf(tmpRec.name, "%s", "unKnown");
+        }
     } else if (strncmp(pch, "position", 8) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.position = String(cMsg).toInt();
+        if (tmpRec.position <  0) tmpRec.position = 0;
+        if (tmpRec.position > 99) tmpRec.position = 99;
     } else if (strncmp(pch, "tempOffset", 10) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.tempOffset = String(cMsg).toFloat();
@@ -225,12 +257,17 @@ void updSensor(char *payload)
     } else if (strncmp(pch, "servoNr", 7) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.servoNr = String(cMsg).toInt();
+        if (tmpRec.servoNr < -1)  tmpRec.servoNr = -1;
+        if (tmpRec.servoNr > 15)  tmpRec.servoNr = 15;
     } else if (strncmp(pch, "deltaTemp", 9) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.deltaTemp = String(cMsg).toFloat();
+        if (tmpRec.deltaTemp < 0.0) tmpRec.deltaTemp = 20.0;
     } else if (strncmp(pch, "loopTime", 8) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.loopTime = String(cMsg).toInt();
+        if (tmpRec.loopTime <   0) tmpRec.loopTime =   0;
+        if (tmpRec.loopTime > 120) tmpRec.loopTime = 120;
     } else {
         Debugf("Don't know what to do with[%s]\n", pch);
     }
@@ -247,7 +284,10 @@ void updSensor(char *payload)
                                                 , tmpRec.deltaTemp
                                                 , tmpRec.loopTime);
 
-  updateIniRec(tmpRec);
+  recNr = updateIniRec(tmpRec);
+  if (recNr >= 0) {
+    editSensor(recNr);
+  }
   
 } // updSensor()
 

@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : helperStuff, part of FloorTempMonitor
-**  Version  : v0.6.0
+**  Version  : v0.6.1
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -37,84 +37,105 @@ void sendSensorData(int8_t devNr)
     }
   }
 
-  float tempR = sensors.getTempCByIndex(sensorArray[devNr].index);
+  float tempR = sensors.getTempCByIndex(_S[devNr].index);
   float tempC = tempR;
 
   if (tempR < 5.0 || tempR > 100.0) {
-    Debug("invalid reading");
+    Debugln("invalid reading");
     return;
   }
 
   if (readRaw) {
-    sensorArray[devNr].tempC = tempR;
+    _S[devNr].tempC = tempR;
 
-  } else if (sensorArray[devNr].tempC == -99) { // first reading
+  } else if (_S[devNr].tempC == -99) { // first reading
     //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
-    tempC = ( (tempR + sensorArray[devNr].tempOffset) * sensorArray[devNr].tempFactor );
+    tempC = ( (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor );
 
   } else {  // compensated Temp
     //--- realTemp/sensorTemp = tempFactor
     //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
-    tempC = ( (tempR + sensorArray[devNr].tempOffset) * sensorArray[devNr].tempFactor );
-    tempC = ((sensorArray[devNr].tempC * 3.0) + tempC) / 4.0;
+    tempC = ( (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor );
+    tempC = ((_S[devNr].tempC * 3.0) + tempC) / 4.0;
   }
-  sensorArray[devNr].tempC = tempC;
+  _S[devNr].tempC = tempC;
 
-  Debugf("Temp R/C: %6.3f ℃ / %6.3f ℃", tempC, tempR);
-  sprintf(cMsg, "tempC%d=%6.3f℃", devNr, tempC);
+  // &deg;    // degrees
+  // &Delta;  // Delta
+  Debugf("Temp R/C: %6.3f *C / %6.3f *C \n", tempC, tempR);
+  sprintf(cMsg, "tempC%d=%6.3f&#176;C", devNr, tempC);
   webSocket.sendTXT(wsClientID, cMsg);
 
   //--- hier iets slims om de temperatuur grafisch weer te geven ---
   //--- bijvoorbeeld de afwijking t.o.v. ATAG uit temp en ATAG retour temp
-  sprintf(cMsg, "barRange=low %d℃ - high %d℃", 10, 60);
+  sprintf(cMsg, "barRange=low %d&deg;C - high %d&deg;C", 10, 60);
   webSocket.sendTXT(wsClientID, cMsg);
   int8_t mapTemp = map(tempC, 10, 60, 0, 100); // mappen naar 0-100% van de bar
   sprintf(cMsg, "tempBar%dB=%d", devNr, mapTemp);
   webSocket.sendTXT(wsClientID, cMsg);
 
-  uint32_t  stateTime = 0;
+  int32_t   stateTime = 0;
   char      cStateTime[15];
   
-  switch (sensorArray[devNr].servoState ) {
+  switch (_S[devNr].servoState ) {
     case SERVO_IS_OPEN:
-            sprintf(cMsg, "servoState%dS=OPEN", devNr);
+            sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.2f&deg;C)", devNr, (_S[0].tempC - _S[devNr].tempC));
             break;
     case SERVO_IS_CLOSED:
-            stateTime = (sensorArray[0].loopTime * _MIN) - (millis() - (sensorArray[devNr].servoTimer * _MIN));
-            if (stateTime > _MIN)
-                  sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // afronding
-            else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
+            stateTime = (_S[0].loopTime * _MIN) - (millis() - (_S[devNr].servoTimer * _MIN));
+            if (stateTime > 0) {
+              DebugTf("CLOSE time [%d] > 0\n", (stateTime / _MIN) +1);
+              if (stateTime > _MIN)
+                    sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
+              else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
+            } else {
+              DebugTf("CLOSE time [%d] < 0\n", stateTime / _MIN);
+              cStateTime[0] = '.';
+              cStateTime[1] = '.';
+              cStateTime[2] = '.';
+              cStateTime[3] = '\0';
+            }
             sprintf(cMsg, "servoState%dS=CLOSED %s", devNr, cStateTime);
             break;
     case SERVO_IN_LOOP:
-            stateTime = (sensorArray[devNr].loopTime * _MIN) - (millis() - (sensorArray[devNr].servoTimer * _MIN));
-            if (stateTime > _MIN)
-                  sprintf(cStateTime, " (%d min.)", (stateTime + _MIN) / _MIN);  // afronding ...
-            else  sprintf(cStateTime, " (%d sec.)",  stateTime / 1000);
+            stateTime = (_S[devNr].loopTime * _MIN) - (millis() - (_S[devNr].servoTimer * _MIN));
+            if (stateTime > 0) {
+              DebugTf("LOOP time [%d] > 0\n", (stateTime / _MIN) +1);
+              if (stateTime > _MIN)
+                    sprintf(cStateTime, " (%d min.)", (stateTime + _MIN) / _MIN);  // '+ _MIN' voor afronding ...
+              else  sprintf(cStateTime, " (%d sec.)",  stateTime / 1000);
+            } else {
+              DebugTf("LOOP time [%d] < 0\n", stateTime / _MIN);
+              cStateTime[0] = '.';
+              cStateTime[1] = '.';
+              cStateTime[2] = '.';
+              cStateTime[3] = '\0';
+            }
             sprintf(cMsg, "servoState%dS=LOOP %s", devNr, cStateTime);
             break;
   }
-  if (devNr > 0) {  // devNr 0 and 1 are the the heater
+//if (devNr > 1) {  // devNr 0 and 1 are the the heater SKIP!
+  if (devNr > 0) {  // for testing (I have only 2 sensors)
     webSocket.sendTXT(wsClientID, cMsg);
   }
   
-  dataStore[(_MAX_DATAPOINTS -1)].timestamp = now();
+  dataStore[(_MAX_DATAPOINTS -1)].timestamp    = now();
   dataStore[(_MAX_DATAPOINTS -1)].tempC[devNr] = tempC;
 
 } // sendSensorData
 
 
-// function to print information about a device
 //===========================================================================================
-void processSensorData(int8_t devNr)
+void handleSensors()
 {
-  char devID[20];
+//char devID[20];
 
-  Debugf("SensorID: [%s] [%-30.30s] ", sensorArray[devNr].sensorID, sensorArray[devNr].name);
-  sendSensorData(devNr);
-  Debugln();
+  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
+    Debugf("SensorID: [%s] [%-30.30s] ", _S[sensorNr].sensorID, _S[sensorNr].name);
+    sendSensorData(sensorNr);
+  }
 
-} // processSensorData()
+} // handleSensors()
 
 
 //=======================================================================
@@ -122,12 +143,12 @@ void printSensorArray()
 {
   for(int8_t s=0; s<noSensors; s++) {
     Debugf("[%2d] => [%2d], [%02d], [%s], [%-20.20s], [%7.6f], [%7.6f]\n", s
-           , sensorArray[s].index
-           , sensorArray[s].position
-           , sensorArray[s].sensorID
-           , sensorArray[s].name
-           , sensorArray[s].tempOffset
-           , sensorArray[s].tempFactor);
+           , _S[s].index
+           , _S[s].position
+           , _S[s].sensorID
+           , _S[s].name
+           , _S[s].tempOffset
+           , _S[s].tempFactor);
   }
 } // printSensorArray()
 
@@ -139,11 +160,11 @@ void sortSensors()
   for (int8_t y = 0; y < noSensors; y++) {
     yield();
     for (int8_t x = y + 1; x < noSensors; x++)  {
-      //DebugTf("y[%d], x[%d] => seq[x][%d] ", y, x, sensorArray[x].position);
-      if (sensorArray[x].position < sensorArray[y].position)  {
-        sensorStruct temp = sensorArray[y];
-        sensorArray[y] = sensorArray[x];
-        sensorArray[x] = temp;
+      //DebugTf("y[%d], x[%d] => seq[x][%d] ", y, x, _S[x].position);
+      if (_S[x].position < _S[y].position)  {
+        sensorStruct temp = _S[y];
+        _S[y] = _S[x];
+        _S[x] = temp;
       } /* end if */
       //Debugln();
     } /* end for */

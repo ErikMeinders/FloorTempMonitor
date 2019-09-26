@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : spiffsStuff, part of FloorTempMonitor
-**  Version  : v0.5.0
+**  Version  : v0.6.1
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -58,6 +58,9 @@ bool appendIniFile(int8_t index, char* devID)
   int16_t bytesWritten;
   
   DebugTf("appendIniFile(/sensors.ini) .. [%d] - sensorID[%s]\n", index, devID);
+  
+  digitalWrite(LED_BUILTIN, LED_ON);
+
 
   if (!SPIFFSmounted) {
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
@@ -103,7 +106,7 @@ bool appendIniFile(int8_t index, char* devID)
 
   Debugln(" .. Done\r");
 
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return true;
 
@@ -126,7 +129,7 @@ int8_t updateIniRec(sensorStruct newRec)
   }
   String  tmpS;
 
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_ON);
 
   File dataFile = SPIFFS.open("/sensors.ini", "r+"); // open for reading and writing
   recNr = 0;
@@ -172,7 +175,7 @@ int8_t updateIniRec(sensorStruct newRec)
 
   Debugln(" .. Done\r");
 
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return recNr;
 
@@ -185,7 +188,7 @@ bool readIniFile(int8_t index, char* devID)
   File    dataFile;
   String  tmpS;
 
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_ON);
 
   DebugTf("readIniFile(/sensors.ini) .. sensorID[%s] \r\n", devID);
 
@@ -222,7 +225,7 @@ bool readIniFile(int8_t index, char* devID)
   dataFile.close();
 
   DebugTln(" .. Done not found!\r");
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return false;
 
@@ -237,7 +240,7 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
   String        tmpS;
   int8_t        recsInFile;
   
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_ON);
 
   if (recNr < 0)  recNr = 0;
 
@@ -282,7 +285,7 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
   dataFile.close();
 
   DebugTln(" .. Done not found!\r");
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return tmpRec;
 
@@ -293,6 +296,8 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
 bool writeDataPoints()
 {
   DebugTln("writeDataPoints(/dataPoints.csv) ..");
+  
+  digitalWrite(LED_BUILTIN, LED_ON);
 
   if (!SPIFFSmounted) {
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
@@ -325,7 +330,7 @@ bool writeDataPoints()
 
   Debugln(" .. Done\r");
 
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return true;
 
@@ -341,6 +346,8 @@ bool readDataPoints()
   int16_t plotNr;
 
   DebugTln("readDataPoints(/dataPoints.csv) ..");
+
+  digitalWrite(LED_BUILTIN, LED_ON);
 
   if (!SPIFFSmounted) {
     Debugln("No SPIFFS filesystem..ABORT!!!\r");
@@ -376,7 +383,7 @@ bool readDataPoints()
   dataFile.close();
 
   Debugln(" .. Done \r");
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return true;
 

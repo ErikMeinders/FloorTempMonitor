@@ -132,7 +132,7 @@
 				document.getElementById( singleFld[0]).innerHTML = singleFld[1];
    		} else if ( (singleFld[0].indexOf("state") !== -1) ) {
 				document.getElementById( singleFld[0]).innerHTML = singleFld[1];
-				if (singleFld[1].indexOf('No Relais')  > -1) {
+				if (singleFld[1].indexOf('SX1509')  > -1) {
 					document.getElementById('state').setAttribute("style", "font-size: 14px; color: red; font-weight: bold;");
 				}
    		}

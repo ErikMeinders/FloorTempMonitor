@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : webSocketEvent, part of FloorTempMonitor
-**  Version  : v0.6.0
+**  Version  : v0.6.1
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -37,7 +37,7 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
       if (connectToSX1509) {
         webSocket.sendTXT(wsClient, "state=Connected");
       } else {
-        webSocket.sendTXT(wsClient, "state=No Relais Module");
+        webSocket.sendTXT(wsClient, "state=No SX1509 MUX Module");
       }
       sprintf(cMsg, "noSensors=%d", noSensors);
       webSocket.sendTXT(wsClient, cMsg);

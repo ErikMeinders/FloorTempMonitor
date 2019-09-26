@@ -41,15 +41,20 @@
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
+#define _S                    sensorArray
+#define LED_ON                LOW
+#define LED_OFF               HIGH
+
 #define ONE_WIRE_BUS          0     // Data wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
 #define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
+#define _LED_OFF_TIME         500   // milliseconds
 #define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
 #define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
-#define _DELTATEMP_CHECK      5     // when to check the deltaTemp's in minutes
+#define _DELTATEMP_CHECK      2     // when to check the deltaTemp's in minutes
 #define _MIN                  60000 // milliSecs in a minute
 
 /*********************************************************************************
@@ -123,6 +128,7 @@ String    pTimestamp;
 int8_t    prevNtpHour   = 0;
 uint64_t  upTimeSeconds;
 uint32_t  nextPollTimer;
+uint32_t  ledOffTimer;
 int8_t    noSensors;
 bool      readRaw = false;
 uint8_t   wsClientID;
@@ -203,12 +209,15 @@ void setup()
   httpServer.on("/api/describe_sensor", handleAPI_describe_sensor);
  
   
-  httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
   httpServer.serveStatic("/",                 SPIFFS, "/index.html");
   httpServer.serveStatic("/index.html",       SPIFFS, "/index.html");
   httpServer.serveStatic("/floortempmon.js",  SPIFFS, "/floortempmon.js");
   httpServer.serveStatic("/sensorEdit.html",  SPIFFS, "/sensorEdit.html");
   httpServer.serveStatic("/sensorEdit.js",    SPIFFS, "/sensorEdit.js");
+  httpServer.serveStatic("/FSexplorer.png",   SPIFFS, "/FSexplorer.png");
+  httpServer.serveStatic("/favicon.ico",      SPIFFS, "/favicon.ico");
+  httpServer.serveStatic("/favicon-32x32.png",SPIFFS, "/favicon-32x32.png");
+  httpServer.serveStatic("/favicon-16x16.png",SPIFFS, "/favicon-16x16.png");
   
   httpServer.on("/ReBoot", handleReBoot);
 
@@ -297,19 +306,22 @@ void loop()
 
   if ((millis() - nextPollTimer) > _POLL_INTERVAL) {
     nextPollTimer = millis();
-    digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
+    digitalWrite(BUILTIN_LED, LED_ON);
+    ledOffTimer   = millis();
 
     // call sensors.requestTemperatures() to issue a global temperature
     // request to all devices on the bus
     DebugT("Requesting temperatures...");
     sensors.requestTemperatures();
     Debugln("DONE");
-
-    for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
-      processSensorData(sensorNr);
-    }
+    handleSensors();
+    
   } // pollTimer ..
 
+  if ((millis() - ledOffTimer) > _LED_OFF_TIME) {
+    digitalWrite(BUILTIN_LED, LED_OFF);
+  }
+  
 #if defined(USE_NTP_TIME)                                                         //USE_NTP
   if (timeStatus() == timeNeedsSync || prevNtpHour != hour()) {                   //USE_NTP
     prevNtpHour = hour();                                                         //USE_NTP

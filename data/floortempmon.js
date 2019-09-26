@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : floortempmon.js, part of FloorTempMonitor
-**  Version  : v0.6.0
+**  Version  : v0.6.1
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -202,7 +202,7 @@ function parsePayload(payload) {
           TD.appendChild(SPAN);
         } else if (singleFld[0].indexOf('servoState') !== -1) {
           //TD.setAttribute("align", "left");
-          TD.setAttribute("style", "padding-left:30px; height: 18px; font-size: 12px;");
+          TD.setAttribute("style", "padding-left:30px; height: 18px; font-size: 13px;");
           var SPAN = document.createElement("span");
           //SPAN.setAttribute("class", "servoState");
           var DIV = document.createElement("div");
@@ -262,11 +262,11 @@ function parsePayload(payload) {
         console.log("singleFld[1] => ["+singleFld[1]+"]");
         var DIV = document.getElementById(singleFld[0]);
         if (singleFld[1].indexOf("OPEN") !== -1) {
-       		DIV.setAttribute("style", "text-align: center; background-color: #e25822");	// "flame"
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#e25822");	// "flame"
         } else if (singleFld[1].indexOf("CLOSED") !== -1) {
-       		DIV.setAttribute("style", "text-align: center; background-color: blue; color: white;");	
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:blue; color:white;");	
         } else if (singleFld[1].indexOf("LOOP") !== -1) {
-       		DIV.setAttribute("style", "text-align: center; background-color: #eb8b66");	
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#eb8b66");	
         }
       }
       
@@ -296,7 +296,7 @@ function parsePayload(payload) {
           var sensorID = singleFld[0].replace("S", "") * 1;
           // sensorID = "<n>"
           sensorData.datasets[sensorID].label = singleFld[0];
-          sensorData.datasets[sensorID].data[dataPoint] = parseFloat(singleFld[1]).toFixed(1);
+          sensorData.datasets[sensorID].data[dataPoint] = parseFloat(singleFld[1]).toFixed(2);
           //console.log("["+sensorData.datasets[sensorID].label+"] sensorData.datasets["+sensorID+"].data["
           //                      +dataPoint+"] => tempC["+sensorData.datasets[sensorID].data[dataPoint]+"]");
         }
@@ -305,7 +305,7 @@ function parsePayload(payload) {
     }
     else {  
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
-      if (singleFld[1].indexOf('No Relais')  > -1) {
+      if (singleFld[1].indexOf('SX1509')  > -1) {
       	document.getElementById('state').setAttribute("style", "font-size: 16px; color: red; font-weight: bold;");
       }
     }

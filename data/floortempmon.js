@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : floortempmon.js, part of FloorTempMonitor
-**  Version  : v0.6.1
+**  Version  : v0.6.2
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -262,11 +262,11 @@ function parsePayload(payload) {
         console.log("singleFld[1] => ["+singleFld[1]+"]");
         var DIV = document.getElementById(singleFld[0]);
         if (singleFld[1].indexOf("OPEN") !== -1) {
-       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#e25822");	// "flame"
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#e25822; color:white;");	// "flame"
         } else if (singleFld[1].indexOf("CLOSED") !== -1) {
        		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:blue; color:white;");	
         } else if (singleFld[1].indexOf("LOOP") !== -1) {
-       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#eb8b66");	
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#eb8b66;");	
         }
       }
       
@@ -285,7 +285,7 @@ function parsePayload(payload) {
         } else if (i==1) {  // this gives timestamp
           // [0] TS
           // [1] <(day) HH-MM>
-          let timeStamp = singleFld[1].replace("-",":");     // timeStamp
+          let timeStamp = singleFld[1].replace(/-/g,":");     // timeStamp
           // timeStamp = "<(day) HH:MM>"
           sensorData.labels[dataPoint] = timeStamp;
           //console.log("sensorData.labels["+dataPoint+"] is ["+sensorData.labels[dataPoint]+"]");

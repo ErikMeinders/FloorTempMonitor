@@ -75,24 +75,24 @@ bool appendIniFile(int8_t index, char* devID)
   } // if (!dataFile)
 
   yield();
-  sensorArray[index].index = index;
-  sprintf(sensorArray[index].sensorID, "%s", devID);
-  sensorArray[index].position = 90;
-  sprintf(sensorArray[index].name, "new Sensor");
-  sensorArray[index].tempOffset = 0.00000;
-  sensorArray[index].tempFactor = 1.00000;
-  sensorArray[index].servoNr    = -1; // not attached to a servo
-  sensorArray[index].deltaTemp  = 20.0;
-  sensorArray[index].loopTime   = 30;
+  _S[index].index = index;
+  sprintf(_S[index].sensorID, "%s", devID);
+  _S[index].position = 90;
+  sprintf(_S[index].name, "new Sensor");
+  _S[index].tempOffset = 0.00000;
+  _S[index].tempFactor = 1.00000;
+  _S[index].servoNr    = -1; // not attached to a servo
+  _S[index].deltaTemp  = 20.0;
+  _S[index].loopTime   = 30;
   sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f; %3d;"
-                                                , sensorArray[index].sensorID
-                                                , sensorArray[index].position
-                                                , sensorArray[index].name
-                                                , sensorArray[index].tempOffset
-                                                , sensorArray[index].tempFactor
-                                                , sensorArray[index].servoNr
-                                                , sensorArray[index].deltaTemp
-                                                , sensorArray[index].loopTime
+                                                , _S[index].sensorID
+                                                , _S[index].position
+                                                , _S[index].name
+                                                , _S[index].tempOffset
+                                                , _S[index].tempFactor
+                                                , _S[index].servoNr
+                                                , _S[index].deltaTemp
+                                                , _S[index].loopTime
                                           );
   yield();
   fixRecLen(fixedRec, _FIX_SETTINGSREC_LEN);
@@ -203,18 +203,18 @@ bool readIniFile(int8_t index, char* devID)
     tmpS.trim();
     DebugTf("Processing [%s]\n", tmpS.c_str());
     if (String(devID) == String(tmpS)) {
-      sensorArray[index].index = index;
-      sensorArray[index].tempC = -99;
-      sprintf(sensorArray[index].sensorID, "%s", tmpS.c_str());
-      sensorArray[index].position    = dataFile.readStringUntil(';').toInt();
-      tmpS     = dataFile.readStringUntil(';');
+      _S[index].index       = index;
+      _S[index].tempC       = -99;
+      sprintf(_S[index].sensorID, "%s", tmpS.c_str());
+      _S[index].position    = dataFile.readStringUntil(';').toInt();
+      tmpS                  = dataFile.readStringUntil(';');
       tmpS.trim();
-      sprintf(sensorArray[index].name, "%s", tmpS.c_str());
-      sensorArray[index].tempOffset  = dataFile.readStringUntil(';').toFloat();
-      sensorArray[index].tempFactor  = dataFile.readStringUntil(';').toFloat();
-      sensorArray[index].servoNr     = dataFile.readStringUntil(';').toInt();
-      sensorArray[index].deltaTemp   = dataFile.readStringUntil(';').toFloat();
-      sensorArray[index].loopTime    = dataFile.readStringUntil(';').toInt();
+      sprintf(_S[index].name, "%s", tmpS.c_str());
+      _S[index].tempOffset  = dataFile.readStringUntil(';').toFloat();
+      _S[index].tempFactor  = dataFile.readStringUntil(';').toFloat();
+      _S[index].servoNr     = dataFile.readStringUntil(';').toInt();
+      _S[index].deltaTemp   = dataFile.readStringUntil(';').toFloat();
+      _S[index].loopTime    = dataFile.readStringUntil(';').toInt();
       String n = dataFile.readStringUntil('\n');
       dataFile.close();
       return true;
@@ -279,13 +279,13 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
     tmpRec.deltaTemp    = dataFile.readStringUntil(';').toFloat();
     tmpRec.loopTime     = dataFile.readStringUntil(';').toInt();
     dataFile.close();
+    digitalWrite(LED_BUILTIN, LED_OFF);
     return tmpRec;
   }
 
   dataFile.close();
 
   DebugTln(" .. Done not found!\r");
-  digitalWrite(LED_BUILTIN, LED_OFF);
 
   return tmpRec;
 

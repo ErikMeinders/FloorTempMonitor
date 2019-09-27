@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : servoStuff, part of FloorTempMonitor
-**  Version  : v0.6.0
+**  Version  : v0.6.2
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -19,14 +19,11 @@ functionality. Attach an LED to SX1509 IO 15, or just look at
 it with a multimeter. We're gonna blink it!
 
 Hardware Hookup:
-  SX1509 Breakout ------ Arduino -------- Breadboard
+  SX1509 Breakout ------ ESP8266 -------- 
         GND -------------- GND
         3V3 -------------- 3.3V
-        SDA ------------ SDA (A4)
-        SCL ------------ SCL (A5)
-        15 -------------------------------- LED+
-                                     LED- -/\/\/\- GND
-                                            330
+        SDA -------------- SDA (A4)
+        SCL -------------- SCL (A5)
 
 Development environment specifics:
   IDE: Arduino 1.6.5
@@ -46,7 +43,7 @@ please buy us a round!
 
 // SX1509 I2C address (set by ADDR1 and ADDR0 (00 by default):
 const byte SX1509_ADDRESS = 0x3E;   // SX1509 I2C address
-SX1509 ioExpander;                  // Create an SX1509 object to be used throughout
+SX1509     ioExpander;              // Create an SX1509 object to be used throughout
 
 static uint32_t scanTimer;          // 
 
@@ -58,53 +55,71 @@ void checkDeltaTemps() {
 
   //--- pulseTime is the time a Servo/Valve ones closed stayes closed ----------
   //--- this time is set @ the loopTime of the heater-out (position 0 sensor) --
-  uint32_t pulseTime = sensorArray[0].loopTime * _MIN;  // loopTime van Sensor 'S0' is pulseTime
+  uint32_t pulseTime = _PULSE_TIME * _MIN;  // loopTime van Sensor 'S0' is pulseTime
 
   DebugTf("Check for delta Temps!! pulseTime[%d]min. from [%s]\n"
-                                                            , sensorArray[0].loopTime
-                                                            , sensorArray[0].name);
+                                                            , _PULSE_TIME
+                                                            , _S[0].name);
   // Sensor 0 is output from heater (heater-out)
   // Sensor 1 is retour to heater
   // deltaTemp is the difference from heater-out and sensor
   for (int s=1; s < noSensors; s++) {
-   if (sensorArray[s].servoNr < 0) break;
-   
-   DebugTf("checking on [%d][%s] , loopTime[%d]\n", s, sensorArray[s].name
-                                                     , sensorArray[s].loopTime);
-   switch(sensorArray[s].servoState) {
+    DebugTf("[%2d] servoNr of [%s] ==> [%d]", s, _S[s].name
+                                               , _S[s].servoNr);
+    if (_S[s].servoNr < 0) {
+      Debugln(" *SKIP*");
+      continue;
+    }
+    Debugln();
+    DebugTf("[%2d] checking on [%s], loopTime[%d]\n", s, _S[s].name
+                                                       , _S[s].loopTime);
+    switch(_S[s].servoState) {
       case SERVO_IS_OPEN:  
-                  DebugTf("tempC-in[%.1f] -/- tempC[%d][%.1f] = [%.1f] < deltaTemp[%.1f]?\n"
-                                                      , sensorArray[0].tempC
+                  DebugTf("[%2d] tempC-flux[%.1f] -/- tempC[%.1f] = [%.1f] < deltaTemp[%.1f]?\n"
                                                       , s
-                                                      , sensorArray[s].tempC
-                                                      , (sensorArray[0].tempC - sensorArray[s].tempC)
-                                                      , sensorArray[s].deltaTemp);
-                  if ((sensorArray[0].tempC - sensorArray[s].tempC) < sensorArray[s].deltaTemp) {
-                    ioExpander.digitalWrite(sensorArray[s].servoNr, CLOSE_SERVO);  
-                    sensorArray[s].servoState = SERVO_IS_CLOSED;
-                    sensorArray[s].servoTimer = millis() / _MIN;
-                    DebugTf("change to CLOSED state for [%d] minutes\n", (pulseTime / _MIN));
+                                                      , _S[0].tempC
+                                                      , _S[s].tempC
+                                                      , (_S[0].tempC - _S[s].tempC)
+                                                      , _S[s].deltaTemp);
+                  if (_S[0].tempC > 40.0) {
+                    //--- only if heater is heating -----
+                    DebugTf("[%2d] heater is On! deltaTemp[%.1f] > [%.1f]?\n"
+                                                      , s
+                                                      , _S[s].deltaTemp
+                                                      , (_S[0].tempC - _S[s].tempC) );
+                    if ( _S[s].deltaTemp > (_S[0].tempC - _S[s].tempC)) {
+                      ioExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
+                      _S[s].servoState = SERVO_IS_CLOSED;
+                      _S[s].servoTimer = millis() / _MIN;
+                      DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s, (pulseTime / _MIN));
+                    }
+                    //--- heater is not heating ... -----
+                  } else {  //--- open Servo/Valve ------
+                    DebugTln("Flux temp < 40*C");
+                    ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                    _S[s].servoState = SERVO_IS_OPEN;
+                    _S[s].servoTimer = 0;
                   }
                   break;
                   
       case SERVO_IS_CLOSED: 
-                  if ((millis() - (sensorArray[s].servoTimer * _MIN)) > pulseTime) {
-                    ioExpander.digitalWrite(sensorArray[s].servoNr, OPEN_SERVO);  
-                    sensorArray[s].servoState = SERVO_IN_LOOP;
-                    sensorArray[s].servoTimer = millis() / _MIN;
-                    DebugTf("change to LOOP state for [%d] minutes\n", sensorArray[s].loopTime);
+                  if ((millis() - (_S[s].servoTimer * _MIN)) > pulseTime) {
+                    ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                    _S[s].servoState = SERVO_IN_LOOP;
+                    _S[s].servoTimer = millis() / _MIN;
+                    DebugTf("[%2d] change to LOOP state for [%d] minutes\n", s, _S[s].loopTime);
                   }
                   break;
                   
       case SERVO_IN_LOOP:
-                  if ((millis() - (sensorArray[s].loopTime * _MIN)) > (sensorArray[s].servoTimer * _MIN)) {
-                    sensorArray[s].servoState = SERVO_IS_OPEN;
-                    sensorArray[s].servoTimer = 0;
-                    DebugTln("change to normal operation (OPEN state)");
+                  if ((millis() - (_S[s].loopTime * _MIN)) > (_S[s].servoTimer * _MIN)) {
+                    _S[s].servoState = SERVO_IS_OPEN;
+                    _S[s].servoTimer = 0;
+                    DebugTf("[%2d] change to normal operation (OPEN state)\n", s);
                   }
                   break;
     } // switch
-  }
+  } // for s ...
 
 } // checkDeltaTemps()
 

@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.0 (25-09-2019)"
+#define _FW_VERSION "v0.6.2 (27-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -31,6 +31,7 @@
 #define USE_UPDATE_SERVER
 #define HAS_FSEXPLORER
 #define SHOW_PASSWRDS
+// #define TESTDATA
 /******************** don't change anything below this comment **********************/
 
 #include <Timezone.h>           // https://github.com/JChristensen/Timezone
@@ -42,6 +43,7 @@
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 #define _S                    sensorArray
+#define _PULSE_TIME           sensorArray[0].loopTime
 #define LED_ON                LOW
 #define LED_OFF               HIGH
 
@@ -53,8 +55,8 @@
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
 #define _LED_OFF_TIME         500   // milliseconds
 #define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
-#define _PLOT_INTERVAL        900   // in seconds - 600 = 10min, 900 = 15min
-#define _DELTATEMP_CHECK      2     // when to check the deltaTemp's in minutes
+#define _PLOT_INTERVAL        60    // in seconds - 60 = 1min, 600 = 10min, 900 = 15min
+#define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
 #define _MIN                  60000 // milliSecs in a minute
 
 /*********************************************************************************
@@ -246,6 +248,9 @@ void setup()
 
   //--- locate devices on the bus
   noSensors = sensors.getDeviceCount();
+#ifdef TESTDATA                                         // TESTDATA
+  noSensors = 9;                                        // TESTDATA
+#endif                                                  // TESTDATA
   DebugTf("Locating devices...found %d devices\n", noSensors);
 
   //--- report parasite power requirements
@@ -278,6 +283,21 @@ void setup()
     sensors.setResolution(DS18B20, TEMPERATURE_PRECISION);
     DebugTf("Device %2d Resolution: %d\n", sensorNr, sensors.getResolution(DS18B20));
   } // for sensorNr ..
+
+#ifdef TESTDATA                                               // TESTDATA
+  for (int s=0; s < noSensors; s++) {                         // TESTDATA
+    sprintf(_S[s].name, "Sensor [%d]", (s+1));                // TESTDATA
+    sprintf(_S[s].sensorID, "0x2800000000%d", s);             // TESTDATA
+    _S[s].servoNr   =  s;                                     // TESTDATA
+    _S[s].position  = s+1;                                    // TESTDATA
+    _S[s].loopTime  =  1;                                     // TESTDATA
+    _S[s].deltaTemp = 10 + s;                                 // TESTDATA
+  }                                                           // TESTDATA
+  _S[5].position    =  0;                                     // TESTDATA
+  _S[5].servoNr     = -1;                                     // TESTDATA
+  _S[5].loopTime    =  1;                                     // TESTDATA
+  _S[6].servoNr     = -1;                                     // TESTDATA
+#endif                                                        // TESTDATA
 
   Debugln("========================================================================================");
   sortSensors();

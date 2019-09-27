@@ -44,12 +44,12 @@ void _cacheJSON()
     
     int s = 0;
     
-    so["index"]       = sensorArray[s].index;
-    so["position"]    = sensorArray[s].position;
-    so["sensorID"]    = sensorArray[s].sensorID;
-    so["name"]        = sensorArray[s].name;
-    so["offset"]      = sensorArray[s].tempOffset;
-    so["factor"]      = sensorArray[s].tempFactor;
+    so["index"]       = _S[s].index;
+    so["position"]    = _S[s].position;
+    so["sensorID"]    = _S[s].sensorID;
+    so["name"]        = _S[s].name;
+    so["offset"]      = _S[s].tempOffset;
+    so["factor"]      = _S[s].tempFactor;
     
     so["erix"]        = "OK";
     so["counter"]     = si;
@@ -156,12 +156,12 @@ void handleAPI_list_devices_old()
                   \t\"offset\"   : \"%7.6f\",\r\n\
                   \t\"factor\"   : \"%7.6f\"\r\n\
                   }\r\n"
-                      , sensorArray[s].index
-                      , sensorArray[s].position
-                      , sensorArray[s].sensorID
-                      , sensorArray[s].name
-                      , sensorArray[s].tempOffset
-                      , sensorArray[s].tempFactor);
+                      , _S[s].index
+                      , _S[s].position
+                      , _S[s].sensorID
+                      , _S[s].name
+                      , _S[s].tempOffset
+                      , _S[s].tempFactor);
     DOC += json;
     
     if (s<noSensors-1)

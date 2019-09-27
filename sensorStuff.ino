@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : helperStuff, part of FloorTempMonitor
-**  Version  : v0.6.1
+**  Version  : v0.6.2
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -37,12 +37,19 @@ void sendSensorData(int8_t devNr)
     }
   }
 
+#ifdef TESTDATA       
+  float tempR;                                    // TESTDATA
+  if (devNr == 0 )                                // TESTDATA
+        tempR = random(35.0, 50.0);               // TESTDATA
+  else  tempR = random(18.0, 38.0);               // TESTDATA
+#else
   float tempR = sensors.getTempCByIndex(_S[devNr].index);
+#endif
   float tempC = tempR;
 
   if (tempR < 5.0 || tempR > 100.0) {
     Debugln("invalid reading");
-    return;
+    return;                               
   }
 
   if (readRaw) {
@@ -79,10 +86,10 @@ void sendSensorData(int8_t devNr)
   
   switch (_S[devNr].servoState ) {
     case SERVO_IS_OPEN:
-            sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.2f&deg;C)", devNr, (_S[0].tempC - _S[devNr].tempC));
+            sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_S[0].tempC - _S[devNr].tempC), _S[devNr].deltaTemp);
             break;
     case SERVO_IS_CLOSED:
-            stateTime = (_S[0].loopTime * _MIN) - (millis() - (_S[devNr].servoTimer * _MIN));
+            stateTime = (_PULSE_TIME * _MIN) - (millis() - (_S[devNr].servoTimer * _MIN));
             if (stateTime > 0) {
               DebugTf("CLOSE time [%d] > 0\n", (stateTime / _MIN) +1);
               if (stateTime > _MIN)
@@ -114,8 +121,7 @@ void sendSensorData(int8_t devNr)
             sprintf(cMsg, "servoState%dS=LOOP %s", devNr, cStateTime);
             break;
   }
-//if (devNr > 1) {  // devNr 0 and 1 are the the heater SKIP!
-  if (devNr > 0) {  // for testing (I have only 2 sensors)
+  if (devNr > 1) {  // devNr 0 and 1 are the the heater SKIP!
     webSocket.sendTXT(wsClientID, cMsg);
   }
   
@@ -193,9 +199,16 @@ void publishDatapoints()
   Debugln();
   for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
     yield();
-    sprintf(cMsg, "plotPoint=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
+    if (_PLOT_INTERVAL < 61) {
+      sprintf(cMsg, "plotPoint=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
+            , hour(dataStore[p].timestamp)
+            , minute(dataStore[p].timestamp)
+            , second(dataStore[p].timestamp));
+    } else {
+      sprintf(cMsg, "plotPoint=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
             , hour(dataStore[p].timestamp)
             , minute(dataStore[p].timestamp));
+    }
     //DebugTf("[%s]\n", cMsg);
     cPoints[0] = '\0';
     for(int s=0; s < noSensors; s++) {

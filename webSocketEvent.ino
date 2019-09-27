@@ -176,13 +176,13 @@ void updateDOM()
 {
   for (int i=0; i<noSensors; i++) {
     DebugTf("Add Sensor[%2d]: sensorID[%d] name[%s]\n", i
-            , sensorArray[i].sensorID
-            , sensorArray[i].name);
+            , _S[i].sensorID
+            , _S[i].name);
 
     sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0:servoState%d=-"
                     , i, i
-                    , i, sensorArray[i].sensorID
-                    , i, sensorArray[i].name
+                    , i, _S[i].sensorID
+                    , i, _S[i].name
                     , i, i, i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }

@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.3 (29-09-2019)"
+#define _FW_VERSION "v0.6.3 (30-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -54,7 +54,7 @@
 #define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
 #define _LED_OFF_TIME         500   // milliseconds
-#define _REFLOW_TIME         (5*30000) // 5 minutes
+#define _REFLOW_TIME         (5*60000) // 5 minutes
 #define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
 #define _PLOT_INTERVAL        60    // in seconds - 60 = 1min, 600 = 10min, 900 = 15min
 #define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes

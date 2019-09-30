@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : servoStuff, part of FloorTempMonitor
-**  Version  : v0.6.2
+**  Version  : v0.6.3
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **

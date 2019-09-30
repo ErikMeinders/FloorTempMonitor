@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : floortempmon.js, part of FloorTempMonitor
-**  Version  : v0.6.2
+**  Version  : v0.6.3
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -267,6 +267,10 @@ function parsePayload(payload) {
        		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:blue; color:white;");	
         } else if (singleFld[1].indexOf("LOOP") !== -1) {
        		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#eb8b66;");	
+        } else if (singleFld[1].indexOf("CYCLE") !== -1) {
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:SkyLightBlue; color:white;");	
+        } else {	// retour Flux!
+       		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:lightGray; font-weight: bold;");	
         }
       }
       

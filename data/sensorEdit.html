@@ -1,7 +1,7 @@
 <!--
 ***************************************************************************  
 **  Program  : sensorEdit.html, part of FloorTempMonitor
-**  Version  : v0.6.0
+**  Version  : v0.6.3
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -57,19 +57,23 @@
   	<tr>
   		<td id="sensorNr">sensorID</td><td><input id="sID" style="font-size:16pt;" label="ID" value="0x28-" size="25" READONLY></td>
   	</tr><tr>
-  		<td>Naam</td><td><input id="sName" style="font-size:16pt;" label="naam" value="new Sensor" size="15" maxlength="12"></td>
+  		<td>Naam</td>
+  		<td><input id="sName" style="font-size:16pt;" label="naam" value="new Sensor" size="15" maxlength="12"></td>
   	</tr><tr>
-  		<td>Position</td><td><input id="sPosition" style="font-size:16pt;" label="Position" value="90" size="3" maxlength="2"> (op het scherm)</td>
+  		<td>Position</td>
+  		<td><input id="sPosition" style="font-size:16pt;" label="Position" value="90" size="3" maxlength="2"> (op het scherm)</td>
   	</tr><tr>
-  		<td>Temperatuur Offset</td><td><input id="sTempOffset" style="font-size:16pt;" label="tempOffset" value="0" size="10" maxlength="8"></td>
+  		<td>Temperatuur Offset</td>
+  		<td><input id="sTempOffset" style="font-size:16pt;" label="tempOffset" value="0" size="10" maxlength="8"></td>
   	</tr><tr>
-  		<td>temperatuur Factor</td><td><input id="sTempFactor" style="font-size:16pt;" label="tempFactor" value="1" size="10" maxlength="8"></td>
+  		<td>temperatuur Factor</td>
+  		<td><input id="sTempFactor" style="font-size:16pt;" label="tempFactor" value="1" size="10" maxlength="8"></td>
   	</tr><tr>
-  		<td>Servo Nummer</td><td><input id="sServo" style="font-size:16pt;" label="sServo" value="0" size="3" maxlength="2"> (-1 is no Servo!)</td>
+  		<td>Servo Nummer</td>
+  		<td><input id="sServo" style="font-size:16pt;" label="sServo" value="0" size="3" maxlength="2"> (-1 is no Servo!)</td>
   	</tr><tr>
-  		<td>Delta Temperatuur</td><td><input id="sDeltaTemp" style="font-size:16pt;" label="deltaTemp" value="20" size="10" maxlength="8"></td>
-  	</tr><tr>
-  		<td>Loop Time</td><td><input id="sLoopTime" style="font-size:16pt;" label="LoopTime" value="30" size="5" maxlength="3"> (minuten)</td>
+  		<td id="tDeltaTemp">Delta Temperatuur</td>
+  		<td><input id="sDeltaTemp" style="font-size:16pt;" label="deltaTemp" value="20" size="10" maxlength="8"></td>
   	</tr>
   	</thead>
   </table>

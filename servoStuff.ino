@@ -54,11 +54,11 @@ void checkDeltaTemps() {
   } else return;
 
   //--- pulseTime is the time a Servo/Valve ones closed stayes closed ----------
-  //--- this time is set @ the loopTime of the heater-out (position 0 sensor) --
-  uint32_t pulseTime = _PULSE_TIME * _MIN;  // loopTime van Sensor 'S0' is pulseTime
+  //--- this time is set @ the deltaTemp of the heater-out (position 0 sensor) --
+  uint32_t pulseTime = _PULSE_TIME * _MIN;  // deltaTemp van Sensor 'S0' is pulseTime
 
   DebugTf("Check for delta Temps!! pulseTime[%d]min. from [%s]\n"
-                                                            , _PULSE_TIME
+                                                            , (int)_PULSE_TIME
                                                             , _S[0].name);
   // Sensor 0 is output from heater (heater-out)
   // Sensor 1 is retour to heater
@@ -71,18 +71,17 @@ void checkDeltaTemps() {
       continue;
     }
     Debugln();
-    DebugTf("[%2d] checking on [%s], loopTime[%d]\n", s, _S[s].name
-                                                       , _S[s].loopTime);
+    //DebugTf("reflowTime[%d]\n", (_REFLOW_TIME / _MIN));
     switch(_S[s].servoState) {
       case SERVO_IS_OPEN:  
-                  DebugTf("[%2d] tempC-flux[%.1f] -/- tempC[%.1f] = [%.1f] < deltaTemp[%.1f]?\n"
+                  if (_S[0].tempC > 40.0) {
+                    //--- only if heater is heating -----
+                    DebugTf("[%2d] tempC-flux[%.1f] -/- tempC[%.1f] = [%.1f] < deltaTemp[%.1f]?\n"
                                                       , s
                                                       , _S[0].tempC
                                                       , _S[s].tempC
                                                       , (_S[0].tempC - _S[s].tempC)
                                                       , _S[s].deltaTemp);
-                  if (_S[0].tempC > 40.0) {
-                    //--- only if heater is heating -----
                     DebugTf("[%2d] heater is On! deltaTemp[%.1f] > [%.1f]?\n"
                                                       , s
                                                       , _S[s].deltaTemp
@@ -90,12 +89,13 @@ void checkDeltaTemps() {
                     if ( _S[s].deltaTemp > (_S[0].tempC - _S[s].tempC)) {
                       ioExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
                       _S[s].servoState = SERVO_IS_CLOSED;
-                      _S[s].servoTimer = millis() / _MIN;
-                      DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s, (pulseTime / _MIN));
+                      _S[s].servoTimer = millis();
+                      DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s
+                                                                               , (pulseTime / _MIN));
                     }
                     //--- heater is not heating ... -----
                   } else {  //--- open Servo/Valve ------
-                    DebugTln("Flux temp < 40*C");
+                    DebugTln("Flux In temp < 40*C");
                     ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
                     _S[s].servoState = SERVO_IS_OPEN;
                     _S[s].servoTimer = 0;
@@ -103,25 +103,116 @@ void checkDeltaTemps() {
                   break;
                   
       case SERVO_IS_CLOSED: 
-                  if ((millis() - (_S[s].servoTimer * _MIN)) > pulseTime) {
+                  if ((millis() - _S[s].servoTimer) > pulseTime) {
                     ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
                     _S[s].servoState = SERVO_IN_LOOP;
-                    _S[s].servoTimer = millis() / _MIN;
-                    DebugTf("[%2d] change to LOOP state for [%d] minutes\n", s, _S[s].loopTime);
+                    _S[s].closeCount++;
+                    _S[s].servoTimer = millis();
+                    DebugTf("[%2d] change to LOOP state for [%d] minutes\n", s
+                                                                           , (_REFLOW_TIME / _MIN));
                   }
                   break;
                   
       case SERVO_IN_LOOP:
-                  if ((millis() - (_S[s].loopTime * _MIN)) > (_S[s].servoTimer * _MIN)) {
+                  if ((millis() - _REFLOW_TIME) > _S[s].servoTimer) {
                     _S[s].servoState = SERVO_IS_OPEN;
                     _S[s].servoTimer = 0;
                     DebugTf("[%2d] change to normal operation (OPEN state)\n", s);
                   }
                   break;
+
     } // switch
   } // for s ...
 
 } // checkDeltaTemps()
+
+//=======================================================================
+void cycleAllNotUsedServos(int8_t &cycleNr) 
+{
+  int8_t  s;
+
+  if (cycleNr == 0) {
+    cycleNr = 1;  // skip Flux In(0)
+  } else {
+    if ((millis() - _S[cycleNr].servoTimer) < _REFLOW_TIME) {
+      return;
+    }
+  }
+  
+  for (s=cycleNr; s < noSensors; s++) {
+    DebugTf("[%2d] servoNr of [%s] ==> servoNr[%d]", s, _S[s].name
+                                                      , _S[s].servoNr);
+    if (_S[s].servoNr < 0) {
+      Debugln(" *SKIP*");
+      continue;
+    }
+    Debugln();
+  
+    if (_S[s].closeCount == 0) {  // never closed last 24 hours ..
+      switch(_S[s].servoState) {  
+        case SERVO_IS_CLOSED:
+        case SERVO_IN_LOOP:
+                 DebugTf("[%2d] CYCLE [%s] SKIP!\n", s, _S[s].name);
+                _S[s].closeCount++;
+                s++;  // skip this one, is already closed or in loop
+                break;
+                
+        case SERVO_IS_OPEN:
+                ioExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
+                _S[s].servoState = SERVO_COUNT0_CLOSE;
+                _S[s].servoTimer = millis();
+                DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%d] seconds\n", s
+                                                             , _S[s].name
+                                                             , (_REFLOW_TIME - (millis() - _S[s].servoTimer)) / 1000);
+                break;
+                
+        case SERVO_COUNT0_CLOSE:
+                if ((millis() - _S[s].servoTimer) > _REFLOW_TIME) {
+                  ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                  _S[s].servoState = SERVO_IS_OPEN;
+                  _S[s].closeCount++;
+                  DebugTf("[%2d] CYCLE [%s] to OPEN state\n", s, _S[s].name);
+                  }
+                  s++;
+                  break;
+                  
+        default:  // it has some other state...
+                  DebugTf("[%2d] CYCLE [%s] has an unknown state\n", s, _S[s].name);
+                  // check again after _REFLOW_TIME
+                  _S[s].servoTimer = millis(); 
+                 
+      } // switch ..
+      cycleNr = s;
+      return;  // BREAK!! we don't want all valves closed at the same time
+      
+    }  // closeCount == 0 ..
+    
+  } // for s ...
+
+  if (s >= noSensors) {
+    DebugTln("Done Cycling through all Servo's! => Reset closeCount'ers");
+    for (s=0; s<noSensors; s++) {
+      _S[s].closeCount = 0;
+    }
+    cycleAllSensors = false;
+  }
+
+} // cycleAllNotUsedServos()
+
+
+//=======================================================================
+void handleCycleServos()
+{
+  if ( hour() >= _HOUR_CLOSE_ALL) {
+    if (cycleAllSensors) {
+      cycleAllNotUsedServos(cycleNr);
+    }
+  } else if ( !cycleAllSensors && hour() < _HOUR_CLOSE_ALL ) {
+    cycleAllSensors = true;
+    cycleNr = 0; 
+  }
+  
+} // handleCycleServos()
 
 //=======================================================================
 void setupSX1509() 

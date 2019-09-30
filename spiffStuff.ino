@@ -83,8 +83,8 @@ bool appendIniFile(int8_t index, char* devID)
   _S[index].tempFactor = 1.00000;
   _S[index].servoNr    = -1; // not attached to a servo
   _S[index].deltaTemp  = 20.0;
-  _S[index].loopTime   = 30;
-  sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f; %3d;"
+  _S[index].closeCount = 0;
+  sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f;"
                                                 , _S[index].sensorID
                                                 , _S[index].position
                                                 , _S[index].name
@@ -92,7 +92,6 @@ bool appendIniFile(int8_t index, char* devID)
                                                 , _S[index].tempFactor
                                                 , _S[index].servoNr
                                                 , _S[index].deltaTemp
-                                                , _S[index].loopTime
                                           );
   yield();
   fixRecLen(fixedRec, _FIX_SETTINGSREC_LEN);
@@ -152,7 +151,7 @@ int8_t updateIniRec(sensorStruct newRec)
   }
 
   yield();
-  sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f; %3d;"
+  sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f;"
                                                 , newRec.sensorID
                                                 , newRec.position
                                                 , newRec.name
@@ -160,7 +159,6 @@ int8_t updateIniRec(sensorStruct newRec)
                                                 , newRec.tempFactor
                                                 , newRec.servoNr
                                                 , newRec.deltaTemp
-                                                , newRec.loopTime
                                           );
   yield();
   fixRecLen(fixedRec, _FIX_SETTINGSREC_LEN);
@@ -201,7 +199,7 @@ bool readIniFile(int8_t index, char* devID)
   while (dataFile.available() > 0) {
     tmpS     = dataFile.readStringUntil(';'); // first field is sensorID
     tmpS.trim();
-    DebugTf("Processing [%s]\n", tmpS.c_str());
+  //DebugTf("Processing [%s]\n", tmpS.c_str());
     if (String(devID) == String(tmpS)) {
       _S[index].index       = index;
       _S[index].tempC       = -99;
@@ -214,7 +212,6 @@ bool readIniFile(int8_t index, char* devID)
       _S[index].tempFactor  = dataFile.readStringUntil(';').toFloat();
       _S[index].servoNr     = dataFile.readStringUntil(';').toInt();
       _S[index].deltaTemp   = dataFile.readStringUntil(';').toFloat();
-      _S[index].loopTime    = dataFile.readStringUntil(';').toInt();
       String n = dataFile.readStringUntil('\n');
       dataFile.close();
       return true;
@@ -277,7 +274,6 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
     tmpRec.tempFactor   = dataFile.readStringUntil(';').toFloat();
     tmpRec.servoNr      = dataFile.readStringUntil(';').toInt();
     tmpRec.deltaTemp    = dataFile.readStringUntil(';').toFloat();
-    tmpRec.loopTime     = dataFile.readStringUntil(';').toInt();
     dataFile.close();
     digitalWrite(LED_BUILTIN, LED_OFF);
     return tmpRec;

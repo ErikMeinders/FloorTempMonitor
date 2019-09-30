@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.2 (27-09-2019)"
+#define _FW_VERSION "v0.6.3 (29-09-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -43,42 +43,45 @@
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 #define _S                    sensorArray
-#define _PULSE_TIME           sensorArray[0].loopTime
+#define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
 #define LED_ON                LOW
 #define LED_OFF               HIGH
 
-#define ONE_WIRE_BUS          0     // Data wire is plugged into GPIO-00
+#define ONE_WIRE_BUS          0     // Data Wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
 #define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
 #define _LED_OFF_TIME         500   // milliseconds
+#define _REFLOW_TIME         (5*30000) // 5 minutes
 #define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
 #define _PLOT_INTERVAL        60    // in seconds - 60 = 1min, 600 = 10min, 900 = 15min
 #define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
+#define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
 #define _MIN                  60000 // milliSecs in a minute
 
 /*********************************************************************************
 * Uitgangspunten:
 * 
-* S0 - Sensor op position '0' is verwarmingsketel water UIT
-*      deze sensor moet een servoNr '-1' hebben -> want geen klep
-*      de 'loopTime' van deze sensor wordt gebruikt om een eenmaal
-*      gesloten Servo/Klep dicht te houden.
-* S1 - Sensor op position '1' is retour naar verwarmingsketel
+* S0 - Sensor op position '0' is verwarmingsketel water UIT (Flux In)
+*      deze sensor moet een servoNr '-1' hebben -> want geen klep.
+*      De 'deltaTemp' van deze sensor wordt gebruikt om een eenmaal
+*      gesloten Servo/Klep dicht te houden (als tijd dus!).
+* S1 - Sensor op position '1' is (Flux) retour naar verwarmingsketel
 *      servoNr '-1' -> want geen klep
 * 
 * Cyclus voor bijv S3:
-*                                          start S3.loopTime
-*  (S0.tempC - S3.tempC) < S3.deltaTemp    ^        einde S3.loopTime
-*                                v         |        v
-*  - servo/Klep open      -------+         +--------+------> wacht tot (S0.tempC - S3.tempC) < S3.deltaTemp 
-*                                |         |
-*  - Servo/Klep dicht            +---------+
-*                                ^         ^
-*                start S0.loopTime         |                       
-*                     S0.loopTime verstreken
+*                                                start _REFLOW_TIME
+*   (S0.tempC - S3.tempC) < S3.deltaTemp         ^        einde _REFLOW_TIME
+*                                      v         |        v
+*  - servo/Klep open            -------+         +--------+------> wacht tot (S0.tempC - S3.tempC) < S3.deltaTemp 
+*                                      |         |
+*  - Servo/Klep closed                 +---------+
+*                                      ^         ^
+*                                      |         |
+*   start S0.deltaTemp (_PULSE_TIME) --/         |                       
+*       S0.deltaTemp (_PULSE_TIME) verstreken ---/
 * 
 *********************************************************************************/
 
@@ -99,7 +102,7 @@ TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ a
 
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
-enum    { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, ERROR };
+enum    { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0_CLOSE, ERROR };
 
 typedef struct {
   int8_t    index;
@@ -109,11 +112,11 @@ typedef struct {
   float     tempOffset;
   float     tempFactor;
   int8_t    servoNr;
-  float     deltaTemp;
-  uint16_t  loopTime;
-  float     tempC;
-  uint8_t   servoState;
-  uint16_t  servoTimer;
+  float     deltaTemp;      //-- in S0 -> closeTime
+  uint8_t   closeCount;
+  float     tempC;          //-- not in sensors.ini
+  uint8_t   servoState;     //-- not in sensors.ini
+  uint32_t  servoTimer;     //-- not in sensors.ini
 } sensorStruct;
 
 typedef struct {
@@ -122,21 +125,23 @@ typedef struct {
 } dataStruct;
 
 sensorStruct  sensorArray[_MAX_SENSORS];
-dataStruct    dataStore[_MAX_DATAPOINTS];
+dataStruct    dataStore[_MAX_DATAPOINTS+1];
 
-bool      SPIFFSmounted = false;
 char      cMsg[150], fChar[10];
 String    pTimestamp;
-int8_t    prevNtpHour   = 0;
+int8_t    prevNtpHour     = 0;
 uint64_t  upTimeSeconds;
 uint32_t  nextPollTimer;
 uint32_t  ledOffTimer;
 int8_t    noSensors;
-bool      readRaw = false;
+int8_t    cycleNr         = 0;
 uint8_t   wsClientID;
-uint32_t  lastPlotTime  = 0;
-int8_t    lastSaveHour  = 0;
+uint32_t  lastPlotTime    = 0;
+int8_t    lastSaveHour    = 0;
 bool      connectToSX1509 = false;
+bool      SPIFFSmounted   = false;
+bool      readRaw         = false;
+bool      cycleAllSensors = false;
 
 
 
@@ -203,13 +208,7 @@ void setup()
 
   httpServer.begin(); // before .ons
 
-  // httpServer.on("/",           handleIndexPage);
-  // httpServer.on("/index.html", handleIndexPage);
-
-  httpServer.on("/api",  nothingAtAll);
-  httpServer.on("/api/list_sensors", handleAPI_list_sensors);
-  httpServer.on("/api/describe_sensor", handleAPI_describe_sensor);
- 
+  apiInit();
   
   httpServer.serveStatic("/",                 SPIFFS, "/index.html");
   httpServer.serveStatic("/index.html",       SPIFFS, "/index.html");
@@ -286,17 +285,24 @@ void setup()
 
 #ifdef TESTDATA                                               // TESTDATA
   for (int s=0; s < noSensors; s++) {                         // TESTDATA
-    sprintf(_S[s].name, "Sensor [%d]", (s+1));                // TESTDATA
-    sprintf(_S[s].sensorID, "0x2800000000%d", s);             // TESTDATA
-    _S[s].servoNr   =  s;                                     // TESTDATA
-    _S[s].position  = s+1;                                    // TESTDATA
-    _S[s].loopTime  =  1;                                     // TESTDATA
-    _S[s].deltaTemp = 10 + s;                                 // TESTDATA
+    sprintf(_S[s].name, "Sensor %d", (s+1));                  // TESTDATA
+    sprintf(_S[s].sensorID, "0x2800000000%02x", s*3);         // TESTDATA
+    _S[s].servoNr     =  s;                                   // TESTDATA
+    _S[s].position    = s+2;                                  // TESTDATA
+    _S[s].closeCount  =  0;                                   // TESTDATA
+    _S[s].deltaTemp   = 15 + s;                               // TESTDATA
+    _S[s].servoTimer  = millis();                             // TESTDATA
   }                                                           // TESTDATA
-  _S[5].position    =  0;                                     // TESTDATA
-  _S[5].servoNr     = -1;                                     // TESTDATA
-  _S[5].loopTime    =  1;                                     // TESTDATA
-  _S[6].servoNr     = -1;                                     // TESTDATA
+  sprintf(_S[5].name, "*Flux IN");                            // TESTDATA
+  _S[5].position      =  0;                                   // TESTDATA
+  _S[5].deltaTemp     =  2;                                   // TESTDATA
+  _S[5].servoNr       = -1;                                   // TESTDATA
+  sprintf(_S[6].name, "*Flux RETOUR");                        // TESTDATA
+  _S[6].position      =  1;                                   // TESTDATA
+  _S[6].deltaTemp     =  0;                                   // TESTDATA
+  _S[6].servoNr       = -1;                                   // TESTDATA
+  sprintf(_S[7].name, "*Room Temp.");                         // TESTDATA
+  _S[7].servoNr       = -1;                                   // TESTDATA
 #endif                                                        // TESTDATA
 
   Debugln("========================================================================================");
@@ -323,6 +329,7 @@ void loop()
   MDNS.update();
   handleWebSockRefresh();
   checkDeltaTemps();
+  handleCycleServos();
 
   if ((millis() - nextPollTimer) > _POLL_INTERVAL) {
     nextPollTimer = millis();
@@ -337,7 +344,7 @@ void loop()
     handleSensors();
     
   } // pollTimer ..
-
+  
   if ((millis() - ledOffTimer) > _LED_OFF_TIME) {
     digitalWrite(BUILTIN_LED, LED_OFF);
   }

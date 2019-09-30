@@ -40,7 +40,8 @@ void sendSensorData(int8_t devNr)
 #ifdef TESTDATA       
   float tempR;                                    // TESTDATA
   if (devNr == 0 )                                // TESTDATA
-        tempR = random(35.0, 50.0);               // TESTDATA
+      //tempR = random(35.0, 50.0);               // TESTDATA
+        tempR = random(25.0, 29.0);               // TESTDATA
   else  tempR = random(18.0, 38.0);               // TESTDATA
 #else
   float tempR = sensors.getTempCByIndex(_S[devNr].index);
@@ -69,7 +70,7 @@ void sendSensorData(int8_t devNr)
 
   // &deg;    // degrees
   // &Delta;  // Delta
-  Debugf("Temp R/C: %6.3f *C / %6.3f *C \n", tempC, tempR);
+  //Debugf("Temp R/C: %6.3f *C / %6.3f *C \n", tempC, tempR);
   sprintf(cMsg, "tempC%d=%6.3f&#176;C", devNr, tempC);
   webSocket.sendTXT(wsClientID, cMsg);
 
@@ -86,17 +87,21 @@ void sendSensorData(int8_t devNr)
   
   switch (_S[devNr].servoState ) {
     case SERVO_IS_OPEN:
-            sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_S[0].tempC - _S[devNr].tempC), _S[devNr].deltaTemp);
+            if (_S[devNr].servoNr == -1) {  // no Servo
+              sprintf(cMsg, "servoState%dS=&Delta;T %.1f&deg;C", devNr, (_S[0].tempC - _S[devNr].tempC));
+            } else {
+              sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_S[0].tempC - _S[devNr].tempC), _S[devNr].deltaTemp);
+            }
             break;
     case SERVO_IS_CLOSED:
-            stateTime = (_PULSE_TIME * _MIN) - (millis() - (_S[devNr].servoTimer * _MIN));
+            stateTime = (_PULSE_TIME * _MIN) - (millis() - _S[devNr].servoTimer);
             if (stateTime > 0) {
-              DebugTf("CLOSE time [%d] > 0\n", (stateTime / _MIN) +1);
+              DebugTf("[%s] CLOSE time [%d] > 0\n", _S[devNr].name, (stateTime / _MIN) +1);
               if (stateTime > _MIN)
                     sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
               else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
             } else {
-              DebugTf("CLOSE time [%d] < 0\n", stateTime / _MIN);
+              DebugTf("[%s] CLOSE time [%d] < 0\n", _S[devNr].name, stateTime / _MIN);
               cStateTime[0] = '.';
               cStateTime[1] = '.';
               cStateTime[2] = '.';
@@ -105,14 +110,14 @@ void sendSensorData(int8_t devNr)
             sprintf(cMsg, "servoState%dS=CLOSED %s", devNr, cStateTime);
             break;
     case SERVO_IN_LOOP:
-            stateTime = (_S[devNr].loopTime * _MIN) - (millis() - (_S[devNr].servoTimer * _MIN));
+            stateTime = _REFLOW_TIME - (millis() - _S[devNr].servoTimer);
             if (stateTime > 0) {
-              DebugTf("LOOP time [%d] > 0\n", (stateTime / _MIN) +1);
+              DebugTf("[%s] LOOP time [%d] > 0\n", _S[devNr].name, (stateTime / _MIN) +1);
               if (stateTime > _MIN)
                     sprintf(cStateTime, " (%d min.)", (stateTime + _MIN) / _MIN);  // '+ _MIN' voor afronding ...
               else  sprintf(cStateTime, " (%d sec.)",  stateTime / 1000);
             } else {
-              DebugTf("LOOP time [%d] < 0\n", stateTime / _MIN);
+              DebugTf("[%s] LOOP time [%d] < 0\n", _S[devNr].name, stateTime / _MIN);
               cStateTime[0] = '.';
               cStateTime[1] = '.';
               cStateTime[2] = '.';
@@ -120,8 +125,24 @@ void sendSensorData(int8_t devNr)
             }
             sprintf(cMsg, "servoState%dS=LOOP %s", devNr, cStateTime);
             break;
+    case SERVO_COUNT0_CLOSE:
+            stateTime = _REFLOW_TIME - (millis() - _S[devNr].servoTimer);
+            if (stateTime > 0) {
+              DebugTf("[%s] CYCLE time left [%d]sec's > 0\n", _S[devNr].name, (stateTime / 1000) +1);
+              if (stateTime > _MIN)
+                    sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
+              else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
+            } else {
+              DebugTf("[%s] CYCLE time [%d]sec's < 0\n", _S[devNr].name, stateTime / 1000);
+              cStateTime[0] = '.';
+              cStateTime[1] = '.';
+              cStateTime[2] = '.';
+              cStateTime[3] = '\0';
+            }
+            sprintf(cMsg, "servoState%dS=CYCLE %s", devNr, cStateTime);
+            break;
   }
-  if (devNr > 1) {  // devNr 0 and 1 are the the heater SKIP!
+  if (devNr > 0) {  // devNr 0 is the the heater InFlux SKIP!
     webSocket.sendTXT(wsClientID, cMsg);
   }
   
@@ -137,7 +158,7 @@ void handleSensors()
 //char devID[20];
 
   for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
-    Debugf("SensorID: [%s] [%-30.30s] ", _S[sensorNr].sensorID, _S[sensorNr].name);
+    //Debugf("SensorID: [%s] [%-12.12s] ", _S[sensorNr].sensorID, _S[sensorNr].name);
     sendSensorData(sensorNr);
   }
 
@@ -212,16 +233,20 @@ void publishDatapoints()
     //DebugTf("[%s]\n", cMsg);
     cPoints[0] = '\0';
     for(int s=0; s < noSensors; s++) {
-      if (s == 0)
-            sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
-      else  sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
+      if (dataStore[p].tempC[s] > 0) {
+        if (cPoints[0] == '\0') {
+          sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
+        } else {
+          sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
+        }
+      }
       //DebugTf("-->[%s]\n", cPoints);
     }
     sprintf(cLine, "%s:%s", cMsg, cPoints);
     if (dataStore[p].timestamp > 0) {
       //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
       webSocket.sendTXT(wsClientID, cLine);
-      delay(10);  //-- give it some time to finish
+      delay(5);  //-- give GUI some time to process
     }
   }
 
@@ -235,7 +260,7 @@ int8_t editSensor(int8_t recNr)
     DebugTf("Error: something wrong reading record [%d] from [/sensor.ini]\n", recNr);
     return -1;
   }
-  sprintf(cMsg, "msgType=editSensor,sensorNr=%d,sID=%s,sName=%s,sPosition=%d,sTempOffset=%.6f,sTempFactor=%.6f,sServo=%d,sDeltaTemp=%.1f,sLoopTime=%d"
+  sprintf(cMsg, "msgType=editSensor,sensorNr=%d,sID=%s,sName=%s,sPosition=%d,sTempOffset=%.6f,sTempFactor=%.6f,sServo=%d,sDeltaTemp=%.1f"
                               , recNr
                               , tmpRec.sensorID
                               , tmpRec.name
@@ -243,8 +268,7 @@ int8_t editSensor(int8_t recNr)
                               , tmpRec.tempOffset
                               , tmpRec.tempFactor
                               , tmpRec.servoNr
-                              , tmpRec.deltaTemp
-                              , tmpRec.loopTime);
+                              , tmpRec.deltaTemp);
    DebugTln(cMsg);                           
    webSocket.sendTXT(wsClientID, cMsg);
    return recNr;
@@ -297,26 +321,20 @@ void updSensor(char *payload)
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.deltaTemp = String(cMsg).toFloat();
         if (tmpRec.deltaTemp < 0.0) tmpRec.deltaTemp = 20.0;
-    } else if (strncmp(pch, "loopTime", 8) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        tmpRec.loopTime = String(cMsg).toInt();
-        if (tmpRec.loopTime <   0) tmpRec.loopTime =   0;
-        if (tmpRec.loopTime > 120) tmpRec.loopTime = 120;
     } else {
         Debugf("Don't know what to do with[%s]\n", pch);
     }
     pch = strtok (NULL, ",");
   }
 
-  Debugf("tmpRec ID[%s], name[%s], position[%d]\n   tempOffset[%.6f], tempFactor[%.6f]\n   Servo[%d], deltaTemp[%.1f], loopTime[%d]\n"
+  Debugf("tmpRec ID[%s], name[%s], position[%d]\n   tempOffset[%.6f], tempFactor[%.6f]\n   Servo[%d], deltaTemp[%.1f]\n"
                                                 , tmpRec.sensorID
                                                 , tmpRec.name
                                                 , tmpRec.position
                                                 , tmpRec.tempOffset
                                                 , tmpRec.tempFactor
                                                 , tmpRec.servoNr
-                                                , tmpRec.deltaTemp
-                                                , tmpRec.loopTime);
+                                                , tmpRec.deltaTemp);
 
   recNr = updateIniRec(tmpRec);
   if (recNr >= 0) {

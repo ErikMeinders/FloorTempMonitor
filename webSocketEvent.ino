@@ -175,7 +175,7 @@ void updateSysInfo(uint8_t wsClient)
 void updateDOM()
 {
   for (int i=0; i<noSensors; i++) {
-    DebugTf("Add Sensor[%2d]: sensorID[%d] name[%s]\n", i
+    DebugTf("Add Sensor[%2d]: sensorID[%s] name[%s]\n", i
             , _S[i].sensorID
             , _S[i].name);
 

@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : sensorEdit.js, part of FloorTempMonitor
-**  Version  : v0.6.0
+**  Version  : v0.6.3
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -52,8 +52,6 @@
     																						{editValue('sServo', 'N', 0);});
     document.getElementById('sDeltaTemp').addEventListener('change',function() 
     																						{editValue('sDeltaTemp', 'N', 1);});
-    document.getElementById('sLoopTime').addEventListener('change',function() 
-    																						{editValue('sLoopTime', 'N', 0);});
 
   } // bootsTrap()
   
@@ -112,6 +110,11 @@
  			for ( var i = 1; i < singlePair.length; i++ ) {
  				singleFld = singlePair[i].split("=");
 				console.log("setting ["+singleFld[0]+"] value ["+singleFld[1]+"]");
+ 				if (document.getElementById('sPosition').value == 0) {	// Flux IN
+ 					document.getElementById('tDeltaTemp').innerHTML = "Closed Time (min.)";
+ 				} else {
+ 					document.getElementById('tDeltaTemp').innerHTML = "Delta Temperatuur";
+ 				} 					
  				if (singleFld[0].indexOf("sensorNr") > -1) {
  					sensorNr = singleFld[1] * 1;
  					document.getElementById(singleFld[0].trim()).innerHTML = "("+singleFld[1]+") SensorID ";
@@ -165,8 +168,7 @@
 		             +",tempOffset="+document.getElementById('sTempOffset').value * 1.0
 		             +",tempFactor="+document.getElementById('sTempFactor').value * 1.0
 		             +",servoNr="+document.getElementById('sServo').value * 1
-		             +",deltaTemp="+document.getElementById('sDeltaTemp').value * 1.0
-		             +",loopTime="+document.getElementById('sLoopTime').value * 1;
+		             +",deltaTemp="+document.getElementById('sDeltaTemp').value * 1.0;
 		webSocketConn.send(updRec);
 		var warning = document.getElementById('rebootWarning');
 		warning.setAttribute("style", "color: red; text-align: center");

@@ -186,6 +186,7 @@ void handleReBoot()
   httpServer.send(200, "text/html", redirectHTML);
 
   DebugTf("ReBoot %s ..\r\n", _HOSTNAME);
+  writeDataPoints();
   TelnetStream.flush();
   delay(1000);
   ESP.reset();

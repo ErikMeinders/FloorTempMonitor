@@ -23,7 +23,8 @@ let readRaw   = false;
 let _MAX_DATAPOINTS = 100 -1;  // must be the same as in FloorTempMonitor in main .ino -1 (last one is zero)
 let noSensors    = 1;
 //----- chartJS --------
-var colors          = [   'Green', 'CornflowerBlue', 'Red', 'Yellow', 'FireBrick', 'Blue', 'Orange'
+// Red for input sensor0 (=hot), blue for retour sensor1 (=cold)
+var colors          = [   'Red', 'Blue', 'Green', 'Yellow', 'FireBrick', 'CornflowerBlue', 'Orange'
                         , 'DeepSkyBlue', 'Gray', 'Purple', 'Brown', 'MediumVioletRed', 'LightSalmon'
                         , 'BurlyWood', 'Gold'
                        ];

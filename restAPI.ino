@@ -134,6 +134,117 @@ void handleAPI_list_sensors() // api/list_sensors
    
 } 
 
+JsonArray calibrations;
+
+void calibrate_zero(int sensorIndex)
+{
+
+  DynamicJsonDocument c(64);
+  
+  float tempR = sensors.getTempCByIndex(_S[sensorIndex].index);
+
+  // this should be 0, so lets take the raw reading and put that in the offset
+  // so that reading + offset equals 0
+  // that is, put -1 * raw reading
+
+  _S[sensorIndex].tempOffset = -1.0 * tempR;
+
+  c["index"]  = sensorIndex;
+  c["offset"] = _S[sensorIndex].tempOffset;
+
+  calibrations.add(c);
+  updateIniRec(_S[sensorIndex]);
+
+}
+
+void calibrate_nonZero(int sensorIndex, float t)
+{
+  float tempR = sensors.getTempCByIndex(_S[sensorIndex].index);
+  DynamicJsonDocument c(64);
+
+  // calculate correction factor
+  // so that 
+  // raw_reading * correction_factor = actualTemp
+  // --> correction_factor = actualTemp/raw_reading
+
+  // r(read)=40, t(actual)=50 --> f=50/40=1.25
+  // r=20  --> t=20.0*1.25=25.0
+
+  // make sure to use the calibrated reading, 
+  // so add the offset!
+  
+  _S[sensorIndex].tempFactor = t  / ( tempR + _S[sensorIndex].tempOffset );
+
+  c["index"]  = sensorIndex;
+  c["factor"] = _S[sensorIndex].tempFactor;
+
+  calibrations.add(c);
+  updateIniRec(_S[sensorIndex]);
+}
+
+DynamicJsonDocument toRetCalDoc(500);
+
+void handleAPI_calibrate_sensor()
+{
+  // a temperature should be given and optionally a sensor(name or ID)
+  // when sensor is missing, all sensors are calibrated
+  // /api/calibrate_sensor?temp=<float>[&[name|sensorID]=<string>]
+  // *** actualTemp should come from a calibrated source
+  
+  const char* actualTemp=httpServer.arg("temp").c_str();
+    
+  // check correct use
+  
+  if (strlen(actualTemp) <= 0)
+  {
+     _returnJSON400("temp is mandatory query parameter");
+     return;
+  }
+  
+  // prepare some JSON stuff to return
+  
+  toRetCalDoc.clear();
+  calibrations = toRetCalDoc.createNestedArray("calibrations");
+  
+  // was a name or sensorID specified --> calibrate only that one sensor
+  
+  if (strlen(httpServer.arg("name").c_str()) +
+      strlen(httpServer.arg("sensorID").c_str()) > 0)
+  {
+      int sensorToCalibrate = _find_sensorIndex_by_query();
+      
+      if ( strcmp(actualTemp,"0") == 0)
+        calibrate_zero(sensorToCalibrate);
+      else
+        calibrate_nonZero(sensorToCalibrate, atof(actualTemp));
+  } else {
+
+    // calibrate all sensors
+    
+    if ( strcmp(actualTemp,"0") == 0)
+    
+      // calibrating for 0 degrees
+      
+      for (int s=0 ; s < noSensors ; s++)
+         calibrate_zero(s);
+      
+    else {
+  
+      // calibrating for a non-zero temperature
+      
+      float t=atof(actualTemp);
+  
+      // for all sensors, 
+    
+      for (int s=0 ; s < noSensors ; s++)
+        calibrate_nonZero(s, t);
+      
+    }
+  }
+  _returnJSON(toRetCalDoc.as<JsonObject>());
+     
+}
+
 void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>
 {  
   int si = _find_sensorIndex_by_query();
@@ -179,4 +290,5 @@ void apiInit()
   httpServer.on("/api/list_sensors", handleAPI_list_sensors);
   httpServer.on("/api/describe_sensor", handleAPI_describe_sensor);
   httpServer.on("/api/get_temperature", handleAPI_get_temperature);
+  httpServer.on("/api/calibrate_sensors", handleAPI_calibrate_sensor);
 }

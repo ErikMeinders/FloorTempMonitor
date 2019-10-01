@@ -64,7 +64,7 @@ void sendSensorData(int8_t devNr)
     //--- realTemp/sensorTemp = tempFactor
     //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
     tempC = ( (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor );
-    tempC = ((_S[devNr].tempC * 3.0) + tempC) / 4.0;
+    // hjm: skip avg. calculations for now  --> tempC = ((_S[devNr].tempC * 3.0) + tempC) / 4.0;
   }
   _S[devNr].tempC = tempC;
 

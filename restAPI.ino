@@ -136,18 +136,18 @@ void handleAPI_list_sensors() // api/list_sensors
 
 JsonArray calibrations;
 
-void calibrate_zero(int sensorIndex)
+void calibrate_low(int sensorIndex, float lowTemp)
 {
 
   DynamicJsonDocument c(64);
   
   float tempR = sensors.getTempCByIndex(_S[sensorIndex].index);
 
-  // this should be 0, so lets take the raw reading and put that in the offset
-  // so that reading + offset equals 0
-  // that is, put -1 * raw reading
+  // this should be lowTemp, change tempOffset
+  // so that reading + offset equals lowTemp
+  // that is, offset = lowTemp - raw reading 
 
-  _S[sensorIndex].tempOffset = -1.0 * tempR;
+  _S[sensorIndex].tempOffset = lowTemp - tempR;
 
   c["index"]  = sensorIndex;
   c["offset"] = _S[sensorIndex].tempOffset;
@@ -157,7 +157,7 @@ void calibrate_zero(int sensorIndex)
 
 }
 
-void calibrate_nonZero(int sensorIndex, float t)
+void calibrate_high(int sensorIndex, float t)
 {
   float tempR = sensors.getTempCByIndex(_S[sensorIndex].index);
   DynamicJsonDocument c(64);
@@ -192,7 +192,6 @@ void handleAPI_calibrate_sensor()
   // *** actualTemp should come from a calibrated source
   
   const char* actualTemp=httpServer.arg("temp").c_str();
-    
   // check correct use
   
   if (strlen(actualTemp) <= 0)
@@ -200,6 +199,7 @@ void handleAPI_calibrate_sensor()
      _returnJSON400("temp is mandatory query parameter");
      return;
   }
+  float actualTempf = atof(actualTemp);
   
   // prepare some JSON stuff to return
   
@@ -213,36 +213,33 @@ void handleAPI_calibrate_sensor()
   {
       int sensorToCalibrate = _find_sensorIndex_by_query();
       
-      if ( strcmp(actualTemp,"0") == 0)
-        calibrate_zero(sensorToCalibrate);
+      if ( actualTempf < 15.0 )
+        calibrate_low(sensorToCalibrate,actualTempf);
       else
-        calibrate_nonZero(sensorToCalibrate, atof(actualTemp));
+        calibrate_high(sensorToCalibrate, actualTempf );
   } else {
 
     // calibrate all sensors
     
-    if ( strcmp(actualTemp,"0") == 0)
+    if ( actualTempf < 15.0 )
     
-      // calibrating for 0 degrees
+      // calibrating for low degrees
       
       for (int s=0 ; s < noSensors ; s++)
-         calibrate_zero(s);
+         calibrate_low(s, actualTempf);
       
     else {
   
-      // calibrating for a non-zero temperature
+      // calibrating for a high temperature
       
-      float t=atof(actualTemp);
-  
       // for all sensors, 
     
       for (int s=0 ; s < noSensors ; s++)
-        calibrate_nonZero(s, t);
+        calibrate_high(s, actualTempf);
       
     }
   }
   _returnJSON(toRetCalDoc.as<JsonObject>());
-     
 }
 
 void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>

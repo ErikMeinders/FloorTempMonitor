@@ -9,6 +9,12 @@
 ***************************************************************************
 */
 
+// made changes to store raw data in dataStore
+
+// apply calibration when storing in struct (used by API and controller)
+// and when displaying
+
+#define _LAST_DATAPOINT (_MAX_DATAPOINTS -1)
 
 // function to print a device address
 //===========================================================================================
@@ -20,77 +26,159 @@ void getSensorID(DeviceAddress deviceAddress, char* devID)
           , deviceAddress[6], deviceAddress[7]);
 } // getSensorID()
 
-// function to print the temperature for a device
-//===========================================================================================
-void sendSensorData(int8_t devNr)
+
+// getRawTemp: gets real, uncalibrated temp from sensor or random temp in TESTDATA scenario 
+
+float getRawTemp(int8_t devNr)
 {
-  //-- time to shift datapoints?
-  if ( ((now() / _PLOT_INTERVAL) > lastPlotTime) && (devNr == 0)) {
-    lastPlotTime = (now() / _PLOT_INTERVAL);
-    dataStore[(_MAX_DATAPOINTS -1)].timestamp = now();
-    shiftUpDatapoints();
-    publishDatapoints();
-    //-- no point in wear out the flash memory
-    if (hour() != lastSaveHour) {
-      lastSaveHour = hour();
-      writeDataPoints();
-    }
-  }
-
+  float tempR;
+    
 #ifdef TESTDATA       
-  float tempR;                                    // TESTDATA
-  if (devNr == 0 )                                // TESTDATA
-      //tempR = random(35.0, 50.0);               // TESTDATA
-        tempR = random(25.0, 29.0);               // TESTDATA
-  else  tempR = random(18.0, 38.0);               // TESTDATA
+  if (devNr == 0 )                                
+     tempR = random(35.0, 50.0);   // hjm: 25.0 - 29.0 ?            
+  else  
+    tempR = random(18.0, 38.0);               
 #else
-  float tempR = sensors.getTempCByIndex(_S[devNr].index);
+  tempR = sensors.getTempCByIndex(_S[devNr].index);
 #endif
-  float tempC = tempR;
 
-  if (tempR < 5.0 || tempR > 100.0) {
+  if (tempR < -2.0 || tempR > 102.0) {
     Debugln("invalid reading");
-    return;                               
+    return 99.9;                               
   }
 
-  if (readRaw) {
-    _S[devNr].tempC = tempR;
+  return tempR;  
+}
 
-  } else if (_S[devNr].tempC == -99) { // first reading
-    //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
-    tempC = ( (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor );
+float _calibrated(float tempR, int8_t devNr)
+{
+  return (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor;
+}
 
-  } else {  // compensated Temp
-    //--- realTemp/sensorTemp = tempFactor
-    //--- https://www.letscontrolit.com/wiki/index.php/Basics:_Calibration_and_Accuracy
-    tempC = ( (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor );
-    // hjm: skip avg. calculations for now  --> tempC = ((_S[devNr].tempC * 3.0) + tempC) / 4.0;
-  }
+// updateSensorData updates _S as well as dataStore
+
+void updateSensorData(int8_t devNr)
+{
+  float tempR = getRawTemp(devNr);
+  float tempC = _calibrated(tempR, devNr);
+  
+  // store calibrated temp in struct _S
+
   _S[devNr].tempC = tempC;
 
-  // &deg;    // degrees
-  // &Delta;  // Delta
-  //Debugf("Temp R/C: %6.3f *C / %6.3f *C \n", tempC, tempR);
-  sprintf(cMsg, "tempC%d=%6.3f&#176;C", devNr, tempC);
-  webSocket.sendTXT(wsClientID, cMsg);
+  // overwrite _LAST_DATAPOINT data in dataStore
 
-  //--- hier iets slims om de temperatuur grafisch weer te geven ---
-  //--- bijvoorbeeld de afwijking t.o.v. ATAG uit temp en ATAG retour temp
-  sprintf(cMsg, "barRange=low %d&deg;C - high %d&deg;C", 10, 60);
-  webSocket.sendTXT(wsClientID, cMsg);
-  int8_t mapTemp = map(tempC, 10, 60, 0, 100); // mappen naar 0-100% van de bar
-  sprintf(cMsg, "tempBar%dB=%d", devNr, mapTemp);
-  webSocket.sendTXT(wsClientID, cMsg);
+  dataStore[_LAST_DATAPOINT].timestamp = now();
+  dataStore[_LAST_DATAPOINT].tempC[devNr] = tempR;
+  
+}
 
+
+// function to print the temperature for a device
+//===========================================================================================
+float _previousSensorDisplay[_MAX_SENSORS];
+int _previousLow=0;
+int _previousHigh=0;
+int _high=60;
+int _low=10;
+
+void forceUpdateSensorsDisplay()
+{
+  // clear cache of previous displayed value
+  
+  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
+    _previousSensorDisplay[sensorNr] = 0.0;
+  
+  updateSensorsDisplay();
+}
+
+void updateSensorsDisplay()
+{
+  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
+  {
+    yield();
+    updateSensorDisplay(sensorNr);
+  }
+  
+  // don't update leganda unless out of sync
+  // for now, just once, _low && _high are not updated
+  
+  if( _previousLow != _low || _previousHigh != _high)
+  {
+    // _previousLow  = _low;
+    // _previousHigh = _high;
+
+    //--- hier iets slims om de temperatuur grafisch weer te geven ---
+    //--- bijvoorbeeld de afwijking t.o.v. ATAG uit temp en ATAG retour temp
+    
+    sprintf(cMsg, "barRange=low %d&deg;C - high %d&deg;C", _low, _high);
+    webSocket.sendTXT(wsClientID, cMsg);
+  }
+}
+
+void updateSensorDisplay(int8_t devNr)
+{
+  float tempToUse;
+  
+  // temp to use, raw or calibrated
+
+  if(readRaw)
+    tempToUse = dataStore[_LAST_DATAPOINT].tempC[devNr];
+  else
+    tempToUse = _S[devNr].tempC;
+
+  // only update if actual value differs from previous
+  
+  if ((int) (100.0 * tempToUse) != (int) (100.0 * _previousSensorDisplay[devNr] ) )
+  {
+    // update number on screen
+    
+    _previousSensorDisplay[devNr] = tempToUse;
+    
+    sprintf(cMsg, "tempC%d=%6.3f&#176;C", devNr, tempToUse);
+    webSocket.sendTXT(wsClientID, cMsg);
+
+    // update bar
+    
+    int8_t mapTemp = map(tempToUse, _low, _high, 0, 100); // mappen naar 0-100% van de bar
+    sprintf(cMsg, "tempBar%dB=%d", devNr, mapTemp);
+    webSocket.sendTXT(wsClientID, cMsg);
+  }
+  
+  
+}
+
+void updateServosDisplay()
+{
+  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
+  {
+      yield();
+      updateServoDisplay(sensorNr);
+  }  
+}
+
+void updateServoDisplay(int8_t devNr)
+{  
   int32_t   stateTime = 0;
   char      cStateTime[15];
+  float     tempToUse;
+  
+  // temp to use, raw or calibrated
+
+  if (devNr == 0)
+    return;
+    
+  if(readRaw)
+    tempToUse = dataStore[_LAST_DATAPOINT].tempC[devNr];
+  else
+    tempToUse = _S[devNr].tempC;
   
   switch (_S[devNr].servoState ) {
     case SERVO_IS_OPEN:
             if (_S[devNr].servoNr == -1) {  // no Servo
-              sprintf(cMsg, "servoState%dS=&Delta;T %.1f&deg;C", devNr, (_S[0].tempC - _S[devNr].tempC));
+              sprintf(cMsg, "servoState%dS=&Delta;T %.1f&deg;C", devNr, (_S[0].tempC - tempToUse));
             } else {
-              sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_S[0].tempC - _S[devNr].tempC), _S[devNr].deltaTemp);
+              sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_S[0].tempC - tempToUse), _S[devNr].deltaTemp);
             }
             break;
     case SERVO_IS_CLOSED:
@@ -142,26 +230,70 @@ void sendSensorData(int8_t devNr)
             sprintf(cMsg, "servoState%dS=CYCLE %s", devNr, cStateTime);
             break;
   }
-  if (devNr > 0) {  // devNr 0 is the the heater InFlux SKIP!
-    webSocket.sendTXT(wsClientID, cMsg);
-  }
   
-  dataStore[(_MAX_DATAPOINTS -1)].timestamp    = now();
-  dataStore[(_MAX_DATAPOINTS -1)].tempC[devNr] = tempC;
+  webSocket.sendTXT(wsClientID, cMsg);
+  
+  
+} 
 
-} // sendSensorData
+
+void handleDatapoints()
+{
+  // time to refresh display of datapoints 
+  
+  if ( DUE(graphUpdate) ) {
+        
+    updateDatapointsDisplay();
+
+    // after displaying, shift all points
+    
+    shiftUpDatapoints();
+  }
+
+  // time for hourly writing datapoints
+  
+  if (hour() != lastSaveHour) {
+      lastSaveHour = hour();
+      writeDataPoints();
+  }
+}
 
 
-//===========================================================================================
+boolean _needToPoll()
+{
+  unsigned long nowTime = millis();
+  boolean toReturn = false;
+   
+  if ( DUE (sensorPoll) ) {
+    toReturn = true;
+ 
+    // let LED flash on during probing of sensors
+    
+    digitalWrite(BUILTIN_LED, LED_ON);
+    
+    // call sensors.requestTemperatures() to issue a global temperature
+    // request to all devices on the bus
+   
+    DebugT("Requesting temperatures...\n");
+    timeThis(sensors.requestTemperatures());
+    digitalWrite(BUILTIN_LED, LED_OFF);
+  } 
+    
+  return toReturn;
+}
+
 void handleSensors()
 {
-//char devID[20];
-
-  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
-    //Debugf("SensorID: [%s] [%-12.12s] ", _S[sensorNr].sensorID, _S[sensorNr].name);
-    sendSensorData(sensorNr);
+  if (_needToPoll())
+  {
+    for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) 
+      timeThis(updateSensorData(sensorNr));
+      
+    for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
+      timeThis(updateSensorDisplay(sensorNr));
+      timeThis(updateServoDisplay(sensorNr));
+    }
   }
-
 } // handleSensors()
 
 
@@ -202,24 +334,23 @@ void sortSensors()
 //=======================================================================
 void shiftUpDatapoints()
 {
-  for (int p = 0; p < (_MAX_DATAPOINTS -1); p++) {
+  for (int p = 0; p < _LAST_DATAPOINT; p++) {
     dataStore[p] = dataStore[(p+1)];
   }
-  for (int s=0; s < _MAX_SENSORS; s++) {
-    dataStore[(_MAX_DATAPOINTS -1)].tempC[s] = 0;
-  }
-
 } // shiftUpDatapoints()
 
 //=======================================================================
-void publishDatapoints()
+void updateDatapointsDisplay()
 {
   char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
   char cLine[(sizeof(cPoints) + 20)];
 
   Debugln();
-  for (int p=0; p < (_MAX_DATAPOINTS -1); p++) {  // last dataPoint is alway's zero
+  for (int p=0; p < _MAX_DATAPOINTS ; p++) {  // last dataPoint is most recent measurement
     yield();
+
+    // compose tooltip
+    
     if (_PLOT_INTERVAL < 61) {
       sprintf(cMsg, "plotPoint=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
             , hour(dataStore[p].timestamp)
@@ -231,13 +362,16 @@ void publishDatapoints()
             , minute(dataStore[p].timestamp));
     }
     //DebugTf("[%s]\n", cMsg);
+    
     cPoints[0] = '\0';
     for(int s=0; s < noSensors; s++) {
-      if (dataStore[p].tempC[s] > 0) {
+      float tempToUse = readRaw ? dataStore[p].tempC[s] : _calibrated(dataStore[p].tempC[s],s);
+      
+      if (tempToUse > 0) {
         if (cPoints[0] == '\0') {
-          sprintf(cPoints, "S%d=%f",             s, dataStore[p].tempC[s]);
+          sprintf(cPoints, "S%d=%f",             s, tempToUse);
         } else {
-          sprintf(cPoints, "%s:S%d=%f", cPoints, s, dataStore[p].tempC[s]);
+          sprintf(cPoints, "%s:S%d=%f", cPoints, s, tempToUse);
         }
       }
       //DebugTf("-->[%s]\n", cPoints);
@@ -246,7 +380,7 @@ void publishDatapoints()
     if (dataStore[p].timestamp > 0) {
       //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
       webSocket.sendTXT(wsClientID, cLine);
-      delay(5);  //-- give GUI some time to process
+      waitAmSec(5);  //-- give GUI some time to process
     }
   }
 

@@ -66,9 +66,9 @@
 
 #define DUE(timerName) (( (millis() - timerName##_last) < timerName##_interval) ? 0 : (timerName##_last=millis()))
 
-void waitAmSec(unsigned long ms)
-{
-  DECLARE_TIMERms ( theWait, ms )
-  while ( !DUE( theWait ))
-    yield();
-}
+//void waitAmSec(unsigned long ms)
+//{
+//  DECLARE_TIMERms ( theWait, ms )
+//  while ( !DUE( theWait ))
+//    yield();
+//}

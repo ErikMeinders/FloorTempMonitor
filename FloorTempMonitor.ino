@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.3 (30-09-2019)"
+#define _FW_VERSION "v0.6.4 (08-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -64,7 +64,7 @@
 #define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
 #define _MIN                  60000 // milliSecs in a minute
 
-#define _PLOT_INTERVAL        15    // in seconds
+#define _PLOT_INTERVAL        30    // in seconds
 
 DECLARE_TIMER(sensorPoll,   5) // update sensors every 5s 
 
@@ -319,6 +319,8 @@ void setup()
 
 } // setup()
 
+
+//===========================================================================================
 void loop()
 {
   timeThis(httpServer.handleClient());

@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : webSocketEvent, part of FloorTempMonitor
-**  Version  : v0.6.1
+**  Version  : v0.6.4
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -36,6 +36,7 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
           } else {
             webSocket.sendTXT(wsClient, "state=No SX1509 MUX Module");
           }
+          readRaw = false;
           sprintf(cMsg, "noSensors=%d", noSensors);
           webSocket.sendTXT(wsClient, cMsg);
           // updateDOM();
@@ -50,12 +51,13 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
 
       if (wsPayload.indexOf("updateDOM") > -1) {
         DebugTln("now updateDOM()!");
-        waitAmSec(100); // give it some time to load chartJS library and stuff
+        delay(100); // give it some time to load chartJS library and stuff
         updateDOM();
       } else
       if (wsPayload.indexOf("DOMloaded") > -1) {
         DebugTln("received DOMloaded, send some datapoints");
-        waitAmSec(100);
+        delay(100);
+        readRaw = false;
         forceUpdateSensorsDisplay();
         updateDatapointsDisplay();
       } else
@@ -99,10 +101,12 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
 void handleWebSockRefresh()
 {
   if (DUE(screenClockRefresh)) {
-    String DT   = buildDateTimeString();
-    webSocket.sendTXT(wsClientID, "clock=" + DT);
+    String DT  = buildDateTimeString();
+    sprintf(cMsg, "clock=WiFi RSSI: %4ddBm &nbsp; %s", WiFi.RSSI(), DT.c_str());
+    DebugTln(cMsg);
+    webSocket.sendTXT(wsClientID, cMsg);
   }
-  yield();
+
 } // handleWebSockRefreshh()
 
 

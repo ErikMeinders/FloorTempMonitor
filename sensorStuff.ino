@@ -380,7 +380,7 @@ void updateDatapointsDisplay()
     if (dataStore[p].timestamp > 0) {
       //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
       webSocket.sendTXT(wsClientID, cLine);
-      waitAmSec(5);  //-- give GUI some time to process
+      delay(5);  //-- give GUI some time to process
     }
   }
 

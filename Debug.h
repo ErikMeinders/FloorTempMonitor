@@ -9,86 +9,35 @@
 ***************************************************************************      
 */
 
-/*---- macro's --------------------------------------------------------------------------------*/
-#ifdef USE_NTP_TIME
-//============== Debug with Trace info / NTP defined ============================================
-#define DebugT(...)     ({ Serial.printf("[%02d:%02d:%02d] [%8d] %-12.12s(%4d): "               \
-                                                                  , hour(), minute(), second()  \
-                                                                  , ESP.getFreeHeap()           \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           TelnetStream.printf("[%02d:%02d:%02d] [%8d] %-12.12s(%4d): "         \
-                                                                  , hour(), minute(), second()  \
-                                                                  , ESP.getFreeHeap()           \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           Serial.print(__VA_ARGS__);                                           \
-                           TelnetStream.print(__VA_ARGS__);                                     \
+
+#define Debug(...)      ({ Serial.print(__VA_ARGS__);         \
+                           TelnetStream.print(__VA_ARGS__);   \
                         })
-#define DebugTln(...)   ({ Serial.printf("[%02d:%02d:%02d] [%8d] %-12.12s(%4d): "               \
-                                                                  , hour(), minute(), second()  \
-                                                                  , ESP.getFreeHeap()           \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           TelnetStream.printf("[%02d:%02d:%02d] [%8d] %-12.12s(%4d): "         \
-                                                                  , hour(), minute(), second()  \
-                                                                  , ESP.getFreeHeap()           \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           Serial.println(__VA_ARGS__);        \
-                           TelnetStream.println(__VA_ARGS__);  \
+#define Debugln(...)    ({ Serial.println(__VA_ARGS__);       \
+                           TelnetStream.println(__VA_ARGS__); \
                         })
-#define DebugTf(...)    ({ Serial.printf("[%02d:%02d:%02d] [%8d] %-12.12s(%4d): "               \
-                                                                  , hour(), minute(), second()  \
-                                                                  , ESP.getFreeHeap()           \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           TelnetStream.printf("[%02d:%02d:%02d] [%8d] %-12.12s(%4d): "         \
-                                                                  , hour(), minute(), second()  \
-                                                                  , ESP.getFreeHeap()           \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           Serial.printf(__VA_ARGS__);                                          \
-                           TelnetStream.printf(__VA_ARGS__);                                    \
+#define Debugf(...)     ({ Serial.printf(__VA_ARGS__);        \
+                           TelnetStream.printf(__VA_ARGS__);  \
+                        })
+
+#define DebugFlush()    ({ Serial.flush(); \
+                           TelnetStream.flush(); \
+                        })
+
+void _debugBOL(const char *, int );
+
+
+#define DebugT(...)     ({ _debugBOL(__FUNCTION__, __LINE__);  \
+                           Debug(__VA_ARGS__);                 \
+                        })
+#define DebugTln(...)   ({ _debugBOL(__FUNCTION__, __LINE__);  \
+                           Debugln(__VA_ARGS__);        \
+                        })
+#define DebugTf(...)    ({ _debugBOL(__FUNCTION__, __LINE__);  \
+                           Debugf(__VA_ARGS__);                \
                         })
 
 
-#else
-//============== Debug with Trace info / NTP defined ============================================
-#define DebugT(...)     ({ Serial.printf("[%8d] %-12.12s(%4d): "      , ESP.getFreeHeap()       \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           TelnetStream.printf("[%8d] %-12.12s(%4d): ", ESP.getFreeHeap()       \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           Serial.print(__VA_ARGS__);                                           \
-                           TelnetStream.print(__VA_ARGS__);                                     \
-                        })
-#define DebugTln(...)   ({ Serial.printf("[%8d] %-12.12s(%4d): "      , ESP.getFreeHeap()       \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           TelnetStream.printf("[%8d] %-12.12s(%4d): ", ESP.getFreeHeap()       \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           Serial.println(__VA_ARGS__);        \
-                           TelnetStream.println(__VA_ARGS__);  \
-                        })
-#define DebugTf(...)    ({ Serial.printf("[%8d] %-12.12s(%4d): "       , ESP.getFreeHeap()      \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           TelnetStream.printf("[%8d] %-12.12s(%4d): " , ESP.getFreeHeap()      \
-                                                                  ,__FUNCTION__, __LINE__);     \
-                           Serial.printf(__VA_ARGS__);                                          \
-                           TelnetStream.printf(__VA_ARGS__);                                    \
-                        })
-
-#endif
-
-//============== "Normal" Debug =================================================================
-#define Debug(...)      ({ Serial.print(__VA_ARGS__);                                           \
-                           TelnetStream.print(__VA_ARGS__);                                     \
-                        })
-#define Debugln(...)    ({ Serial.println(__VA_ARGS__);                                         \
-                           TelnetStream.println(__VA_ARGS__);                                   \
-                        })
-#define Debugf(...)     ({ Serial.printf(__VA_ARGS__);                                          \
-                           TelnetStream.printf(__VA_ARGS__);                                    \
-                        })
-
-#define DebugFlush()    ({ Serial.flush();        \
-                           TelnetStream.flush();  \
-                        })
-/*---- macro's --------------------------------------------------------------------------------*/
-                        
 /***************************************************************************
 *
 * Permission is hereby granted, free of charge, to any person obtaining a

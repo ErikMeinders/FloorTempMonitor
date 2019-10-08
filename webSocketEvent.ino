@@ -9,9 +9,6 @@
 ***************************************************************************
 */
 
-static int8_t   savMin = 0;
-static uint32_t updateClock = millis() + 1000;
-static bool     doUpdateDOM;
 
 
 //===========================================================================================
@@ -23,72 +20,75 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
 
   wsClientID = wsClient;  // only the last connected Client gets updates
 
-  switch(type) {
-  case WStype_DISCONNECTED:
-    DebugTf("[%u] Disconnected!\r\n", wsClient);
-    isConnected = false;
-    break;
+  switch (type) {
+    case WStype_DISCONNECTED:
+      DebugTf("[%u] Disconnected!\r\n", wsClient);
+      isConnected = false;
+      break;
 
-  case WStype_CONNECTED: {
-    IPAddress ip = webSocket.remoteIP(wsClient);
-    if (!isConnected) {
-      DebugTf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", wsClient, ip[0], ip[1], ip[2], ip[3], payload);
-      isConnected = true;
-      if (connectToSX1509) {
-        webSocket.sendTXT(wsClient, "state=Connected");
-      } else {
-        webSocket.sendTXT(wsClient, "state=No SX1509 MUX Module");
+    case WStype_CONNECTED: {
+        IPAddress ip = webSocket.remoteIP(wsClient);
+        if (!isConnected) {
+          DebugTf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", wsClient, ip[0], ip[1], ip[2], ip[3], payload);
+          isConnected = true;
+          if (connectToSX1509) {
+            webSocket.sendTXT(wsClient, "state=Connected");
+          } else {
+            webSocket.sendTXT(wsClient, "state=No SX1509 MUX Module");
+          }
+          sprintf(cMsg, "noSensors=%d", noSensors);
+          webSocket.sendTXT(wsClient, cMsg);
+          // updateDOM();
+        }
+
       }
-      sprintf(cMsg, "noSensors=%d", noSensors);
-      webSocket.sendTXT(wsClient, cMsg);
-      //updateDOM();
-    }
+      break;
 
-  }
-  break;
+    case WStype_TEXT:
+      DebugTf("[%u] Got message: [%s]\r\n", wsClient, payload);
+      String FWversion = String(_FW_VERSION);
 
-  case WStype_TEXT:
-    DebugTf("[%u] Got message: [%s]\r\n", wsClient, payload);
-    String FWversion = String(_FW_VERSION);
-
-    updateClock = millis();
-
-    if (wsPayload.indexOf("updateDOM") > -1) {
-      DebugTln("now updateDOM()!");
-      delay(100); // give it some time to load chartJS library and stuff
-      updateDOM();
-      delay(200); // settle before updating
-      publishDatapoints();
-    }
-    if (wsPayload.indexOf("DOMloaded") > -1) {
-      DebugTln("set doUpdateDOM = false;");
-      doUpdateDOM = false;
-    }
-    if (wsPayload.indexOf("rawMode") > -1) {
-      DebugTln("set readRaw = true;");
-      readRaw = true;
-    } else if (wsPayload.indexOf("calibratedMode") > -1) {
-      DebugTln("set readRaw = false;");
-      readRaw = false;
-    }
-    //---- sensorEdit.html ---------------------------------
-    if (wsPayload.indexOf("getFirstSensor") > -1) {
-      DebugTln("getFirstSensor()!");
-      editSensor(0);
-    }
-    if (wsPayload.indexOf("editSensorNr") > -1) {
-      wsPayload.replace("editSensorNr=", "");
-      DebugTf("editSensorNr(%d)!\n", wsPayload.toInt());
-      editSensor(wsPayload.toInt());
-    }
-    if (wsPayload.indexOf("updSensorNr") > -1) {
-      //wsPayload.replace("updSensorNr=", "");
-      //DebugTf("updSensorNr(%d) .. \n", wsPayload.toInt());
-      char data[200];
-      sprintf(data, "%s", wsPayload.c_str());
-      updSensor(data);
-    }
-    break;
+      if (wsPayload.indexOf("updateDOM") > -1) {
+        DebugTln("now updateDOM()!");
+        waitAmSec(100); // give it some time to load chartJS library and stuff
+        updateDOM();
+      } else
+      if (wsPayload.indexOf("DOMloaded") > -1) {
+        DebugTln("received DOMloaded, send some datapoints");
+        waitAmSec(100);
+        forceUpdateSensorsDisplay();
+        updateDatapointsDisplay();
+      } else
+      if (wsPayload.indexOf("rawMode") > -1) {
+        DebugTln("set readRaw = true;");
+        readRaw = true;
+        forceUpdateSensorsDisplay();
+        updateDatapointsDisplay();
+      } else 
+      if (wsPayload.indexOf("calibratedMode") > -1) {
+        DebugTln("set readRaw = false;");
+        readRaw = false;
+        forceUpdateSensorsDisplay();
+        updateDatapointsDisplay();
+      } else
+      //---- sensorEdit.html ---------------------------------
+      if (wsPayload.indexOf("getFirstSensor") > -1) {
+        DebugTln("getFirstSensor()!");
+        editSensor(0);
+      } else
+      if (wsPayload.indexOf("editSensorNr") > -1) {
+        wsPayload.replace("editSensorNr=", "");
+        DebugTf("editSensorNr(%d)!\n", wsPayload.toInt());
+        editSensor(wsPayload.toInt());
+      } else 
+      if (wsPayload.indexOf("updSensorNr") > -1) {
+        //wsPayload.replace("updSensorNr=", "");
+        //DebugTf("updSensorNr(%d) .. \n", wsPayload.toInt());
+        char data[200];
+        sprintf(data, "%s", wsPayload.c_str());
+        updSensor(data);
+      }
+      break;
 
   } // switch(type)
 
@@ -98,13 +98,11 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
 //===========================================================================================
 void handleWebSockRefresh()
 {
-  if (millis() > updateClock) {
-    updateClock = millis() + 5000;
-    savMin      = minute();
+  if (DUE(screenClockRefresh)) {
     String DT   = buildDateTimeString();
     webSocket.sendTXT(wsClientID, "clock=" + DT);
   }
-
+  yield();
 } // handleWebSockRefreshh()
 
 
@@ -113,7 +111,7 @@ void updateSysInfo(uint8_t wsClient)
 {
   String wsString;
 
-//-Device Info-----------------------------------------------------------------
+  //-Device Info-----------------------------------------------------------------
   wsString += ",SysAuth=Willem Aandewiel";
   wsString += ",SysFwV="            + String( _FW_VERSION );
   wsString += ",Compiled="          + String( __DATE__ )
@@ -128,7 +126,7 @@ void updateSysInfo(uint8_t wsClient)
   wsString += ",FreeSketchSpace="   + String( (ESP.getFreeSketchSpace() / 1024.0), 3 ) + "kB";
 
   if ((ESP.getFlashChipId() & 0x000000ff) == 0x85)
-        sprintf(cMsg, "%08X (PUYA)", ESP.getFlashChipId());
+    sprintf(cMsg, "%08X (PUYA)", ESP.getFlashChipId());
   else  sprintf(cMsg, "%08X", ESP.getFlashChipId());
   wsString += ",FlashChipID="       + String(cMsg);  // flashChipId
   wsString += ",FlashChipSize="     + String( (float)(ESP.getFlashChipSize() / 1024.0 / 1024.0), 3 ) + "MB";
@@ -174,16 +172,16 @@ void updateSysInfo(uint8_t wsClient)
 //===========================================================================================
 void updateDOM()
 {
-  for (int i=0; i<noSensors; i++) {
+  for (int i = 0; i < noSensors; i++) {
     DebugTf("Add Sensor[%2d]: sensorID[%s] name[%s]\n", i
             , _S[i].sensorID
             , _S[i].name);
 
     sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0:servoState%d=-"
-                    , i, i
-                    , i, _S[i].sensorID
-                    , i, _S[i].name
-                    , i, i, i);
+            , i, i
+            , i, _S[i].sensorID
+            , i, _S[i].name
+            , i, i, i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }
 
@@ -191,24 +189,24 @@ void updateDOM()
 
 
 /***************************************************************************
-*
-* Permission is hereby granted, free of charge, to any person obtaining a
-* copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to permit
-* persons to whom the Software is furnished to do so, subject to the
-* following conditions:
-*
-* The above copyright notice and this permission notice shall be included
-* in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-* OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
-* OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
-* THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*
+
+  Permission is hereby granted, free of charge, to any person obtaining a
+  copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to permit
+  persons to whom the Software is furnished to do so, subject to the
+  following conditions:
+
+  The above copyright notice and this permission notice shall be included
+  in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+  OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+  THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ***************************************************************************/

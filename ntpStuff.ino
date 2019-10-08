@@ -156,6 +156,38 @@ String buildDateTimeString()
 
 } // buildDateTimeString()
 
+void handleNTP()
+{
+  if (timeStatus() == timeNeedsSync || prevNtpHour != hour()) {
+    prevNtpHour = hour();
+    synchronizeNTP();
+  }                     
+}
+
+void ntpInit()
+{
+   if (!startNTP()) {                                        //USE_NTP
+    DebugTln("ERROR!!! No NTP server reached!\r\n\r");      //USE_NTP
+    delay(2000);                                            //USE_NTP
+    ESP.restart();                                          //USE_NTP
+    delay(3000);                                            //USE_NTP
+  }                                                         //USE_NTP
+
+}
+# else
+
+// NO NTP!
+
+void handleNTP()
+{
+  return;
+}
+
+void ntpInit()
+{
+  return;
+  
+}
 #endif
 /***************************************************************************
 *

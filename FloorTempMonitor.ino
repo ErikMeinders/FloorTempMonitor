@@ -31,12 +31,18 @@
 #define USE_UPDATE_SERVER
 #define HAS_FSEXPLORER
 #define SHOW_PASSWRDS
+
+#define PROFILING             // comment this line out if you want not profiling 
+#define PROFILING_THRESHOLD 5 // defaults to 3ms - don't show any output when duration delow TH
+
+
 // #define TESTDATA
 /******************** don't change anything below this comment **********************/
 
 #include <Timezone.h>           // https://github.com/JChristensen/Timezone
 #include <TimeLib.h>            // https://github.com/PaulStoffregen/Time
 #include "Debug.h"
+#include "timing.h"
 #include "networkStuff.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
@@ -53,14 +59,18 @@
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
-#define _LED_OFF_TIME         500   // milliseconds
 #define _REFLOW_TIME         (5*60000) // 5 minutes
-#define _POLL_INTERVAL        10000 // in milli-seconds - every 10 seconds
-#define _PLOT_INTERVAL        60    // in seconds - 60 = 1min, 600 = 10min, 900 = 15min
 #define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
 #define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
 #define _MIN                  60000 // milliSecs in a minute
 
+#define _PLOT_INTERVAL        15    // in seconds
+
+DECLARE_TIMER(sensorPoll,   5) // update sensors every 5s 
+
+DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
+
+DECLARE_TIMER(screenClockRefresh, 10)
 /*********************************************************************************
 * Uitgangspunten:
 * 
@@ -131,12 +141,10 @@ char      cMsg[150], fChar[10];
 String    pTimestamp;
 int8_t    prevNtpHour     = 0;
 uint64_t  upTimeSeconds;
-uint32_t  nextPollTimer;
-uint32_t  ledOffTimer;
+
 int8_t    noSensors;
 int8_t    cycleNr         = 0;
 uint8_t   wsClientID;
-uint32_t  lastPlotTime    = 0;
 int8_t    lastSaveHour    = 0;
 bool      connectToSX1509 = false;
 bool      SPIFFSmounted   = false;
@@ -178,15 +186,7 @@ void setup()
   MDNS.addService("arduino", "tcp", 81);
   MDNS.port(81);  // webSockets
 
-#if defined(USE_NTP_TIME)                                   //USE_NTP
-//================ startNTP =========================================
-  if (!startNTP()) {                                        //USE_NTP
-    DebugTln("ERROR!!! No NTP server reached!\r\n\r");      //USE_NTP
-    delay(2000);                                            //USE_NTP
-    ESP.restart();                                          //USE_NTP
-    delay(3000);                                            //USE_NTP
-  }                                                         //USE_NTP
-#endif  //USE_NTP_TIME                                      //USE_NTP
+  ntpInit();
 
   for (int I = 0; I < 10; I++) {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
@@ -278,7 +278,7 @@ void setup()
     if (!readIniFile(sensorNr, cMsg)) {
       appendIniFile(sensorNr, cMsg);
     }
-    // set the resolution to 9 bit per device
+    // set the resolution to TEMPERATURE_PRECISION bit per device
     sensors.setResolution(DS18B20, TEMPERATURE_PRECISION);
     DebugTf("Device %2d Resolution: %d\n", sensorNr, sensors.getResolution(DS18B20));
   } // for sensorNr ..
@@ -314,46 +314,23 @@ void setup()
 
   setupSX1509();
 
-  lastPlotTime = now() / _PLOT_INTERVAL;
-
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
 
 } // setup()
 
-
 void loop()
 {
-  httpServer.handleClient();
-  webSocket.loop();
-  MDNS.update();
-  handleWebSockRefresh();
-  checkDeltaTemps();
-  handleCycleServos();
+  timeThis(httpServer.handleClient());
+  timeThis(webSocket.loop());
+  timeThis(MDNS.update());
+  timeThis(handleNTP());
 
-  if ((millis() - nextPollTimer) > _POLL_INTERVAL) {
-    nextPollTimer = millis();
-    digitalWrite(BUILTIN_LED, LED_ON);
-    ledOffTimer   = millis();
-
-    // call sensors.requestTemperatures() to issue a global temperature
-    // request to all devices on the bus
-    DebugT("Requesting temperatures...");
-    sensors.requestTemperatures();
-    Debugln("DONE");
-    handleSensors();
-    
-  } // pollTimer ..
+  timeThis(handleSensors());    // update upper part of screen
+  // timeThis(handleDatapoints()); // update graph in lower screen half
   
-  if ((millis() - ledOffTimer) > _LED_OFF_TIME) {
-    digitalWrite(BUILTIN_LED, LED_OFF);
-  }
+  timeThis(handleWebSockRefresh()); // essentially update of clock on screen
   
-#if defined(USE_NTP_TIME)                                                         //USE_NTP
-  if (timeStatus() == timeNeedsSync || prevNtpHour != hour()) {                   //USE_NTP
-    prevNtpHour = hour();                                                         //USE_NTP
-    synchronizeNTP();                                                             //USE_NTP
-  }                                                                               //USE_NTP
-#endif                                                                            //USE_NTP
-
-} // loop()
+  timeThis(checkDeltaTemps());
+  timeThis(handleCycleServos());
+} 

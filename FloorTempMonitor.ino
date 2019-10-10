@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.4 (08-10-2019)"
+#define _FW_VERSION "v0.6.5 (10-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -146,7 +146,7 @@ int8_t    noSensors;
 int8_t    cycleNr         = 0;
 uint8_t   wsClientID;
 int8_t    lastSaveHour    = 0;
-bool      connectToSX1509 = false;
+bool      connectedToMux = false;
 bool      SPIFFSmounted   = false;
 bool      readRaw         = false;
 bool      cycleAllSensors = false;
@@ -312,7 +312,7 @@ void setup()
 
   readDataPoints();
 
-  setupSX1509();
+  setupI2cMux();
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
@@ -327,7 +327,7 @@ void loop()
   timeThis(webSocket.loop());
   timeThis(MDNS.update());
   timeThis(handleNTP());
-
+  setupI2cMux();
   timeThis(handleSensors());    // update upper part of screen
   // timeThis(handleDatapoints()); // update graph in lower screen half
   

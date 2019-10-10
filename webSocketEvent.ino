@@ -31,10 +31,10 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
         if (!isConnected) {
           DebugTf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", wsClient, ip[0], ip[1], ip[2], ip[3], payload);
           isConnected = true;
-          if (connectToSX1509) {
+          if (connectedToMux) {
             webSocket.sendTXT(wsClient, "state=Connected");
           } else {
-            webSocket.sendTXT(wsClient, "state=No SX1509 MUX Module");
+            webSocket.sendTXT(wsClient, "state=No I2CMUX Module");
           }
           readRaw = false;
           sprintf(cMsg, "noSensors=%d", noSensors);

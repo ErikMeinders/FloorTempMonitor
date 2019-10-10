@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : floortempmon.js, part of FloorTempMonitor
-**  Version  : v0.6.3
+**  Version  : v0.6.4
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -310,7 +310,7 @@ function parsePayload(payload) {
     }
     else {  
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
-      if (singleFld[1].indexOf('SX1509')  > -1) {
+      if (singleFld[1].indexOf('I2CMUX')  > -1) {
       	document.getElementById('state').setAttribute("style", "font-size: 16px; color: red; font-weight: bold;");
       }
     }

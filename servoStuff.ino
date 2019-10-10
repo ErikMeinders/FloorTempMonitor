@@ -1,49 +1,22 @@
 /*
 ***************************************************************************
 **  Program  : servoStuff, part of FloorTempMonitor
-**  Version  : v0.6.3
+**  Version  : v0.6.4
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
 **  TERMS OF USE: MIT License. See bottom of file.
 ***************************************************************************
 */
-/*
-SparkFun SX1509 I/O Expander Example: digital out (digitalWrite)
-Jim Lindblom @ SparkFun Electronics
-Original Creation Date: September 21, 2015
-https://github.com/sparkfun/SparkFun_SX1509_Arduino_Library
 
-This simple example demonstrates the SX1509's digital output 
-functionality. Attach an LED to SX1509 IO 15, or just look at
-it with a multimeter. We're gonna blink it!
+//#include <Wire.h>         // Include the I2C library (required)
+#include "I2C_MuxLib.h"
 
-Hardware Hookup:
-  SX1509 Breakout ------ ESP8266 -------- 
-        GND -------------- GND
-        3V3 -------------- 3.3V
-        SDA -------------- SDA (A4)
-        SCL -------------- SCL (A5)
+#define CLOSE_SERVO         HIGH
+#define OPEN_SERVO          LOW
+#define I2C_MUX_ADDRESS     0x48    // the 7-bit address 
 
-Development environment specifics:
-  IDE: Arduino 1.6.5
-  Hardware Platform: Arduino Uno
-  SX1509 Breakout Version: v2.0
-
-This code is beerware; if you see me (or any other SparkFun 
-employee) at the local, and you've found our code helpful, 
-please buy us a round!
-*/
-
-#include <Wire.h> // Include the I2C library (required)
-#include <SparkFunSX1509.h> // Include SX1509 library
-
-#define CLOSE_SERVO   HIGH
-#define OPEN_SERVO    LOW
-
-// SX1509 I2C address (set by ADDR1 and ADDR0 (00 by default):
-const byte SX1509_ADDRESS = 0x3E;   // SX1509 I2C address
-SX1509     ioExpander;              // Create an SX1509 object to be used throughout
+I2CMUX    I2cExpander;   //Create instance of the I2CMUX object
 
 static uint32_t scanTimer;          // 
 
@@ -87,7 +60,7 @@ void checkDeltaTemps() {
                                                       , _S[s].deltaTemp
                                                       , (_S[0].tempC - _S[s].tempC) );
                     if ( _S[s].deltaTemp > (_S[0].tempC - _S[s].tempC)) {
-                      ioExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
+                      I2cExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
                       _S[s].servoState = SERVO_IS_CLOSED;
                       _S[s].servoTimer = millis();
                       DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s
@@ -96,7 +69,7 @@ void checkDeltaTemps() {
                     //--- heater is not heating ... -----
                   } else {  //--- open Servo/Valve ------
                     DebugTln("Flux In temp < 40*C");
-                    ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                    I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
                     _S[s].servoState = SERVO_IS_OPEN;
                     _S[s].servoTimer = 0;
                   }
@@ -104,7 +77,7 @@ void checkDeltaTemps() {
                   
       case SERVO_IS_CLOSED: 
                   if ((millis() - _S[s].servoTimer) > pulseTime) {
-                    ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                    I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
                     _S[s].servoState = SERVO_IN_LOOP;
                     _S[s].closeCount++;
                     _S[s].servoTimer = millis();
@@ -158,7 +131,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
                 break;
                 
         case SERVO_IS_OPEN:
-                ioExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
+                I2cExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
                 _S[s].servoState = SERVO_COUNT0_CLOSE;
                 _S[s].servoTimer = millis();
                 DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%d] seconds\n", s
@@ -168,7 +141,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
                 
         case SERVO_COUNT0_CLOSE:
                 if ((millis() - _S[s].servoTimer) > _REFLOW_TIME) {
-                  ioExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                  I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
                   _S[s].servoState = SERVO_IS_OPEN;
                   _S[s].closeCount++;
                   DebugTf("[%2d] CYCLE [%s] to OPEN state\n", s, _S[s].name);
@@ -215,38 +188,38 @@ void handleCycleServos()
 } // handleCycleServos()
 
 //=======================================================================
-void setupSX1509() 
+void setupI2cMux() 
 {
-  // Call io.begin(<address>) to initialize the SX1509. If it
+  if (connectedToMux) return;
+
+  Debug("Setup Wire ..");
+//Wire.begin(_SDA, _SCL); // join i2c bus (address optional for master)
+  Wire.begin();
+  Wire.setClock(100000L); // <-- don't make this 400000. It won't work
+  Debugln(".. done");
+ 
+  // Call io.begin(<address>) to initialize the I2CMUX. If it
   // successfully communicates, it'll return 1.
-  if (!ioExpander.begin(SX1509_ADDRESS))
-  {
-    connectToSX1509 = false;
-    //while (1) ; // If we fail to communicate, loop forever.
+  if (!I2cExpander.begin()) {
+    connectedToMux = false;
+    return;
   } else {
-    connectToSX1509 = true;
+    byte I2cMuxId = I2cExpander.getWhoAmI();
+    if (I2cMuxId == I2C_MUX_ADDRESS) {
+      connectedToMux = true;
+    } else {
+      connectedToMux = false;
+      return;
+    }
   }
   
-  // Call io.pinMode(<pin>, <mode>) to set all SX1509 pin's 
+  // Call I2CMUX.pinMode(<pin>, <mode>) to set all I2CMUX pin's 
   // as output:
-  ioExpander.pinMode( 0, OUTPUT);
-  ioExpander.pinMode( 1, OUTPUT);
-  ioExpander.pinMode( 2, OUTPUT);
-  ioExpander.pinMode( 3, OUTPUT);
-  ioExpander.pinMode( 4, OUTPUT);
-  ioExpander.pinMode( 5, OUTPUT);
-  ioExpander.pinMode( 6, OUTPUT);
-  ioExpander.pinMode( 7, OUTPUT);
-  ioExpander.pinMode( 8, OUTPUT);
-  ioExpander.pinMode( 9, OUTPUT);
-  ioExpander.pinMode(10, OUTPUT);
-  ioExpander.pinMode(11, OUTPUT);
-  ioExpander.pinMode(12, OUTPUT);
-  ioExpander.pinMode(13, OUTPUT);
-  ioExpander.pinMode(14, OUTPUT);
-  ioExpander.pinMode(15, OUTPUT);
-
-} // setupSX1509()
+  for (int p=0; p<16;p++) {
+    I2cExpander.pinMode( p , OUTPUT);
+  }
+  
+} // setupI2cMux()
 
 
 

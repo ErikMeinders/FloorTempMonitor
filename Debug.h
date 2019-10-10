@@ -9,7 +9,6 @@
 ***************************************************************************      
 */
 
-
 #define Debug(...)      ({ Serial.print(__VA_ARGS__);         \
                            TelnetStream.print(__VA_ARGS__);   \
                         })
@@ -36,7 +35,6 @@ void _debugBOL(const char *, int );
 #define DebugTf(...)    ({ _debugBOL(__FUNCTION__, __LINE__);  \
                            Debugf(__VA_ARGS__);                \
                         })
-
 
 /***************************************************************************
 *

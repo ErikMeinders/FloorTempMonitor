@@ -1,7 +1,8 @@
 /*
 ***************************************************************************  
-**  Program  : I2C_MuxLib.h, part of FloorTempMonitor
-**  Version  : v0.6.0
+**
+**  File    : I2C_MuxLib.h
+**  Version : v0.6.6
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -20,14 +21,14 @@
 
 // Commando's
 enum  {  CMD_PINMODE, CMD_DIGITALWRITE, CMD_DIGITALREAD
-       , CMD_DUM4, CMD_DUM5, CMD_DUM6
+       , CMD_DUM3, CMD_DUM4
        , CMD_READCONF, CMD_WRITECONF, CMD_REBOOT 
       };
 
 // Map to the various registers on the I2C Multiplexer
 enum encoderRegisters {
   I2CMUX_STATUS          = 0x00,
-  I2CMUX_ADDRESS         = 0x01,
+  I2CMUX_WHOAMI          = 0x01,
   I2CMUX_MAJORRELEASE    = 0x02,
   I2CMUX_MINORRELEASE    = 0x03,
   I2CMUX_LASTGPIOSTATE   = 0x04,
@@ -36,7 +37,7 @@ enum encoderRegisters {
 };
 
 #define _WRITEDELAY 10
-#define _READDELAY  5
+#define _READDELAY  10
 
 class I2CMUX
 {
@@ -46,10 +47,10 @@ public:
 
   bool    begin(TwoWire &wireBus = Wire, uint8_t deviceAddress = I2C_SLAVE_ADDRESS);
   bool    isConnected();
-  uint8_t getMajorRelease();
-  uint8_t getMinorRelease();
-  int8_t  getWhoAmI();
-  uint8_t getStatus();
+  byte    getMajorRelease();
+  byte    getMinorRelease();
+  byte    getWhoAmI();
+  byte    getStatus();
   bool    writeCommand(byte);
   bool    pinMode(byte, byte); 
   bool    digitalRead(byte); 

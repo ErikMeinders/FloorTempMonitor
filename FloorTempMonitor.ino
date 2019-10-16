@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.5 (10-10-2019)"
+#define _FW_VERSION "v0.6.6 (16-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -32,8 +32,8 @@
 #define HAS_FSEXPLORER
 #define SHOW_PASSWRDS
 
-#define PROFILING             // comment this line out if you want not profiling 
-#define PROFILING_THRESHOLD 5 // defaults to 3ms - don't show any output when duration delow TH
+// #define PROFILING             // comment this line out if you want not profiling 
+#define PROFILING_THRESHOLD 5 // defaults to 3ms - don't show any output when duration below TH
 
 
 // #define TESTDATA
@@ -50,8 +50,12 @@
 
 #define _S                    sensorArray
 #define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
-#define LED_ON                LOW
-#define LED_OFF               HIGH
+#define HEATER_ON_TEMP        40.0
+#define LED_ON                HIGH
+#define LED_OFF               LOW
+#define LED_RED               12
+#define LED_GREEN             13
+#define LED_WHITE             14
 
 #define ONE_WIRE_BUS          0     // Data Wire is plugged into GPIO-00
 #define TEMPERATURE_PRECISION 12
@@ -146,7 +150,7 @@ int8_t    noSensors;
 int8_t    cycleNr         = 0;
 uint8_t   wsClientID;
 int8_t    lastSaveHour    = 0;
-bool      connectedToMux = false;
+bool      connectedToMux  = false;
 bool      SPIFFSmounted   = false;
 bool      readRaw         = false;
 bool      cycleAllSensors = false;
@@ -174,13 +178,21 @@ void setup()
   Debugf("[%s] %s  compiled [%s %s]\n", _HOSTNAME, _FW_VERSION, __DATE__, __TIME__);
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  digitalWrite(LED_RED, LED_ON);
+  pinMode(LED_GREEN, OUTPUT);
+  digitalWrite(LED_GREEN, LED_ON);
+  pinMode(LED_WHITE, OUTPUT);
+  digitalWrite(LED_WHITE, LED_ON);
 
   startWiFi();
+  digitalWrite(LED_WHITE, LED_OFF);
   startTelnet();
 
   Debug("Gebruik 'telnet ");
   Debug(WiFi.localIP());
   Debugln("' voor verdere debugging");
+  digitalWrite(LED_RED, LED_OFF);
 
   startMDNS(_HOSTNAME);
   MDNS.addService("arduino", "tcp", 81);
@@ -241,6 +253,7 @@ void setup()
   });
 
   DebugTln( "HTTP server gestart\r" );
+  digitalWrite(LED_GREEN, LED_OFF);
 
   //--- Start up the library for the DS18B20 sensors
   sensors.begin();
@@ -295,14 +308,14 @@ void setup()
   }                                                           // TESTDATA
   sprintf(_S[5].name, "*Flux IN");                            // TESTDATA
   _S[5].position      =  0;                                   // TESTDATA
-  _S[5].deltaTemp     =  2;                                   // TESTDATA
+  _S[5].deltaTemp     =  1;                                   // TESTDATA
   _S[5].servoNr       = -1;                                   // TESTDATA
   sprintf(_S[6].name, "*Flux RETOUR");                        // TESTDATA
   _S[6].position      =  1;                                   // TESTDATA
   _S[6].deltaTemp     =  0;                                   // TESTDATA
   _S[6].servoNr       = -1;                                   // TESTDATA
   sprintf(_S[7].name, "*Room Temp.");                         // TESTDATA
-  _S[7].servoNr       = -1;                                   // TESTDATA
+  //_S[7].servoNr       = -1;                                 // TESTDATA
 #endif                                                        // TESTDATA
 
   Debugln("========================================================================================");
@@ -312,7 +325,7 @@ void setup()
 
   readDataPoints();
 
-  setupI2cMux();
+  connectedToMux = setupI2C_Mux();
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
@@ -327,9 +340,9 @@ void loop()
   timeThis(webSocket.loop());
   timeThis(MDNS.update());
   timeThis(handleNTP());
-  setupI2cMux();
-  timeThis(handleSensors());    // update upper part of screen
-  // timeThis(handleDatapoints()); // update graph in lower screen half
+  checkI2C_Mux();                   // maybe call setupI2C_Mux() again ..
+  timeThis(handleSensors());        // update upper part of screen
+  // timeThis(handleDatapoints());  // update graph in lower screen half
   
   timeThis(handleWebSockRefresh()); // essentially update of clock on screen
   

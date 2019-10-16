@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : servoStuff, part of FloorTempMonitor
-**  Version  : v0.6.4
+**  Version  : v0.6.6
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -33,6 +33,13 @@ void checkDeltaTemps() {
   DebugTf("Check for delta Temps!! pulseTime[%d]min. from [%s]\n"
                                                             , (int)_PULSE_TIME
                                                             , _S[0].name);
+
+  if (_S[0].tempC > HEATER_ON_TEMP) {
+    // heater is On
+    digitalWrite(LED_WHITE, LED_ON);
+  } else {
+    digitalWrite(LED_WHITE, LED_OFF);
+  }
   // Sensor 0 is output from heater (heater-out)
   // Sensor 1 is retour to heater
   // deltaTemp is the difference from heater-out and sensor
@@ -47,7 +54,7 @@ void checkDeltaTemps() {
     //DebugTf("reflowTime[%d]\n", (_REFLOW_TIME / _MIN));
     switch(_S[s].servoState) {
       case SERVO_IS_OPEN:  
-                  if (_S[0].tempC > 40.0) {
+                  if (_S[0].tempC > HEATER_ON_TEMP) {
                     //--- only if heater is heating -----
                     DebugTf("[%2d] tempC-flux[%.1f] -/- tempC[%.1f] = [%.1f] < deltaTemp[%.1f]?\n"
                                                       , s
@@ -68,7 +75,7 @@ void checkDeltaTemps() {
                     }
                     //--- heater is not heating ... -----
                   } else {  //--- open Servo/Valve ------
-                    DebugTln("Flux In temp < 40*C");
+                    DebugTln("Flux In temp < HEATER_ON_TEMP*C");
                     I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
                     _S[s].servoState = SERVO_IS_OPEN;
                     _S[s].servoTimer = 0;
@@ -187,40 +194,74 @@ void handleCycleServos()
   
 } // handleCycleServos()
 
-//=======================================================================
-void setupI2cMux() 
-{
-  if (connectedToMux) return;
 
-  Debug("Setup Wire ..");
+
+//===========================================================================================
+void checkI2C_Mux()
+{
+  byte whoAmI, majorRelease, minorRelease;
+  
+  //DebugTln("getWhoAmI() ..");
+  whoAmI       = I2cExpander.getWhoAmI();
+  if (!connectedToMux || (whoAmI != I2C_MUX_ADDRESS)) {
+    digitalWrite(LED_RED, LED_ON);
+    connectedToMux = setupI2C_Mux();
+    return;
+  }
+  //DebugTln("getMajorRelease() ..");
+  majorRelease = I2cExpander.getMajorRelease();
+  //DebugTln("getMinorRelease() ..");
+  minorRelease = I2cExpander.getMinorRelease();
+
+  //DebugTf("\nSlave say's he's [0x%02x] Release[%d.%d]\n", whoAmI, majorRelease, minorRelease);
+
+} // checkI2C_MUX();
+
+
+//===========================================================================================
+bool setupI2C_Mux()
+{
+  byte whoAmI;
+  
+  DebugT("Setup Wire ..");
 //Wire.begin(_SDA, _SCL); // join i2c bus (address optional for master)
   Wire.begin();
   Wire.setClock(100000L); // <-- don't make this 400000. It won't work
-  Debugln(".. done");
- 
-  // Call io.begin(<address>) to initialize the I2CMUX. If it
-  // successfully communicates, it'll return 1.
-  if (!I2cExpander.begin()) {
-    connectedToMux = false;
-    return;
-  } else {
-    byte I2cMuxId = I2cExpander.getWhoAmI();
-    if (I2cMuxId == I2C_MUX_ADDRESS) {
-      connectedToMux = true;
-    } else {
-      connectedToMux = false;
-      return;
-    }
-  }
-  
-  // Call I2CMUX.pinMode(<pin>, <mode>) to set all I2CMUX pin's 
-  // as output:
-  for (int p=0; p<16;p++) {
-    I2cExpander.pinMode( p , OUTPUT);
-  }
-  
-} // setupI2cMux()
+  DebugTln(".. done");
 
+  if (I2cExpander.begin()) {
+    DebugTln("Connected to the I2C multiplexer!");
+  } else {
+    DebugTln("Not Connected to the I2C multiplexer !ERROR!");
+    delay(1000);
+    return false;
+  }
+  whoAmI       = I2cExpander.getWhoAmI();
+  if (whoAmI != I2C_MUX_ADDRESS) {
+    digitalWrite(LED_RED, LED_ON);
+    return false;
+  }
+  digitalWrite(LED_RED, LED_OFF);
+
+  I2cExpander.digitalWrite(15, CLOSE_SERVO);
+  delay(500);
+  for (int s=0; s<15; s++) {
+    I2cExpander.digitalWrite(s, CLOSE_SERVO);
+    delay(250);
+  }
+  for (int s=0; s<15; s++) {
+    I2cExpander.digitalWrite(s, OPEN_SERVO);
+    if (s < noSensors) {
+      _S[s].servoState = SERVO_IS_OPEN;
+    }
+    delay(250);
+  }
+  delay(500);
+  I2cExpander.digitalWrite(15, OPEN_SERVO);
+  
+  return true;
+  
+} // setupI2C_Mux()
 
 
 /***************************************************************************

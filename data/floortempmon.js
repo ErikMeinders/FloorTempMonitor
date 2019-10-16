@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : floortempmon.js, part of FloorTempMonitor
-**  Version  : v0.6.4
+**  Version  : v0.6.5
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -121,6 +121,7 @@ function parsePayload(payload) {
       && (payload.indexOf('barRange') == -1)
       && (payload.indexOf('dataPoint') == -1)
       && (payload.indexOf('tempBar') == -1)
+      && (payload.indexOf('tempC') == -1)
       && (payload.indexOf('clock') == -1)) {
     console.log("parsePayload(): [" + payload + "]\r\n");
   }
@@ -310,8 +311,14 @@ function parsePayload(payload) {
     }
     else {  
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
-      if (singleFld[1].indexOf('I2CMUX')  > -1) {
-      	document.getElementById('state').setAttribute("style", "font-size: 16px; color: red; font-weight: bold;");
+    	//console.log("Field["+singleFld[0]+"] value ["+singleFld[1]+"]");
+      if (singleFld[0].indexOf('state')  > -1) {
+      	if (singleFld[1].indexOf('I2CMUX')  > -1) {
+      		//console.log("Field["+singleFld[0]+"] set color!!!!");
+      		document.getElementById('state').setAttribute("style", "font-size: 16px; color: red; font-weight: bold;");
+      	} else {
+      		document.getElementById('state').setAttribute("style", "font-size: 16px; color: blue; font-weight: bold;");
+      	}
       }
     }
   }

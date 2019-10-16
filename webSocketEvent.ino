@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : webSocketEvent, part of FloorTempMonitor
-**  Version  : v0.6.4
+**  Version  : v0.6.6
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -103,6 +103,13 @@ void handleWebSockRefresh()
   if (DUE(screenClockRefresh)) {
     String DT  = buildDateTimeString();
     sprintf(cMsg, "clock=WiFi RSSI: %4ddBm &nbsp; %s", WiFi.RSSI(), DT.c_str());
+    DebugTln(cMsg);
+    webSocket.sendTXT(wsClientID, cMsg);
+    if (connectedToMux) {
+      sprintf(cMsg, "state=Connected");
+    } else {
+      sprintf(cMsg, "state=No I2CMUX Module");
+    }
     DebugTln(cMsg);
     webSocket.sendTXT(wsClientID, cMsg);
   }

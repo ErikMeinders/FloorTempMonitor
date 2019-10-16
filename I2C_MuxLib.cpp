@@ -1,7 +1,8 @@
 /*
 ***************************************************************************  
-**  Program  : I2C_MuxLib.cpp, part of FloorTempMonitor
-**  Version  : v0.6.0
+**
+**  File    : I2C_MuxLib.cpp
+**  Version : v0.6.6
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -42,51 +43,64 @@ bool I2CMUX::isConnected()
 } // isConnected()
 
 //-------------------------------------------------------------------------------------
-uint8_t I2CMUX::getMajorRelease()
-{
-  return (readReg1Byte(I2CMUX_MAJORRELEASE));
-}
-//-------------------------------------------------------------------------------------
-uint8_t I2CMUX::getMinorRelease()
-{
-  return (readReg1Byte(I2CMUX_MINORRELEASE));
-}
-
-//-------------------------------------------------------------------------------------
-int8_t I2CMUX::getWhoAmI()
-{
-  return (readReg1Byte(I2CMUX_ADDRESS));
-}
-
-//-------------------------------------------------------------------------------------
-uint8_t I2CMUX::getStatus()
+byte I2CMUX::getMajorRelease()
 {
   while ((millis() - _statusTimer) < _READDELAY) {
     delay(1);
   }
   _statusTimer = millis();
-  uint8_t tmpStatus = (uint8_t)readReg1Byte(I2CMUX_STATUS);
-  _status |= (uint8_t)tmpStatus;
+  return (readReg1Byte(I2CMUX_MAJORRELEASE));
+}
+//-------------------------------------------------------------------------------------
+byte I2CMUX::getMinorRelease()
+{
+  while ((millis() - _statusTimer) < _READDELAY) {
+    delay(1);
+  }
+  _statusTimer = millis();
+  return (readReg1Byte(I2CMUX_MINORRELEASE));
+}
+
+//-------------------------------------------------------------------------------------
+byte I2CMUX::getWhoAmI()
+{
+  while ((millis() - _statusTimer) < _READDELAY) {
+    delay(1);
+  }
+  _statusTimer = millis();
+  return (readReg1Byte(I2CMUX_WHOAMI));
+}
+
+//-------------------------------------------------------------------------------------
+byte I2CMUX::getStatus()
+{
+  while ((millis() - _statusTimer) < _READDELAY) {
+    delay(1);
+  }
+  _statusTimer = millis();
+  uint8_t tmpStatus = (byte)readReg1Byte(I2CMUX_STATUS);
+  _status |= (byte)tmpStatus;
   return (tmpStatus);
 }
 
 //-------------------------------------------------------------------------------------
 bool I2CMUX::writeCommand(byte command)
 {
+  Serial.printf("Command [%d]\n", command);
   return (writeReg1Byte(I2CMUX_COMMAND, command));
 }
 
 //-------------------------------------------------------------------------------------
 bool I2CMUX::pinMode(byte GPIO_PIN, byte PINMODE)
 {
-  return(writeCommand3Bytes(CMD_PINMODE, GPIO_PIN, PINMODE));
+  return(writeCommand3Bytes(_BV(CMD_PINMODE), GPIO_PIN, PINMODE));
 }
 
 //-------------------------------------------------------------------------------------
 bool I2CMUX::digitalRead(byte GPIO_PIN)
 {
-  if (writeCommand2Bytes(CMD_DIGITALREAD, GPIO_PIN)) {
-    delay(5);
+  if (writeCommand2Bytes(_BV(CMD_DIGITALREAD), GPIO_PIN)) {
+    delay(2);
     return (readReg1Byte(I2CMUX_LASTGPIOSTATE));
   }
 }
@@ -94,17 +108,17 @@ bool I2CMUX::digitalRead(byte GPIO_PIN)
 //-------------------------------------------------------------------------------------
 bool I2CMUX::digitalWrite(byte GPIO_PIN, byte HIGH_LOW)
 {
-  return(writeCommand3Bytes(CMD_DIGITALWRITE, GPIO_PIN, HIGH_LOW));
+  return(writeCommand3Bytes(_BV(CMD_DIGITALWRITE), GPIO_PIN, HIGH_LOW));
 }
 
 // Change the I2C address of this I2C Slave address to newAddress
 //-------------------------------------------------------------------------------------
 bool I2CMUX::setI2Caddress(uint8_t newAddress)
 {
-  if (writeReg1Byte(I2CMUX_ADDRESS, newAddress)) {
+  if (writeReg1Byte(I2CMUX_WHOAMI, newAddress)) {
     // Once the address is changed, we need to change it in the library
     _I2Caddress = newAddress;
-    // -->> writeReg1Byte(I2CMUX_COMMAND, I2CMUX_ADDRESS);
+    // -->> writeReg1Byte(I2CMUX_COMMAND, I2CMUX_WHOAMI);
     return true;
   }
   return false;
@@ -132,6 +146,7 @@ uint8_t I2CMUX::readReg1Byte(uint8_t addr)
   }
 
   _I2Cbus->requestFrom((uint8_t)_I2Caddress, (uint8_t) 1);
+  delay(5);
   if (_I2Cbus->available()) {
     return (_I2Cbus->read());
   }
@@ -155,6 +170,7 @@ int16_t I2CMUX::readReg2Byte(uint8_t addr)
   }
 
   _I2Cbus->requestFrom((uint8_t)_I2Caddress, (uint8_t) 2);
+  delay(5);
   if (_I2Cbus->available()) {
     uint8_t LSB = _I2Cbus->read();
     uint8_t MSB = _I2Cbus->read();
@@ -180,7 +196,7 @@ int32_t I2CMUX::readReg4Byte(uint8_t addr)
   }
 
   _I2Cbus->requestFrom((uint8_t)_I2Caddress, (uint8_t) 4);
-  delay(10);
+  delay(5);
   if (_I2Cbus->available()) {
     uint8_t LSB   = _I2Cbus->read();
     uint8_t mLSB  = _I2Cbus->read();

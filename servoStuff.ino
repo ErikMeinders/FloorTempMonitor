@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : servoStuff, part of FloorTempMonitor
-**  Version  : v0.6.6
+**  Version  : v0.6.7
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -67,7 +67,8 @@ void checkDeltaTemps() {
                                                       , _S[s].deltaTemp
                                                       , (_S[0].tempC - _S[s].tempC) );
                     if ( _S[s].deltaTemp > (_S[0].tempC - _S[s].tempC)) {
-                      I2cExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO);  
+                      I2cExpander.digitalWrite(_S[s].servoNr, CLOSE_SERVO); 
+                      delay(100); 
                       _S[s].servoState = SERVO_IS_CLOSED;
                       _S[s].servoTimer = millis();
                       DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s
@@ -77,6 +78,7 @@ void checkDeltaTemps() {
                   } else {  //--- open Servo/Valve ------
                     DebugTln("Flux In temp < HEATER_ON_TEMP*C");
                     I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                    delay(100);
                     _S[s].servoState = SERVO_IS_OPEN;
                     _S[s].servoTimer = 0;
                   }
@@ -84,7 +86,8 @@ void checkDeltaTemps() {
                   
       case SERVO_IS_CLOSED: 
                   if ((millis() - _S[s].servoTimer) > pulseTime) {
-                    I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO);  
+                    I2cExpander.digitalWrite(_S[s].servoNr, OPEN_SERVO); 
+                    delay(100); 
                     _S[s].servoState = SERVO_IN_LOOP;
                     _S[s].closeCount++;
                     _S[s].servoTimer = millis();
@@ -243,13 +246,13 @@ bool setupI2C_Mux()
   }
   digitalWrite(LED_RED, LED_OFF);
 
-  I2cExpander.digitalWrite(15, CLOSE_SERVO);
+  I2cExpander.digitalWrite(0, CLOSE_SERVO);
   delay(500);
-  for (int s=0; s<15; s++) {
+  for (int s=1; s<16; s++) {
     I2cExpander.digitalWrite(s, CLOSE_SERVO);
     delay(250);
   }
-  for (int s=0; s<15; s++) {
+  for (int s=1; s<16; s++) {
     I2cExpander.digitalWrite(s, OPEN_SERVO);
     if (s < noSensors) {
       _S[s].servoState = SERVO_IS_OPEN;
@@ -257,7 +260,7 @@ bool setupI2C_Mux()
     delay(250);
   }
   delay(500);
-  I2cExpander.digitalWrite(15, OPEN_SERVO);
+  I2cExpander.digitalWrite(0, OPEN_SERVO);
   
   return true;
   

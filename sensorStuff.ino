@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : helperStuff, part of FloorTempMonitor
-**  Version  : v0.6.3
+**  Version  : v0.6.7
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -27,15 +27,15 @@ void getSensorID(DeviceAddress deviceAddress, char* devID)
 } // getSensorID()
 
 
+//===========================================================================================
 // getRawTemp: gets real, uncalibrated temp from sensor or random temp in TESTDATA scenario 
-
 float getRawTemp(int8_t devNr)
 {
   float tempR;
     
 #ifdef TESTDATA       
   if (devNr == 0 )                                
-     tempR = random(35.0, 50.0);   // hjm: 25.0 - 29.0 ?            
+    tempR = random(35.0, 50.0);   // hjm: 25.0 - 29.0 ?            
   else  
     tempR = random(18.0, 38.0);               
 #else
@@ -43,13 +43,14 @@ float getRawTemp(int8_t devNr)
 #endif
 
   if (tempR < -2.0 || tempR > 102.0) {
-    Debugln("invalid reading");
+    DebugTf("Sensor [%d][%s] invalid reading [%.3f*C]\n", devNr, _S[devNr].name, tempR);
     return 99.9;                               
   }
 
   return tempR;  
 }
 
+//===========================================================================================
 float _calibrated(float tempR, int8_t devNr)
 {
   return (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor;
@@ -57,6 +58,7 @@ float _calibrated(float tempR, int8_t devNr)
 
 // updateSensorData updates _S as well as dataStore
 
+//===========================================================================================
 void updateSensorData(int8_t devNr)
 {
   float tempR = getRawTemp(devNr);
@@ -82,6 +84,7 @@ int _previousHigh=0;
 int _high=60;
 int _low=10;
 
+//===========================================================================================
 void forceUpdateSensorsDisplay()
 {
   // clear cache of previous displayed value
@@ -92,6 +95,7 @@ void forceUpdateSensorsDisplay()
   updateSensorsDisplay();
 }
 
+//===========================================================================================
 void updateSensorsDisplay()
 {
   for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
@@ -116,6 +120,7 @@ void updateSensorsDisplay()
   }
 }
 
+//===========================================================================================
 void updateSensorDisplay(int8_t devNr)
 {
   float tempToUse;
@@ -148,6 +153,7 @@ void updateSensorDisplay(int8_t devNr)
   
 }
 
+//===========================================================================================
 void updateServosDisplay()
 {
   for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
@@ -157,6 +163,7 @@ void updateServosDisplay()
   }  
 }
 
+//===========================================================================================
 void updateServoDisplay(int8_t devNr)
 {  
   int32_t   stateTime = 0;
@@ -237,6 +244,7 @@ void updateServoDisplay(int8_t devNr)
 } 
 
 
+//===========================================================================================
 void handleDatapoints()
 {
   // time to refresh display of datapoints 
@@ -259,6 +267,7 @@ void handleDatapoints()
 }
 
 
+//===========================================================================================
 boolean _needToPoll()
 {
   unsigned long nowTime = millis();
@@ -282,6 +291,7 @@ boolean _needToPoll()
   return toReturn;
 }
 
+//===========================================================================================
 void handleSensors()
 {
   if (_needToPoll())
@@ -476,6 +486,124 @@ void updSensor(char *payload)
   }
   
 } // updSensor()
+
+//===========================================================================================
+void setupDallasSensors()
+{
+  byte i;
+  byte present = 0;
+  byte type_s;
+  byte data[12];
+  float celsius, fahrenheit;
+
+  noSensors = sensors.getDeviceCount();
+  DebugTf("Locating devices...found %d devices\n", noSensors);
+
+  oneWire.reset_search();
+  for(int sensorNr = 0; sensorNr <= noSensors; sensorNr++) {
+    Debugln();
+    DebugTf("Checking device [%2d]\n", sensorNr);
+    
+    if ( !oneWire.search(DS18B20)) {
+      DebugTln("No more addresses.");
+      Debugln();
+      oneWire.reset_search();
+      delay(250);
+      break;
+    }
+
+    DebugT("ROM =");
+    for( i = 0; i < 8; i++) {
+      Debug(' ');
+      Debug(DS18B20[i], HEX);
+    }
+
+    if (OneWire::crc8(DS18B20, 7) != DS18B20[7]) {
+      Debugln(" => CRC is not valid!");
+      sensorNr--;
+    }
+    else {
+      Debugln();
+ 
+      // the first ROM byte indicates which chip
+      switch (DS18B20[0]) {
+        case 0x10:
+          DebugTln("  Chip = DS18S20");  // or old DS1820
+          type_s = 1;
+          break;
+        case 0x28:
+          DebugTln("  Chip = DS18B20");
+          type_s = 0;
+          break;
+        case 0x22:
+          DebugTln("  Chip = DS1822");
+          type_s = 0;
+          break;
+        default:
+          DebugTln("Device is not a DS18x20 family device.");
+          break;
+      } // switch(addr[0]) 
+
+      oneWire.reset();
+      oneWire.select(DS18B20);
+      //oneWire.write(0x44, 1);        // start conversion, with parasite power on at the end
+  
+      delay(1000);     // maybe 750ms is enough, maybe not
+      // we might do a oneWire.depower() here, but the reset will take care of it.
+  
+      present = oneWire.reset();
+      oneWire.select(DS18B20);    
+      oneWire.write(0xBE);         // Read Scratchpad
+
+      DebugT("  Data = ");
+      Debug(present, HEX);
+      Debug(" ");
+      for ( i = 0; i < 9; i++) {           // we need 9 bytes
+        data[i] = oneWire.read();
+        Debug(data[i], HEX);
+        Debug(" ");
+      }
+      Debug(" CRC=");
+      Debug(OneWire::crc8(data, 8), HEX);
+      Debugln();
+
+      // Convert the data to actual temperature
+      // because the result is a 16 bit signed integer, it should
+      // be stored to an "int16_t" type, which is always 16 bits
+      // even when compiled on a 32 bit processor.
+      int16_t raw = (data[1] << 8) | data[0];
+      if (type_s) {
+        raw = raw << 3; // 9 bit resolution default
+        if (data[7] == 0x10) {
+          // "count remain" gives full 12 bit resolution
+          raw = (raw & 0xFFF0) + 12 - data[6];
+        }
+      } else {
+        byte cfg = (data[4] & 0x60);
+        // at lower res, the low bits are undefined, so let's zero them
+        if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+        else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+        else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+        //// default is 12 bit resolution, 750 ms conversion time
+      }
+      celsius = (float)raw / 16.0;
+      fahrenheit = celsius * 1.8 + 32.0;
+      DebugT("  Temperature = ");
+      Debug(celsius);
+      Debug(" Celsius, ");
+      Debug(fahrenheit);
+      Debugln(" Fahrenheit");
+      
+      getSensorID(DS18B20, cMsg);
+      DebugTf("Device [%2d] sensorID: [%s] ..\n", sensorNr, cMsg);
+      if (!readIniFile(sensorNr, cMsg)) {
+        appendIniFile(sensorNr, cMsg);
+      }
+    } // CRC is OK
+  
+  } // for noSensors ...
+  
+} // setupDallasSensors()
 
 //=======================================================================
 char* splitFldVal(char *pair, char del)

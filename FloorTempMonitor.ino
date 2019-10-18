@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.6 (16-10-2019)"
+#define _FW_VERSION "v0.6.7 (18-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -58,23 +58,24 @@
 #define LED_WHITE             14
 
 #define ONE_WIRE_BUS          0     // Data Wire is plugged into GPIO-00
-#define TEMPERATURE_PRECISION 12
+//#define TEMPERATURE_PRECISION  9    // 12
 #define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
-#define _MAX_DATAPOINTS       100   // 24 hours every 15 minites - more will crash the gui
+#define _MAX_DATAPOINTS       100   // 24 hours every 15 minutes - more will crash the gui
 #define _REFLOW_TIME         (5*60000) // 5 minutes
 #define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
 #define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
 #define _MIN                  60000 // milliSecs in a minute
 
-#define _PLOT_INTERVAL        30    // in seconds
+#define _PLOT_INTERVAL        60    // in seconds
 
 DECLARE_TIMER(sensorPoll,   5) // update sensors every 5s 
 
 DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
 
 DECLARE_TIMER(screenClockRefresh, 10)
+
 /*********************************************************************************
 * Uitgangspunten:
 * 
@@ -258,45 +259,11 @@ void setup()
   //--- Start up the library for the DS18B20 sensors
   sensors.begin();
 
-  //--- locate devices on the bus
-  noSensors = sensors.getDeviceCount();
-#ifdef TESTDATA                                         // TESTDATA
-  noSensors = 9;                                        // TESTDATA
-#endif                                                  // TESTDATA
-  DebugTf("Locating devices...found %d devices\n", noSensors);
-
-  //--- report parasite power requirements
-  DebugT("Parasite power is: ");
-  if (sensors.isParasitePowerMode())
-        Debugln("ON");
-  else  Debugln("OFF");
-
-  // Search for devices on the bus and assign based on an index. Ideally,
-  // you would do this to initially discover addresses on the bus and then
-  // use those addresses and manually assign them (see above) once you know
-  // the devices on your bus (and assuming they don't change).
-  //
-  // search() looks for the next device. Returns 1 if a new address has been
-  // returned. A zero might mean that the bus is shorted, there are no devices,
-  // or you have already retrieved all of them. It might be a good idea to
-  // check the CRC to make sure you didn't get garbage. The order is
-  // deterministic. You will always get the same devices in the same order
-  //
-  // Must be called before search()
-  oneWire.reset_search();
-  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
-    oneWire.search(DS18B20);
-    getSensorID(DS18B20, cMsg);
-    DebugTf("Device %2d sensorID: [%s] ..\n", sensorNr, cMsg);
-    if (!readIniFile(sensorNr, cMsg)) {
-      appendIniFile(sensorNr, cMsg);
-    }
-    // set the resolution to TEMPERATURE_PRECISION bit per device
-    sensors.setResolution(DS18B20, TEMPERATURE_PRECISION);
-    DebugTf("Device %2d Resolution: %d\n", sensorNr, sensors.getResolution(DS18B20));
-  } // for sensorNr ..
+  delay(5000); // time to start telnet
+  setupDallasSensors();
 
 #ifdef TESTDATA                                               // TESTDATA
+  noSensors = 9;                                              // TESTDATA
   for (int s=0; s < noSensors; s++) {                         // TESTDATA
     sprintf(_S[s].name, "Sensor %d", (s+1));                  // TESTDATA
     sprintf(_S[s].sensorID, "0x2800000000%02x", s*3);         // TESTDATA
@@ -342,7 +309,7 @@ void loop()
   timeThis(handleNTP());
   checkI2C_Mux();                   // maybe call setupI2C_Mux() again ..
   timeThis(handleSensors());        // update upper part of screen
-  // timeThis(handleDatapoints());  // update graph in lower screen half
+  timeThis(handleDatapoints());     // update graph in lower screen half
   
   timeThis(handleWebSockRefresh()); // essentially update of clock on screen
   

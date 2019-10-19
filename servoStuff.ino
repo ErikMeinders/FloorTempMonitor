@@ -211,6 +211,9 @@ void checkI2C_Mux()
     connectedToMux = setupI2C_Mux();
     return;
   }
+  if (I2cExpander.digitalRead(0) == CLOSE_SERVO) {
+    I2cExpander.digitalWrite(0, OPEN_SERVO);
+  }
   //DebugTln("getMajorRelease() ..");
   majorRelease = I2cExpander.getMajorRelease();
   //DebugTln("getMinorRelease() ..");
@@ -248,11 +251,11 @@ bool setupI2C_Mux()
 
   I2cExpander.digitalWrite(0, CLOSE_SERVO);
   delay(500);
-  for (int s=1; s<16; s++) {
+  for (int s=15; s>0; s--) {
     I2cExpander.digitalWrite(s, CLOSE_SERVO);
     delay(250);
   }
-  for (int s=1; s<16; s++) {
+  for (int s=15; s>0; s--) {
     I2cExpander.digitalWrite(s, OPEN_SERVO);
     if (s < noSensors) {
       _S[s].servoState = SERVO_IS_OPEN;

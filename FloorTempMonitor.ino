@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP8266_basic
 */
-#define _FW_VERSION "v0.6.7 (18-10-2019)"
+#define _FW_VERSION "v0.6.8 (19-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **

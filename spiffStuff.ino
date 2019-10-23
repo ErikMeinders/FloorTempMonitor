@@ -60,7 +60,7 @@ bool appendIniFile(int8_t index, char* devID)
   
   DebugTf("appendIniFile(/sensors.ini) .. [%d] - sensorID[%s]\n", index, devID);
   
-  digitalWrite(LED_BUILTIN, LED_ON);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 
 
   if (!SPIFFSmounted) {
@@ -106,7 +106,7 @@ bool appendIniFile(int8_t index, char* devID)
 
   Debugln(" .. Done\r");
 
-  digitalWrite(LED_BUILTIN, LED_OFF);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
 
   return true;
 
@@ -129,7 +129,7 @@ int8_t updateIniRec(sensorStruct newRec)
   }
   String  tmpS;
 
-  digitalWrite(LED_BUILTIN, LED_ON);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 
   File dataFile = SPIFFS.open("/sensors.ini", "r+"); // open for reading and writing
   recNr = 0;
@@ -174,7 +174,7 @@ int8_t updateIniRec(sensorStruct newRec)
 
   Debugln(" .. Done\r");
 
-  digitalWrite(LED_BUILTIN, LED_OFF);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
 
   return recNr;
 
@@ -187,7 +187,7 @@ bool readIniFile(int8_t index, char* devID)
   File    dataFile;
   String  tmpS;
 
-  digitalWrite(LED_BUILTIN, LED_ON);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 
   DebugTf("readIniFile(/sensors.ini) .. sensorID[%s] \r\n", devID);
 
@@ -223,7 +223,7 @@ bool readIniFile(int8_t index, char* devID)
   dataFile.close();
 
   DebugTln(" .. Done not found!\r");
-  digitalWrite(LED_BUILTIN, LED_OFF);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
 
   return false;
 
@@ -238,7 +238,7 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
   String        tmpS;
   int8_t        recsInFile;
   
-  digitalWrite(LED_BUILTIN, LED_ON);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 
   if (recNr < 0)  recNr = 0;
 
@@ -276,7 +276,7 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
     tmpRec.servoNr      = dataFile.readStringUntil(';').toInt();
     tmpRec.deltaTemp    = dataFile.readStringUntil(';').toFloat();
     dataFile.close();
-    digitalWrite(LED_BUILTIN, LED_OFF);
+    digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
     return tmpRec;
   }
 
@@ -296,7 +296,7 @@ bool writeDataPoints()
   
   DebugT("writeDataPoints(/dataPoints.csv) ..");
   
-  digitalWrite(LED_BUILTIN, LED_ON);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 
   if (!SPIFFSmounted) {
     Debugln("\nNo SPIFFS filesystem..ABORT!!!\r");
@@ -336,7 +336,7 @@ bool writeDataPoints()
 
   Debugf("wrote [%d] records! .. Done\r\n", recsOut);
 
-  digitalWrite(LED_BUILTIN, LED_OFF);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
 
   return true;
 
@@ -353,7 +353,7 @@ bool readDataPoints()
 
   DebugT("readDataPoints(/dataPoints.csv) ..");
 
-  digitalWrite(LED_BUILTIN, LED_ON);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 
   if (!SPIFFSmounted) {
     Debugln("\nNo SPIFFS filesystem..ABORT!!!\r");
@@ -394,7 +394,7 @@ bool readDataPoints()
   dataFile.close();
 
   Debugf(" read [%d] records .. Done \r\n", recsIn);
-  digitalWrite(LED_BUILTIN, LED_OFF);
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
 
   return true;
 

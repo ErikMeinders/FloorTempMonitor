@@ -202,13 +202,28 @@ void handleCycleServos()
 //===========================================================================================
 void checkI2C_Mux()
 {
+  static int16_t errorCountUp   = 0;
+  static int16_t errorCountDown = 0;
   byte whoAmI /*, majorRelease, minorRelease */ ;
+
+  if (errorCountDown > 0) {
+    errorCountDown--;
+    delay(10);
+    errorCountUp = 0;
+    return;
+  }
+  if (errorCountUp > 5) {
+    errorCountDown = 1000;
+  }
   
   //DebugTln("getWhoAmI() ..");
   whoAmI       = I2cExpander.getWhoAmI();
   if (!connectedToMux || (whoAmI != I2C_MUX_ADDRESS)) {
     digitalWrite(LED_RED, LED_ON);
     connectedToMux = setupI2C_Mux();
+    if (connectedToMux)
+          errorCountUp = 0;
+    else  errorCountUp++;
     return;
   }
   if (I2cExpander.digitalRead(0) == CLOSE_SERVO) {
@@ -234,16 +249,12 @@ bool setupI2C_Mux()
   Wire.begin();
   Wire.setClock(100000L); // <-- don't make this 400000. It won't work
   Debugln(".. done");
-  yield();
   
   if (I2cExpander.begin()) {
     DebugTln("Connected to the I2C multiplexer!");
   } else {
-    yield();
     DebugTln("Not Connected to the I2C multiplexer !ERROR!");
-    yield();
     delay(500);
-    yield();
     return false;
   }
   whoAmI       = I2cExpander.getWhoAmI();
@@ -254,11 +265,9 @@ bool setupI2C_Mux()
   digitalWrite(LED_RED, LED_OFF);
 
   I2cExpander.digitalWrite(0, CLOSE_SERVO);
-  yield();
   delay(500);
   for (int s=15; s>0; s--) {
     I2cExpander.digitalWrite(s, CLOSE_SERVO);
-    yield();
     delay(250);
   }
   for (int s=15; s>0; s--) {

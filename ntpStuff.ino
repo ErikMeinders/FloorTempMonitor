@@ -30,8 +30,7 @@ char              ntpServerName[50];
 const int         NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
 byte              packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 
-static int        ntpServerNr = 0;
-static bool       externalNtpTime = false;
+//static bool       externalNtpTime = false;
 static IPAddress  ntpServerIP; // NTP server's ip address
 
 
@@ -56,7 +55,7 @@ void synchronizeNTP()
 {
   timeZone = 0;
   setSyncProvider(getNtpTime);
-  setSyncInterval(600);
+  setSyncInterval(3600);
   time_t utc = now();
   DebugTf("[%02d:%02d:%02d] (UTC) ->timeZone[%d]\n", hour(utc), minute(utc), second(utc), timeZone);
   timeZone = hour();
@@ -72,7 +71,7 @@ void synchronizeNTP()
 time_t getNtpTime()
 {
   while(true) {
-    yield;
+    yield();
     ntpPoolIndx++;
     if ( ntpPoolIndx > (sizeof(ntpPool) / sizeof(ntpPool[0]) -1) ) {
       ntpPoolIndx = 0;
@@ -168,11 +167,12 @@ void ntpInit()
 {
    if (!startNTP()) {                                        //USE_NTP
     DebugTln("ERROR!!! No NTP server reached!\r\n\r");      //USE_NTP
+    DebugFlush();                                           //USE_NTP
     delay(2000);                                            //USE_NTP
     ESP.restart();                                          //USE_NTP
     delay(3000);                                            //USE_NTP
   }                                                         //USE_NTP
-
+  prevNtpHour = hour();
 }
 # else
 

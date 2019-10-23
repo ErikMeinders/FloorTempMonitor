@@ -1,7 +1,7 @@
 <!--
 ***************************************************************************  
 **  Program  : index.html, part of FloorTempMonitor
-**  Version  : v0.6.1
+**  Version  : v0.6.9
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -61,11 +61,23 @@
   </table>
   <hr>
   <!-- REST -->
-  <p><input type="checkbox" id="rawTemp" value="doRawTemp" onChange="setRawMode()"> Raw temp. readings</p>
-  <p><input type="checkbox" id="debug" value="doDebug" onChange="setDebugMode()"> Debug</p>
-  <div id="Redirect"></div>
-  <canvas id="sensorsChart" width="900" height="350"></canvas>
-  <textarea id="logWindow" style="display: none;"></textarea>
+  <p>|<input type="checkbox" id="rawTemp" value="doRawTemp" onChange="setRawMode()"> Raw temp. readings 
+    &nbsp; &nbsp; &nbsp;
+    | Chart:  
+    <input type="radio" name="chartType" value="N" 
+             							onchange="setChartType('N')" checked /> Geen
+  	&nbsp; &nbsp;
+    <input type="radio" name="chartType" value="T" 
+             							onchange="setChartType('T')" /> Temperatuur
+  	&nbsp; &nbsp;
+		<input type="radio" name="chartType" value="S" 
+		         							onchange="setChartType('S')" /> Servo's
+		|
+  </p>  
+
+<!--  <div id="Redirect"></div> -->
+  <div><canvas id="sensorsChart" style="display: none;" width="900" height="250"></canvas></div>
+  <div><canvas id="servosChart"  style="display: none;" width="900" height="250"></canvas></div>
   <p> </p>
   <p> </p>
   

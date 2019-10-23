@@ -12,13 +12,14 @@
 static      FSInfo SPIFFSinfo;
 
 //===========================================================================================
-int32_t freeSpace()
+uint32_t freeSpace()
 {
   int32_t space;
 
   SPIFFS.info(SPIFFSinfo);
 
   space = (int32_t)(SPIFFSinfo.totalBytes - SPIFFSinfo.usedBytes);
+  if (space < 1) space = 0;
 
   return space;
 
@@ -75,23 +76,23 @@ bool appendIniFile(int8_t index, char* devID)
   } // if (!dataFile)
 
   yield();
-  _S[index].index = index;
-  sprintf(_S[index].sensorID, "%s", devID);
-  _S[index].position = 90;
-  sprintf(_S[index].name, "new Sensor");
-  _S[index].tempOffset = 0.00000;
-  _S[index].tempFactor = 1.00000;
-  _S[index].servoNr    = -1; // not attached to a servo
-  _S[index].deltaTemp  = 20.0;
-  _S[index].closeCount = 0;
+  _SA[index].index = index;
+  sprintf(_SA[index].sensorID, "%s", devID);
+  _SA[index].position = 90;
+  sprintf(_SA[index].name, "new Sensor");
+  _SA[index].tempOffset = 0.00000;
+  _SA[index].tempFactor = 1.00000;
+  _SA[index].servoNr    = -1; // not attached to a servo
+  _SA[index].deltaTemp  = 20.0;
+  _SA[index].closeCount = 0;
   sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f;"
-                                                , _S[index].sensorID
-                                                , _S[index].position
-                                                , _S[index].name
-                                                , _S[index].tempOffset
-                                                , _S[index].tempFactor
-                                                , _S[index].servoNr
-                                                , _S[index].deltaTemp
+                                                , _SA[index].sensorID
+                                                , _SA[index].position
+                                                , _SA[index].name
+                                                , _SA[index].tempOffset
+                                                , _SA[index].tempFactor
+                                                , _SA[index].servoNr
+                                                , _SA[index].deltaTemp
                                           );
   yield();
   fixRecLen(fixedRec, _FIX_SETTINGSREC_LEN);
@@ -201,17 +202,17 @@ bool readIniFile(int8_t index, char* devID)
     tmpS.trim();
   //DebugTf("Processing [%s]\n", tmpS.c_str());
     if (String(devID) == String(tmpS)) {
-      _S[index].index       = index;
-      _S[index].tempC       = -99;
-      sprintf(_S[index].sensorID, "%s", tmpS.c_str());
-      _S[index].position    = dataFile.readStringUntil(';').toInt();
+      _SA[index].index       = index;
+      _SA[index].tempC       = -99;
+      sprintf(_SA[index].sensorID, "%s", tmpS.c_str());
+      _SA[index].position    = dataFile.readStringUntil(';').toInt();
       tmpS                  = dataFile.readStringUntil(';');
       tmpS.trim();
-      sprintf(_S[index].name, "%s", tmpS.c_str());
-      _S[index].tempOffset  = dataFile.readStringUntil(';').toFloat();
-      _S[index].tempFactor  = dataFile.readStringUntil(';').toFloat();
-      _S[index].servoNr     = dataFile.readStringUntil(';').toInt();
-      _S[index].deltaTemp   = dataFile.readStringUntil(';').toFloat();
+      sprintf(_SA[index].name, "%s", tmpS.c_str());
+      _SA[index].tempOffset  = dataFile.readStringUntil(';').toFloat();
+      _SA[index].tempFactor  = dataFile.readStringUntil(';').toFloat();
+      _SA[index].servoNr     = dataFile.readStringUntil(';').toInt();
+      _SA[index].deltaTemp   = dataFile.readStringUntil(';').toFloat();
       String n = dataFile.readStringUntil('\n');
       dataFile.close();
       return true;
@@ -291,31 +292,40 @@ sensorStruct readIniFileByRecNr(int8_t &recNr)
 //===========================================================================================
 bool writeDataPoints()
 {
-  DebugTln("writeDataPoints(/dataPoints.csv) ..");
+  int recsOut = 0;
+  
+  DebugT("writeDataPoints(/dataPoints.csv) ..");
   
   digitalWrite(LED_BUILTIN, LED_ON);
 
   if (!SPIFFSmounted) {
-    Debugln("No SPIFFS filesystem..ABORT!!!\r");
+    Debugln("\nNo SPIFFS filesystem..ABORT!!!\r");
     return false;
   }
 
   // --- check if the file exists and can be opened ---
   File dataFile  = SPIFFS.open("/dataPoints.csv", "w");    // open for writing
   if (!dataFile) {
-    Debugln("Some error opening [dataPoints.csv] .. bailing out!");
+    DebugTln("\nSome error opening [/dataPoints.csv] .. bailing out!");
     return false;
   } // if (!dataFile)
 
   yield();
-  for (int p=(_MAX_DATAPOINTS -1); p >= 0 ; p--) {  // last dataPoint is alway's zero
+  recsOut = 0;
+  for (int p=_LAST_DATAPOINT; p >= 0 ; p--) {  // last dataPoint is alway's zero
     //dataFile.print(p);                        dataFile.print(";");
+    if (dataStore[p].timestamp == 0) {
+      continue; // skip!
+    }
+    recsOut++;
     dataFile.print(dataStore[p].timestamp);
     dataFile.print(";");
     for(int s=0; s < noSensors; s++) {
-      dataFile.print(s);
+      dataFile.print(s);            
       dataFile.print(";");
       dataFile.print(dataStore[p].tempC[s]);
+      dataFile.print(";");
+      dataFile.print(dataStore[p].servoStateV[s]);
       dataFile.print(";");
     }
     dataFile.println();
@@ -324,7 +334,7 @@ bool writeDataPoints()
 
   dataFile.close();
 
-  Debugln(" .. Done\r");
+  Debugf("wrote [%d] records! .. Done\r\n", recsOut);
 
   digitalWrite(LED_BUILTIN, LED_OFF);
 
@@ -337,48 +347,53 @@ bool writeDataPoints()
 bool readDataPoints()
 {
   String tmpS;
-  float pf, sf, tempC, tmpf;
-  int p, s;
-  int16_t plotNr;
+  float tempC;
+  int32_t sID, timeStamp, servoStateV;
+  int16_t plotNr, recsIn;
 
-  DebugTln("readDataPoints(/dataPoints.csv) ..");
+  DebugT("readDataPoints(/dataPoints.csv) ..");
 
   digitalWrite(LED_BUILTIN, LED_ON);
 
   if (!SPIFFSmounted) {
-    Debugln("No SPIFFS filesystem..ABORT!!!\r");
+    Debugln("\nNo SPIFFS filesystem..ABORT!!!\r");
     return false;
   }
 
   // --- check if the file exists and can be opened ---
   File dataFile  = SPIFFS.open("/dataPoints.csv", "r");    // open for reading
   if (!dataFile) {
-    Debugln("Some error opening [dataPoints.csv] .. bailing out!");
+    Debugln("\nSome error opening [/dataPoints.csv] .. bailing out!");
     return false;
   } // if (!dataFile)
 
-  plotNr = _MAX_DATAPOINTS;
+  plotNr  = _MAX_DATAPOINTS;
+  recsIn  = 0;
   while ((dataFile.available() > 0) && (plotNr > 0)) {
     plotNr--;
     yield();
     tmpS     = dataFile.readStringUntil('\n');
     //Debugf("Record[%d][%s]\n", plotNr, tmpS.c_str());
     if (tmpS == "EOF") break;
-
-    extractFieldFromCsv(tmpS, pf);
-    dataStore[plotNr].timestamp = (int)pf;
-    while (extractFieldFromCsv(tmpS, sf)) {
+    recsIn++;
+    
+    extractFieldFromCsv(tmpS, timeStamp);
+    dataStore[plotNr].timestamp = timeStamp;
+    //DebugTf("[%d][%d] ", plotNr, dataStore[plotNr].timestamp);
+    while ((timeStamp > 1) && extractFieldFromCsv(tmpS, sID)) {
       yield();
-      s = (int)sf;
       extractFieldFromCsv(tmpS, tempC);
-      dataStore[plotNr].tempC[s] = tempC;
+      dataStore[plotNr].tempC[sID] = tempC;
+      extractFieldFromCsv(tmpS, servoStateV);
+      dataStore[plotNr].servoStateV[sID] = servoStateV;
+      //Debugf(",T[%4.2f],V[%2d]", dataStore[plotNr].tempC[sID],dataStore[plotNr].servoStateV[sID]);
     }
-    //dataFile.print(dataStore[p].tempC[s]);  dataFile.print(";");
+    //Debugln();
   }
 
   dataFile.close();
 
-  Debugln(" .. Done \r");
+  Debugf(" read [%d] records .. Done \r\n", recsIn);
   digitalWrite(LED_BUILTIN, LED_OFF);
 
   return true;
@@ -394,7 +409,7 @@ bool extractFieldFromCsv(String &in, float &f)
   bool  gotChar = false;
 
   //DebugTf("in is [%s]\n", in.c_str());
-  for(int i = 0; i < in.length(); i++) {
+  for(int i = 0; i < (int)in.length(); i++) {
     //--- copy chars up until ; \0 \r \n
     if (in[i] != ';' && in[i] != '\r' && in[i] != '\n' && in[i] != '\0') {
       field[p++] = in[i];
@@ -411,9 +426,43 @@ bool extractFieldFromCsv(String &in, float &f)
   }
   String out = in.substring(p);
   in = out;
-  //DebugTf("p[%d], in is now[%s]\n", p, in.c_str());
+  //DebugTf("p[%d], in is now[%s]\n", p, *in.c_str());
 
   f = String(field).toFloat();
+  return true;
+
+} // extractFieldFromCsv()
+
+//===========================================================================================
+bool extractFieldFromCsv(String &in, int32_t &f)
+{
+  char  field[in.length()];
+  int   p = 0;
+  bool  gotChar = false;
+
+  //DebugTf("in is [%s]\n", in.c_str());
+  for(int i = 0; i < (int)in.length(); i++) {
+    //--- copy chars up until ; \0 \r \n
+    if (in[i] != ';' && in[i] != '\r' && in[i] != '\n' && in[i] != '\0') {
+      if (in[i] != '.') {
+        field[p++] = in[i];
+        gotChar = true;
+      }
+    } else {
+      field[p++] = '\0';
+      break;
+    }
+  }
+  //--- nothing copied ---
+  if (!gotChar) {
+    f = 0;
+    return false;
+  }
+  String out = in.substring(p);
+  in = out;
+  //DebugTf("p[%d], in is now[%s]\n", p, *in.c_str());
+
+  f = String(field).toInt();
   return true;
 
 } // extractFieldFromCsv()

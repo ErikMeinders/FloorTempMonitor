@@ -14,8 +14,6 @@
 // apply calibration when storing in struct (used by API and controller)
 // and when displaying
 
-#define _LAST_DATAPOINT (_MAX_DATAPOINTS -1)
-
 // function to print a device address
 //===========================================================================================
 void getSensorID(DeviceAddress deviceAddress, char* devID)
@@ -39,11 +37,11 @@ float getRawTemp(int8_t devNr)
   else  
     tempR = random(18.0, 38.0);               
 #else
-  tempR = sensors.getTempCByIndex(_S[devNr].index);
+  tempR = sensors.getTempCByIndex(_SA[devNr].index);
 #endif
 
   if (tempR < -2.0 || tempR > 102.0) {
-    DebugTf("Sensor [%d][%s] invalid reading [%.3f*C]\n", devNr, _S[devNr].name, tempR);
+    DebugTf("Sensor [%d][%s] invalid reading [%.3f*C]\n", devNr, _SA[devNr].name, tempR);
     return 99.9;                               
   }
 
@@ -53,7 +51,7 @@ float getRawTemp(int8_t devNr)
 //===========================================================================================
 float _calibrated(float tempR, int8_t devNr)
 {
-  return (tempR + _S[devNr].tempOffset) * _S[devNr].tempFactor;
+  return (tempR + _SA[devNr].tempOffset) * _SA[devNr].tempFactor;
 }
 
 // updateSensorData updates _S as well as dataStore
@@ -66,14 +64,30 @@ void updateSensorData(int8_t devNr)
   
   // store calibrated temp in struct _S
 
-  _S[devNr].tempC = tempC;
+  _SA[devNr].tempC = tempC;
 
   // overwrite _LAST_DATAPOINT data in dataStore
 
   dataStore[_LAST_DATAPOINT].timestamp = now();
   dataStore[_LAST_DATAPOINT].tempC[devNr] = tempR;
+
+  if (_SA[devNr].servoNr > 0) {
+    switch(_SA[devNr].servoState) {
+      case SERVO_IS_OPEN:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  20 +devNr;
+                                break;
+      case SERVO_IS_CLOSED:     dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -20 +devNr;
+                                break;
+      case SERVO_COUNT0_CLOSE:  dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -10 +devNr;
+                                break;
+      case SERVO_IN_LOOP:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  10 +devNr;
+                                break;
+    } // switch() 
+
+  } else {
+    dataStore[_LAST_DATAPOINT].servoStateV[devNr] = 0;
+  } // switch()
   
-}
+} // updateSensorData()
 
 
 // function to print the temperature for a device
@@ -130,7 +144,7 @@ void updateSensorDisplay(int8_t devNr)
   if(readRaw)
     tempToUse = dataStore[_LAST_DATAPOINT].tempC[devNr];
   else
-    tempToUse = _S[devNr].tempC;
+    tempToUse = _SA[devNr].tempC;
 
   // only update if actual value differs from previous
   
@@ -178,25 +192,25 @@ void updateServoDisplay(int8_t devNr)
   if(readRaw)
     tempToUse = dataStore[_LAST_DATAPOINT].tempC[devNr];
   else
-    tempToUse = _S[devNr].tempC;
+    tempToUse = _SA[devNr].tempC;
   
-  switch (_S[devNr].servoState ) {
+  switch (_SA[devNr].servoState ) {
     case SERVO_IS_OPEN:
-            if (_S[devNr].servoNr == -1) {  // no Servo
-              sprintf(cMsg, "servoState%dS=&Delta;T %.1f&deg;C", devNr, (_S[0].tempC - tempToUse));
+            if (_SA[devNr].servoNr == -1) {  // no Servo
+              sprintf(cMsg, "servoState%dS=&Delta;T %.1f&deg;C", devNr, (_SA[0].tempC - tempToUse));
             } else {
-              sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_S[0].tempC - tempToUse), _S[devNr].deltaTemp);
+              sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_SA[0].tempC - tempToUse), _SA[devNr].deltaTemp);
             }
             break;
     case SERVO_IS_CLOSED:
-            stateTime = (_PULSE_TIME * _MIN) - (millis() - _S[devNr].servoTimer);
+            stateTime = (_PULSE_TIME * _MIN) - (millis() - _SA[devNr].servoTimer);
             if (stateTime > 0) {
-              DebugTf("[%s] CLOSE time [%d] > 0\n", _S[devNr].name, (stateTime / _MIN) +1);
+              DebugTf("[%s] CLOSE time [%d] > 0\n", _SA[devNr].name, (stateTime / _MIN) +1);
               if (stateTime > _MIN)
                     sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
               else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
             } else {
-              DebugTf("[%s] CLOSE time [%d] < 0\n", _S[devNr].name, stateTime / _MIN);
+              DebugTf("[%s] CLOSE time [%d] < 0\n", _SA[devNr].name, stateTime / _MIN);
               cStateTime[0] = '.';
               cStateTime[1] = '.';
               cStateTime[2] = '.';
@@ -205,14 +219,14 @@ void updateServoDisplay(int8_t devNr)
             sprintf(cMsg, "servoState%dS=CLOSED %s", devNr, cStateTime);
             break;
     case SERVO_IN_LOOP:
-            stateTime = _REFLOW_TIME - (millis() - _S[devNr].servoTimer);
+            stateTime = _REFLOW_TIME - (millis() - _SA[devNr].servoTimer);
             if (stateTime > 0) {
-              DebugTf("[%s] LOOP time [%d] > 0\n", _S[devNr].name, (stateTime / _MIN) +1);
+              DebugTf("[%s] LOOP time [%d] > 0\n", _SA[devNr].name, (stateTime / _MIN) +1);
               if (stateTime > _MIN)
                     sprintf(cStateTime, " (%d min.)", (stateTime + _MIN) / _MIN);  // '+ _MIN' voor afronding ...
               else  sprintf(cStateTime, " (%d sec.)",  stateTime / 1000);
             } else {
-              DebugTf("[%s] LOOP time [%d] < 0\n", _S[devNr].name, stateTime / _MIN);
+              DebugTf("[%s] LOOP time [%d] < 0\n", _SA[devNr].name, stateTime / _MIN);
               cStateTime[0] = '.';
               cStateTime[1] = '.';
               cStateTime[2] = '.';
@@ -221,14 +235,14 @@ void updateServoDisplay(int8_t devNr)
             sprintf(cMsg, "servoState%dS=LOOP %s", devNr, cStateTime);
             break;
     case SERVO_COUNT0_CLOSE:
-            stateTime = _REFLOW_TIME - (millis() - _S[devNr].servoTimer);
+            stateTime = _REFLOW_TIME - (millis() - _SA[devNr].servoTimer);
             if (stateTime > 0) {
-              DebugTf("[%s] CYCLE time left [%d]sec's > 0\n", _S[devNr].name, (stateTime / 1000) +1);
+              DebugTf("[%s] CYCLE time left [%d]sec's > 0\n", _SA[devNr].name, (stateTime / 1000) +1);
               if (stateTime > _MIN)
                     sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
               else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
             } else {
-              DebugTf("[%s] CYCLE time [%d]sec's < 0\n", _S[devNr].name, stateTime / 1000);
+              DebugTf("[%s] CYCLE time [%d]sec's < 0\n", _SA[devNr].name, stateTime / 1000);
               cStateTime[0] = '.';
               cStateTime[1] = '.';
               cStateTime[2] = '.';
@@ -270,7 +284,6 @@ void handleDatapoints()
 //===========================================================================================
 boolean _needToPoll()
 {
-  unsigned long nowTime = millis();
   boolean toReturn = false;
    
   if ( DUE (sensorPoll) ) {
@@ -278,14 +291,14 @@ boolean _needToPoll()
  
     // let LED flash on during probing of sensors
     
-    digitalWrite(BUILTIN_LED, LED_ON);
+    digitalWrite(LED_BUILTIN, LED_ON);
     
     // call sensors.requestTemperatures() to issue a global temperature
     // request to all devices on the bus
    
     DebugT("Requesting temperatures...\n");
     timeThis(sensors.requestTemperatures());
-    digitalWrite(BUILTIN_LED, LED_OFF);
+    digitalWrite(LED_BUILTIN, LED_OFF);
   } 
     
   return toReturn;
@@ -312,28 +325,26 @@ void printSensorArray()
 {
   for(int8_t s=0; s<noSensors; s++) {
     Debugf("[%2d] => [%2d], [%02d], [%s], [%-20.20s], [%7.6f], [%7.6f]\n", s
-           , _S[s].index
-           , _S[s].position
-           , _S[s].sensorID
-           , _S[s].name
-           , _S[s].tempOffset
-           , _S[s].tempFactor);
+           , _SA[s].index
+           , _SA[s].position
+           , _SA[s].sensorID
+           , _SA[s].name
+           , _SA[s].tempOffset
+           , _SA[s].tempFactor);
   }
 } // printSensorArray()
 
 //=======================================================================
 void sortSensors()
 {
-  int x, y;
-
   for (int8_t y = 0; y < noSensors; y++) {
     yield();
     for (int8_t x = y + 1; x < noSensors; x++)  {
-      //DebugTf("y[%d], x[%d] => seq[x][%d] ", y, x, _S[x].position);
-      if (_S[x].position < _S[y].position)  {
-        sensorStruct temp = _S[y];
-        _S[y] = _S[x];
-        _S[x] = temp;
+      //DebugTf("y[%d], x[%d] => seq[x][%d] ", y, x, _SA[x].position);
+      if (_SA[x].position < _SA[y].position)  {
+        sensorStruct temp = _SA[y];
+        _SA[y] = _SA[x];
+        _SA[x] = temp;
       } /* end if */
       //Debugln();
     } /* end for */
@@ -347,6 +358,7 @@ void shiftUpDatapoints()
   for (int p = 0; p < _LAST_DATAPOINT; p++) {
     dataStore[p] = dataStore[(p+1)];
   }
+  
 } // shiftUpDatapoints()
 
 //=======================================================================
@@ -354,45 +366,104 @@ void updateDatapointsDisplay()
 {
   char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
   char cLine[(sizeof(cPoints) + 20)];
+  int  startFrom = 0;
 
   Debugln();
-  for (int p=0; p < _MAX_DATAPOINTS ; p++) {  // last dataPoint is most recent measurement
-    yield();
+  if (onlyUpdateSensors) {
+    DebugT("Send Sensor's temp ..");
+    if (onlyUpdateLastPoint) {
+      Debug(" .. only last point!");
+      startFrom = _LAST_DATAPOINT;
+    } 
+    Debugln();
 
-    // compose tooltip
+    for (int p=startFrom; p < _MAX_DATAPOINTS ; p++) {  // last dataPoint is most recent measurement
+      yield();
+
+      // compose tooltip
     
-    if (_PLOT_INTERVAL < 61) {
-      sprintf(cMsg, "plotPoint=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
+      if (_PLOT_INTERVAL < 61) {
+        sprintf(cMsg, "plotSensorTemp=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
             , hour(dataStore[p].timestamp)
             , minute(dataStore[p].timestamp)
             , second(dataStore[p].timestamp));
-    } else {
-      sprintf(cMsg, "plotPoint=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
+      } else {
+        sprintf(cMsg, "plotSensorTemp=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
             , hour(dataStore[p].timestamp)
             , minute(dataStore[p].timestamp));
-    }
-    //DebugTf("[%s]\n", cMsg);
-    
-    cPoints[0] = '\0';
-    for(int s=0; s < noSensors; s++) {
-      float tempToUse = readRaw ? dataStore[p].tempC[s] : _calibrated(dataStore[p].tempC[s],s);
-      
-      if (tempToUse > 0) {
-        if (cPoints[0] == '\0') {
-          sprintf(cPoints, "S%d=%f",             s, tempToUse);
-        } else {
-          sprintf(cPoints, "%s:S%d=%f", cPoints, s, tempToUse);
-        }
       }
-      //DebugTf("-->[%s]\n", cPoints);
-    }
-    sprintf(cLine, "%s:%s", cMsg, cPoints);
-    if (dataStore[p].timestamp > 0) {
-      //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
-      webSocket.sendTXT(wsClientID, cLine);
-      delay(5);  //-- give GUI some time to process
-    }
-  }
+      //DebugTf("[%s]\n", cMsg);
+    
+      cPoints[0] = '\0';
+      for(int s=0; s < noSensors; s++) {
+        float tempToUse = readRaw ? dataStore[p].tempC[s] : _calibrated(dataStore[p].tempC[s],s);
+      
+        if (tempToUse > 0) {
+          if (cPoints[0] == '\0') {
+            sprintf(cPoints, "S%d=%f",             s, tempToUse);
+          } else {
+            sprintf(cPoints, "%s:S%d=%f", cPoints, s, tempToUse);
+          }
+        }
+        //DebugTf("-->[%s]\n", cPoints);
+      }
+      sprintf(cLine, "%s:%s", cMsg, cPoints);
+      if (dataStore[p].timestamp > 0) {
+        //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
+        webSocket.sendTXT(wsClientID, cLine);
+        delay(1);  //-- give GUI some time to process
+      }
+    } // for p ...
+
+    onlyUpdateLastPoint = true;
+
+  } // if (onlyUpdateSensors) ..
+
+  if (onlyUpdateServos) {
+    DebugTln("Send servo State's ..");
+    if (onlyUpdateLastPoint) {
+      Debug(" .. only last point!");
+      startFrom = _LAST_DATAPOINT;
+    } 
+    Debugln();
+    
+    for (int p=startFrom; p < _MAX_DATAPOINTS ; p++) {  // last dataPoint is most recent measurement
+      yield();
+
+      // compose tooltip
+    
+      if (_PLOT_INTERVAL < 61) {
+        sprintf(cMsg, "plotServoState=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
+            , hour(dataStore[p].timestamp)
+            , minute(dataStore[p].timestamp)
+            , second(dataStore[p].timestamp));
+      } else {
+        sprintf(cMsg, "plotServoState=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
+            , hour(dataStore[p].timestamp)
+            , minute(dataStore[p].timestamp));
+      }
+      //DebugTf("[%s]\n", cMsg);
+    
+      cPoints[0] = '\0';
+      for(int s=0; s < noSensors; s++) {
+        if (cPoints[0] == '\0') {
+          sprintf(cPoints, "S%d=%d",             s, dataStore[p].servoStateV[s]);
+        } else {
+          sprintf(cPoints, "%s:S%d=%d", cPoints, s, dataStore[p].servoStateV[s]);
+        }
+        //DebugTf("-->[%s]\n", cPoints);
+      }
+      sprintf(cLine, "%s:%s", cMsg, cPoints);
+      if (dataStore[p].timestamp > 0) {
+        //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
+        webSocket.sendTXT(wsClientID, cLine);
+        delay(1);  //-- give GUI some time to process
+      }
+    } // for p ...
+
+    onlyUpdateLastPoint = true;
+
+  } // if(onlyUpdateServos) ..
 
 } // publishDatapoints()
 
@@ -400,7 +471,7 @@ void updateDatapointsDisplay()
 int8_t editSensor(int8_t recNr)
 {
   sensorStruct tmpRec = readIniFileByRecNr(recNr);
-  if (tmpRec.sensorID == "-") {
+  if (tmpRec.sensorID[0] == '-') {
     DebugTf("Error: something wrong reading record [%d] from [/sensor.ini]\n", recNr);
     return -1;
   }
@@ -448,7 +519,7 @@ void updSensor(char *payload)
     } else if (strncmp(pch, "position", 8) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
         tmpRec.position = String(cMsg).toInt();
-        if (tmpRec.position <  0) tmpRec.position = 0;
+      //if (tmpRec.position <  0) tmpRec.position = 0;
         if (tmpRec.position > 99) tmpRec.position = 99;
     } else if (strncmp(pch, "tempOffset", 10) == 0) { 
         sprintf(cMsg, "%s", splitFldVal(pch, '='));
@@ -491,8 +562,8 @@ void updSensor(char *payload)
 void setupDallasSensors()
 {
   byte i;
-  byte present = 0;
-  byte type_s;
+  byte present =  0;
+  byte type_s  = -1;
   byte data[12];
   float celsius, fahrenheit;
 
@@ -541,6 +612,7 @@ void setupDallasSensors()
           break;
         default:
           DebugTln("Device is not a DS18x20 family device.");
+          type_s = -1;
           break;
       } // switch(addr[0]) 
 
@@ -606,25 +678,26 @@ void setupDallasSensors()
 } // setupDallasSensors()
 
 //=======================================================================
+static char splitValue[50];
+
 char* splitFldVal(char *pair, char del)
 {
   bool    isVal = false;
-  char    Value[50];
   int8_t  inxVal = 0;
 
   DebugTf("pair[%s] (length[%d]) del[%c] \n", pair, strlen(pair), del);
 
-  for(int i=0; i<strlen(pair); i++) {
+  for(int i=0; i<(int)strlen(pair); i++) {
     if (isVal) {
-      Value[inxVal++] = pair[i];
-      Value[inxVal]   = '\0';
+      splitValue[inxVal++] = pair[i];
+      splitValue[inxVal]   = '\0';
     } else if (pair[i] == del) {
       isVal   = true;
       inxVal  = 0;
     }
   }
-  DebugTf("Value [%s]\n", Value);
-  return Value;
+  DebugTf("Value [%s]\n", splitValue);
+  return splitValue;
   
 } // splitFldVal()
 

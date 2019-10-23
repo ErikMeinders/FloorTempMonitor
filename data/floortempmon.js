@@ -1,7 +1,7 @@
 /*
 ***************************************************************************  
 **  Program  : floortempmon.js, part of FloorTempMonitor
-**  Version  : v0.6.5
+**  Version  : v0.6.9
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -28,73 +28,15 @@ var colors          = [   'Red', 'Blue', 'Green', 'Yellow', 'FireBrick', 'Cornfl
                         , 'DeepSkyBlue', 'Gray', 'Purple', 'Brown', 'MediumVioletRed', 'LightSalmon'
                         , 'BurlyWood', 'Gold'
                        ];
-var Labels          = [];
-var sensorL         = [];
+//var sensorL         = [];
 var sensorData      = {};     //declare an object
 sensorData.labels   = [];     // add 'labels' element to object (X axis)
 sensorData.datasets = [];     // add 'datasets' array element to object
 
-window.onload=bootsTrap;
-
-window.onfocus = function() {
-  if (needReload) {
-    window.location.reload(true);
-  }
-};
-
-
-function bootsTrap() {
-  addLogLine('bootsTrap()');
-  needReload = true;
-  
-  document.getElementById('logWindow').style.display = 'none';
-  document.getElementById('FSexplorer').addEventListener('click',function() 
-                                     { addLogLine("newTab: goFSexplorer");
-                                       location.href = "/FSexplorer";
-                                     });
- 
-} // bootsTrap()
-
-webSocketConn = new WebSocket('ws://'+location.host+':81/', ['arduino']);
-addLogLine(" ");
-addLogLine('WebSocket("ws://'+location.host+':81/", ["arduino"])');
-
-webSocketConn.onopen    = function () { 
-  addLogLine("Connected!");
-  webSocketConn.send('Connect ' + new Date()); 
-  needReload  = false;
-  addLogLine("updateDOM");
-  webSocketConn.send("updateDOM");
-  setDebugMode();
-
-}; 
-webSocketConn.onclose     = function () { 
-  addLogLine(" ");
-  addLogLine("Disconnected!");
-  addLogLine(" ");
-  needReload  = true;
-  let redirectButton = "<p></p><hr><p></p><p></p>"; 
-  redirectButton    += "<style='font-size: 50px;'>Disconneted from GUI"; 
-  redirectButton    += "<input type='submit' value='re-Connect' "; 
-  redirectButton    += " onclick='window.location=\"/\";' />  ";     
-  redirectButton    += "<p></p><p></p><hr><p></p>"; 
-  document.getElementById("redirect").innerHTML = redirectButton;
-
-}; 
-webSocketConn.onerror   = function (error)  { 
-  addLogLine("Error: " + error);
-  console.log('WebSocket Error ', error);
-};
-webSocketConn.onmessage = function (e) {
-//addLogLine("onmessage: " + e.data);
-  parsePayload(e.data); 
-};
-
-//-------------------------------------------------------------------------------------------
-var ctx = document.getElementById("sensorsChart").getContext("2d");
-var myChart = new Chart(ctx, {
+//----------------Sensor Temp Chart----------------------------------------------------------
+var ctxSensor = document.getElementById("sensorsChart").getContext("2d");
+var mySensorChart = new Chart(ctxSensor, {
           type: 'line',
-          labels: Labels,
           data: sensorData,
           options : {
             responsive: true,
@@ -115,22 +57,115 @@ var myChart = new Chart(ctx, {
           }
     });
 
-//-------------------------------------------------------------------------------------------
+//----------------Servo State Chart----------------------------------------------------------
+var servoData       = {};     //declare an object
+servoData.labels    = [];     // add 'labels' element to object (X axis)
+servoData.datasets  = [];     // add 'datasets' array element to object
+
+var ctxServo = document.getElementById("servosChart").getContext("2d");
+var myServoChart = new Chart(ctxServo, {
+          type: 'line',
+          data: servoData,
+          options : {
+            responsive: true,
+            maintainAspectRatio: true,
+            lineTension: 0,
+            tooltips: {
+            	mode: 'label',
+            	callbacks: {
+            		// Use the label callback to display servo state in the tooltip
+            		label: function(tooltipItem, data) { 
+            				let state = "?";
+  									if (tooltipItem.yLabel > 20) state = "Open";
+  									else if (tooltipItem.yLabel > 10) state = "Loop";
+  									else if (tooltipItem.yLabel < 0)  state = "Closed";
+  									else state = "unKnown";
+  									return data.datasets[tooltipItem.datasetIndex].label+": "+state;
+  								}
+  							}
+  					},        
+            scales: {
+              yAxes: [{
+                scaleLabel: {
+                  display: true,
+                  labelString: 'Open/Closed',
+                },
+                ticks: {
+                  display: false,
+                  max: +35,
+                  min: -20,
+                  stepSize: 10,
+                },
+              }]
+            }
+          }
+    });
+
+window.onload=bootsTrap;
+
+window.onfocus = function() {
+  if (needReload) {
+    window.location.reload(true);
+  }
+};
+
+
+function bootsTrap() {
+  needReload = true;
+  
+  //document.getElementById('sensorsChart').style.display = 'block';
+  //document.getElementById('servosChart').style.display  = 'none';
+  document.getElementById('FSexplorer').addEventListener('click',function() 
+                                     { location.href = "/FSexplorer";
+                                     });
+ 
+} // bootsTrap()
+
+webSocketConn = new WebSocket('ws://'+location.host+':81/', ['arduino']);
+
+webSocketConn.onopen    = function () { 
+  webSocketConn.send('Connect ' + new Date()); 
+  needReload  = false;
+  DOMloaded   = false;
+  webSocketConn.send("updateDOM");
+  setChartType("N");
+
+}; 
+webSocketConn.onclose     = function () { 
+  needReload  = true;
+  let redirectButton = "<p></p><hr><p></p><p></p>"; 
+  redirectButton    += "<style='font-size: 50px;'>Disconneted from GUI"; 
+  redirectButton    += "<input type='submit' value='re-Connect' "; 
+  redirectButton    += " onclick='window.location=\"/\";' />  ";     
+  redirectButton    += "<p></p><p></p><hr><p></p>"; 
+  document.getElementById("redirect").innerHTML = redirectButton;
+  DOMloaded   = false;
+
+}; 
+webSocketConn.onerror   = function (error)  { 
+  console.log('WebSocket Error ', error);
+};
+webSocketConn.onmessage = function (e) {
+  parsePayload(e.data); 
+};
+
+//===========================================================================================
 function parsePayload(payload) {
-  if (   (payload.indexOf('plotPoint') == -1) 
-      && (payload.indexOf('barRange') == -1)
-      && (payload.indexOf('dataPoint') == -1)
-      && (payload.indexOf('tempBar') == -1)
-      && (payload.indexOf('tempC') == -1)
-      && (payload.indexOf('clock') == -1)) {
+  if ((payload.indexOf('plotSensorTemp') == -1) &&
+      (payload.indexOf('plotServoState') == -1) &&
+      (payload.indexOf('barRange') == -1) &&
+      (payload.indexOf('servoState') == -1) &&
+      (payload.indexOf('dataPoint') == -1) &&
+      (payload.indexOf('tempBar') == -1) &&
+      (payload.indexOf('state') == -1) &&
+      (payload.indexOf('tempC') == -1) &&
+      (payload.indexOf('clock') == -1)) {
     console.log("parsePayload(): [" + payload + "]\r\n");
   }
   // updateDOM:index<n>=<n>:sensorID<n>=<sensodID>:name<n>=<name>:tempC<n>=<->:tempBar<n>=<0>
-  if ( payload.indexOf('updateDOM:') !== -1 ) {             
-    addLogLine("parsePayload(): received 'updateDOM:'");
+  if ( payload.indexOf('updateDOM:') !== -1 ) {          
     let payloadData = payload.replace("updateDOM:", "");
     // index<n>=<n>:sensorID<n>=<sensodID>:name<n>=<name>:tempC<n>=<->:tempBar<n>=<0>
-    addLogLine("parsePayload(): Data[" + payloadData + "]");
     singlePair = payloadData.split(":");
     // [0] index<n>=<n>
     // [1] sensorID<n>=<sensodID>
@@ -173,6 +208,7 @@ function parsePayload(payload) {
           TD.setAttribute("style", "padding-left:10px;");
         }
         webSocketConn.send("DOMloaded");
+        DOMloaded = true;
       }
     } else {
       // compensated mode -- skip first two fields --
@@ -215,6 +251,7 @@ function parsePayload(payload) {
 
       }
       webSocketConn.send("DOMloaded");
+      DOMloaded = true;
     }
   
   } else {
@@ -223,45 +260,36 @@ function parsePayload(payload) {
     // [1] <noSensors>
     if (singleFld[0].indexOf("noSensors") > -1) {
       noSensors = singleFld[1] * 1;
-      addLogLine("noSensors =>"+noSensors);
-      buildDataSet(noSensors);
-      myChart.update();
+      buildDataSets(noSensors);
+      mySensorChart.update();
+      //buildDataSets(noSensors);
+      myServoChart.update();
       
     } else if (singleFld[0].indexOf("tempC") > -1) {
       // [0] tempC<n>
       // [1] <nnn.nnn℃>
-      addLogLine(singleFld[0]+"=>"+singleFld[1]);
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
       
     } else if (singleFld[0].indexOf("tempBar") > -1) {
       // [0] tempBar<n>B
       // [1] <perc>
-      if (readRaw) {
-        addLogLine("found tempBar: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
-      } else {
-        addLogLine("found tempBar: "+singleFld[0]+" =>"+singleFld[1]);
+      if (!readRaw) {
         moveBar(singleFld[0], singleFld[1]);
       }
       
     } else if (singleFld[0].indexOf("barRange") > -1) {
       // [0] barRange
       // [1] <low x℃ - high y℃"
-      if (readRaw) {
-        addLogLine("found barRange: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
-      } else {
-        addLogLine("found barRange: "+singleFld[0]+" =>"+singleFld[1]);
+      if (!readRaw) {
         document.getElementById( singleFld[0]).innerHTML = singleFld[1];
       }
       
     } else if (singleFld[0].indexOf("servoState") > -1) {
       // [0] servoState
-      // [1] <text"
-      if (readRaw) {
-        addLogLine("found servoState: "+singleFld[0]+" =>"+singleFld[1]+" SKIP!");
-      } else {
-        addLogLine("found servoState: "+singleFld[0]+" =>"+singleFld[1]);
+      // [1] <text>
+      if (!readRaw) {
         document.getElementById( singleFld[0]).innerHTML = singleFld[1];
-        console.log("singleFld[1] => ["+singleFld[1]+"]");
+        //console.log("singleFld[1] => ["+singleFld[1]+"]");
         var DIV = document.getElementById(singleFld[0]);
         if (singleFld[1].indexOf("OPEN") !== -1) {
        		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:#e25822; color:white;");	// "flame"
@@ -275,39 +303,109 @@ function parsePayload(payload) {
        		DIV.setAttribute("style", "text-align:center; vertical-align:-2px; height:18px; background-color:lightGray; font-weight: bold;");	
         }
       }
-      
-    } else if (payload.indexOf("plotPoint") > -1) {
+
+//=============================================================================================
+    } else if (payload.indexOf("plotSensorTemp") > -1) {
+//=============================================================================================
       singlePair = payload.split(":");
-      // plotPoint=<n>:TS=<(day) HH-MM>:S<n>=<tempC>:..:S<nn>=<tempC
+      // plotSensorTemp=<n>:TS=<(day) HH-MM>:S<n>=<tempC>:..:S<nn>=<tempC
+      var SKIP;
+      var newData       = {};     //declare an object
+      		newData.labels    = '?';    // add 'labels' element (timestamp) to object (X axis)
+      		newData.datasets  = [];     // add 'datasets' array element to object
+      for (let s=0; s<noSensors; s++) {
+      	newData.datasets.push({});
+      	newData.datasets.label = [];
+      	newData.datasets.data  = [];
+      }
+      	  
       for (let i=0; i<singlePair.length; i++) {
         singleFld = singlePair[i].split("=");
-        //console.log("plotPoint fldnr["+i+"] fldName["+singleFld[0]+"]fldVal["+singleFld[1]+"]");
+        //console.log("plotSensorTemp fldnr["+i+"] fldName["+singleFld[0]+"]fldVal["+singleFld[1]+"]");
         if (i == 0) { // this is the dataPoint for the next itterations
-          // [0] plotPoint
+          // [0] plotSensorTemp
           // [1] <n>
           var dataPoint = singleFld[1] * 1;
-          //console.log("dataPoint ["+dataPoint+"]");
+          //console.log("Sensor: dataPoint ["+dataPoint+"]");
           
         } else if (i==1) {  // this gives timestamp
           // [0] TS
           // [1] <(day) HH-MM>
           let timeStamp = singleFld[1].replace(/-/g,":");     // timeStamp
           // timeStamp = "<(day) HH:MM>"
-          sensorData.labels[dataPoint] = timeStamp;
-          //console.log("sensorData.labels["+dataPoint+"] is ["+sensorData.labels[dataPoint]+"]");
+          if (timeStamp === sensorData.labels[_MAX_DATAPOINTS]) {
+          	console.log("SKIP ["+newData.labels+"] === ["+sensorData.labels[_MAX_DATAPOINTS]+"]");
+          	SKIP = true;
+          } else {
+          	SKIP = false;
+            newData.labels = timeStamp;
+          }
           
         } else if (i>1) { // this gives the tempC for every sensorID
           // [0] S<n>
           // [1] <tempC>
           var sensorID = singleFld[0].replace("S", "") * 1;
           // sensorID = "<n>"
-          sensorData.datasets[sensorID].label = singleFld[0];
-          sensorData.datasets[sensorID].data[dataPoint] = parseFloat(singleFld[1]).toFixed(2);
-          //console.log("["+sensorData.datasets[sensorID].label+"] sensorData.datasets["+sensorID+"].data["
-          //                      +dataPoint+"] => tempC["+sensorData.datasets[sensorID].data[dataPoint]+"]");
+          newData.datasets.label[sensorID] = singleFld[0];
+          newData.datasets.data[sensorID]  = parseFloat(singleFld[1]).toFixed(2);
         }
       } // for i ..
-      myChart.update();
+      if (!SKIP) {
+      	shiftDataSets(noSensors, sensorData, newData);
+      	mySensorChart.update();
+      }
+    
+    } else if (payload.indexOf("plotServoState") > -1) {
+      singlePair = payload.split(":");
+      // plotServoState=<n>:TS=<(day) HH-MM>:S<n>=<tempC>:..:S<nn>=<state>
+      var SKIP;
+      var newData       = {};     //declare an object
+      		newData.labels    = '?';    // add 'labels' element (timestamp) to object (X axis)
+      		newData.datasets  = [];     // add 'datasets' array element to object
+      for (let s=0; s<noSensors; s++) {
+      	newData.datasets.push({});
+      	newData.datasets.label = [];
+      	newData.datasets.data  = [];
+      }
+      	  
+      for (let i=0; i<singlePair.length; i++) {
+        singleFld = singlePair[i].split("=");
+        //console.log("plotServoState fldnr["+i+"] fldName["+singleFld[0]+"]fldVal["+singleFld[1]+"]");
+        if (i == 0) { // this is the dataPoint for the next itterations
+          // [0] plotSensorTemp
+          // [1] <n>
+          var dataPoint = singleFld[1] * 1;
+          //console.log("Servo: dataPoint ["+dataPoint+"]");
+          
+        } else if (i==1) {  // this gives timestamp
+          // [0] TS
+          // [1] <(day) HH-MM>
+          let timeStamp = singleFld[1].replace(/-/g,":");     // timeStamp
+          // timeStamp = "<(day) HH:MM>"
+          if (timeStamp === servoData.labels[_MAX_DATAPOINTS]) {
+          	console.log("SKIP ["+newData.labels+"] === ["+servoData.labels[_MAX_DATAPOINTS]+"]");
+          	SKIP = true;
+          } else {
+          	SKIP = false;
+            newData.labels = timeStamp;
+          }
+          
+        } else if (i>1) { // this gives the tempC for every sensorID
+          // [0] S<n>
+          // [1] <tempC>
+          var sensorID = singleFld[0].replace("S", "") * 1;
+          // sensorID = "<n>"
+          newData.datasets.label[sensorID] = singleFld[0];
+          if ((singleFld[1] * 1) == 0)
+          		 newData.datasets.data[sensorID]  = null;
+          else newData.datasets.data[sensorID]  = singleFld[1] * 1;
+        }
+      } // for i ..
+      if (!SKIP) {
+      	shiftDataSets(noSensors, servoData, newData);
+      	myServoChart.update();
+      }
+    
     }
     else {  
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
@@ -322,12 +420,10 @@ function parsePayload(payload) {
       }
     }
   }
-  //addLogLine("parsePayload(): Don't know: [" + payload + "]\r\n");
 };
 
 //-------------------------------------------------------------------------------------------
 function addTableHeader(table) {
-  addLogLine("==> set tHeader ..");
   table.innerHTML = "";
 
   // Create an empty <thead> element and add it to the table:
@@ -338,7 +434,6 @@ function addTableHeader(table) {
 
   // Insert a new cell (<th>) at the first position of the "new" <tr> element:
   if (readRaw) {
-    addLogLine("==> [readRaw] --> insert 4 cell's");
     var TH = TR.insertCell(0);
     TH.innerHTML = "index";
     TH.setAttribute("align", "left");
@@ -360,7 +455,6 @@ function addTableHeader(table) {
     TH.setAttribute("style", "font-size: 14pt; width: 150px; padding-left:10px;");
     
   } else {
-    addLogLine("==> [!readRaw (compensated)] --> insert 4 cell's");
     var TH = TR.insertCell(0);
     TH.innerHTML = "Naam";
     TH.setAttribute("align", "left");
@@ -386,7 +480,6 @@ function addTableHeader(table) {
  
 //-------------------------------------------------------------------------------------------
 function moveBar(barID, perc) {
-  addLogLine("moveBar("+barID+", "+perc+")");
   var elem = document.getElementById(barID);
   frame(perc);
   function frame(w) {
@@ -395,68 +488,135 @@ function moveBar(barID, perc) {
 } // moveBar
 
 //----------- fill sensorData object --------------------------------------------------------
-function buildDataSet(noSensors) {
+function buildDataSets(noSensors) {
   for (let s=0; s<noSensors; s++) {
     var y = [];
+    
     sensorData.datasets.push({}); //create a new line dataset
-    var dataSet = sensorData.datasets[s];
-    dataSet.label = null; //"S"+s; //contains the 'Y; axis label
-    dataSet.fill  = 'false';
-    dataSet.borderColor = colors[(s%colors.length)];
-    dataSet.data = []; //contains the 'Y; axis data
+    var dataSetSensor 				= sensorData.datasets[s];
+    dataSetSensor.label 			= null; //"S"+s; //contains the 'Y; axis label
+    dataSetSensor.fill  			= 'false';
+    dataSetSensor.borderColor = colors[(s%colors.length)];
+    dataSetSensor.data 				= []; //contains the 'Y; axis data
+
+    servoData.datasets.push({});  //create a new line dataset
+    var dataSetServo  				= servoData.datasets[s];
+    dataSetServo.label 				= null; //"S"+s; //contains the 'Y; axis label
+    dataSetServo.fill  				= 'false';	// seems to have no effect
+    dataSetServo.borderColor 	= colors[(s%colors.length)];
+  //dataSetServo.fillColor    = colors[(s%colors.length)];
+  //dataSetServo.pointBorderColor = colors[(s%colors.length)];
+  //dataSetServo.pointBorderWidth	= 10;	// werkt!
+  //dataSetServo.pointHoverBackgroundColor = colors[(s%colors.length)];
+  //dataSetServo.pointLabelFontColor  = colors[(s%colors.length)];
+  //dataSetServo.backgroundColor = colors[(s%colors.length)];	// doet niets?
+    dataSetServo.data 				= []; //contains the 'Y; axis data
 
     for (let p = 0; p < _MAX_DATAPOINTS; p++) {
       y.push(null); // push some data aka generate distinct separate lines
-      if (s === 0)
+      if (s === 0) {
           sensorData.labels.push(p); // adds x axis labels (timestamp)
+          servoData.labels.push(p);  // adds x axis labels (timestamp)
+      }
     } // for p ..
     sensorData.datasets[s].data = y; //send new line data to dataset
+    servoData.datasets[s].data  = y; //send new line data to dataset
   } // for s ..
   
-} // buildDataSet();
+} // buildDataSets();
 
+//----------- shift dataSet object -------------------------------------------------------
+function shiftDataSets(noSensors, dataSet, newData) {
+  for (let s=0; s<noSensors; s++) {
+    
+    for (let p = 0; p < _MAX_DATAPOINTS; p++) {
+    	if (s===0) {
+    		//sensorData.labels[p] = sensorData.labels[p+1];	// timestamp!
+    		dataSet.labels[p] = dataSet.labels[p+1];	// timestamp!
+    	}
+      //sensorData.datasets[s].data[p] = sensorData.datasets[s].data[p+1];
+      dataSet.datasets[s].data[p] = dataSet.datasets[s].data[p+1];
+      //}
+    } // for p ..
+    //sensorData.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
+   	//sensorData.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
+    //sensorData.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
+    dataSet.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
+   	dataSet.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
+    dataSet.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
+
+  } // for s ..
+  
+} // shiftDataSets();
+
+//----------- empty dataSet object -------------------------------------------------------
+function emptyDataSets(noSensors, dataSet) {
+  for (let s=0; s<noSensors; s++) {
+    
+    for (let p = 0; p < _MAX_DATAPOINTS; p++) {
+    	if (s===0) {
+    		//sensorData.labels[p] = sensorData.labels[p+1];	// timestamp!
+    		dataSet.labels[p] = null;	// timestamp!
+    	}
+      //sensorData.datasets[s].data[p] = sensorData.datasets[s].data[p+1];
+      dataSet.datasets[s].data[p] = null;
+      //}
+    } // for p ..
+    //sensorData.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
+   	//sensorData.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
+    //sensorData.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
+    dataSet.datasets[s].label = null; 	// add new data at end
+   	dataSet.labels[_MAX_DATAPOINTS] = null;				// timestamp
+    dataSet.datasets[s].data[_MAX_DATAPOINTS]  = null; // add new data at end
+
+  } // for s ..
+  
+} // emptyDataSets();
 
 //-------------------------------------------------------------------------------------------
 function setRawMode() {
   if (document.getElementById('rawTemp').checked)  {
-    addLogLine("rawTemp checked!");
     console.log("rawTemp checked!");
     webSocketConn.send("rawMode");
     readRaw = true;
   } else {
-    addLogLine("rawTemp unchecked");
     console.log("rawTemp unchecked");
     webSocketConn.send("calibratedMode");
     readRaw = false;
   }
   addHeader = true;
-  addLogLine("send(updateDOM) ..");
   webSocketConn.send("updateDOM");
   
 } // setRawMode()
 
 //-------------------------------------------------------------------------------------------
-function setDebugMode() {
-  if (document.getElementById('debug').checked)  {
-    addLogLine("DebugMode checked!");
-    document.getElementById('logWindow').style.display = "block";
-  } else {
-    addLogLine("DebugMode unchecked");
-    document.getElementById('logWindow').style.display = "none";
-  }
-} // setDebugMode()
+function setChartType(type) {
+	console.log("in setChartType("+type+") ..");
+  if (type == "T")  {
+  	console.log("chartType set to 'T'");
+    document.getElementById('sensorsChart').style.display = "block";
+    document.getElementById('servosChart').style.display  = "none";
+    emptyDataSets(noSensors, servoData);
+    webSocketConn.send("chartType=T");
 
-//-------------------------------------------------------------------------------------------
-function addLogLine(text) {
-  if (document.getElementById('debug').checked) {
-    let logWindow = document.getElementById("logWindow");
-    let myTime = new Date().toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
-    let addText = document.createTextNode("["+myTime+"] "+text+"\r\n");
-    logWindow.appendChild(addText);
-    document.getElementById("logWindow").scrollTop = document.getElementById("logWindow").scrollHeight 
-  } 
-} // addLogLine()
-  
+  } else if (type == "S") {
+  	console.log("chartType set to 'S'");
+    document.getElementById('sensorsChart').style.display = "none";
+    emptyDataSets(noSensors, sensorData);
+    document.getElementById('servosChart').style.display  = "block";
+    webSocketConn.send("chartType=S");
+
+  } else {
+  	console.log("chartType set to 'N'");
+    document.getElementById('sensorsChart').style.display = "none";
+    emptyDataSets(noSensors, sensorData);
+    document.getElementById('servosChart').style.display  = "none";
+    emptyDataSets(noSensors, servoData);
+    webSocketConn.send("chartType=N");
+  }
+} // setChartType()
+
+ 
 /*
 ***************************************************************************
 *

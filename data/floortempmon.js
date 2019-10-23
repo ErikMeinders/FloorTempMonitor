@@ -17,11 +17,12 @@ let needReload = true;
 let singlePair;
 let singleFld;
 let sensorNr;
+let sRelays		= [];
 let DOMloaded = false;
 let addHeader = true;
 let readRaw   = false;
 let _MAX_DATAPOINTS = 100 -1;  // must be the same as in FloorTempMonitor in main .ino -1 (last one is zero)
-let noSensors    = 1;
+let noSensors    = 0;
 //----- chartJS --------
 // Red for input sensor0 (=hot), blue for retour sensor1 (=cold)
 var colors          = [   'Red', 'Blue', 'Green', 'Yellow', 'FireBrick', 'CornflowerBlue', 'Orange'
@@ -41,6 +42,17 @@ var mySensorChart = new Chart(ctxSensor, {
           options : {
             responsive: true,
             maintainAspectRatio: true,
+            tooltips: {
+//            	mode: 'index',
+            	mode: 'label',
+//            	displayColors: true,
+            	callbacks: {
+            		label: function(tooltipItem, data) { 
+            			let temp = parseFloat(tooltipItem.yLabel);
+  								return data.datasets[tooltipItem.datasetIndex].label+": "+parseFloat(temp).toFixed(1)+"*C";
+  							}
+						  }
+ 					  },        
             scales: {
               yAxes: [{
                 scaleLabel: {
@@ -80,9 +92,13 @@ var myServoChart = new Chart(ctxServo, {
   									else if (tooltipItem.yLabel > 10) state = "Loop";
   									else if (tooltipItem.yLabel < 0)  state = "Closed";
   									else state = "unKnown";
+  									//data.datasets[tooltipItem.datasetIndex].pointHoverBackgroundColor;
   									return data.datasets[tooltipItem.datasetIndex].label+": "+state;
-  								}
-  							}
+  								},
+  	            textLabelColor: function(tooltipItem, data) {
+  	            		return data.datasets[tooltipItem.datasetIndex].pointHoverBackgroundColor;
+  	              }
+  	        	 }
   					},        
             scales: {
               yAxes: [{
@@ -102,6 +118,11 @@ var myServoChart = new Chart(ctxServo, {
     });
 
 window.onload=bootsTrap;
+
+window.onerror = function myErrorHandler(errorMsg, lineNumber) {
+    console.log("Error occured in line["+lineNumber+"]: " + errorMsg);
+    return false;
+}
 
 window.onfocus = function() {
   if (needReload) {
@@ -170,8 +191,9 @@ function parsePayload(payload) {
     // [0] index<n>=<n>
     // [1] sensorID<n>=<sensodID>
     // [2] name<n>=<name>
-    // [3] tempC<n>=<->
-    // [4] tempBar<n>=<0>
+    // [3] relay<n>=<servoNr>
+    // [4] tempC<n>=<->
+    // [5] tempBar<n>=<0>
     var MyTable = document.getElementById("Sensors"); 
     if (addHeader) {
       addTableHeader(MyTable); 
@@ -190,24 +212,39 @@ function parsePayload(payload) {
         if (singleFld[0].indexOf('name') !== -1) {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('tempC') !== -1) {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("align", "right");
           TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('tempBar') !== -1) {
           // skip
+          
+        } else if (singleFld[0].indexOf('relay') !== -1) {
+        	console.log("got relay ["+singleFld[0]+"]["+singleFld[1]+"]");
+        	if (singleFld[1] > 0)
+        				TD.innerHTML = "R"+singleFld[1]; 
+        	else	TD.innerHTML = " "; 
+          TD.setAttribute("align", "center");
+          TD.setAttribute("style", "font-size: 12pt; padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('index') !== -1) {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("align", "center");
           TD.setAttribute("style", "padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('servoState') !== -1) {
         	// skip
+        	
         } else {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("align", "left");
           TD.setAttribute("style", "padding-left:10px;");
         }
-        webSocketConn.send("DOMloaded");
+        if (!DOMloaded) {
+        	webSocketConn.send("DOMloaded");
+        }
         DOMloaded = true;
       }
     } else {
@@ -223,10 +260,12 @@ function parsePayload(payload) {
         if (singleFld[0].indexOf('name') !== -1) {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('tempC') !== -1) {
           TD.innerHTML = singleFld[1]; 
           TD.setAttribute("align", "right");
           TD.setAttribute("style", "font-size: 18pt; padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('tempBar') !== -1) {
           TD.setAttribute("align", "left");
           TD.setAttribute("style", "padding-left:30px; width:300px; height: 18px;");
@@ -238,6 +277,16 @@ function parsePayload(payload) {
           DIV.setAttribute("style", "background-color:"+colors[(sensorNr%colors.length)]+";");
           SPAN.appendChild(DIV);
           TD.appendChild(SPAN);
+          
+        } else if (singleFld[0].indexOf('relay') !== -1) {
+        	if (singleFld[1] > 0) {
+        				TD.innerHTML = "R"+singleFld[1]; 
+        				sRelays[sensorNr] = singleFld[1];
+        	}
+        	else	TD.innerHTML = " "; 
+          TD.setAttribute("align", "center");
+          TD.setAttribute("style", "font-size: 12pt; padding-left:10px;");
+          
         } else if (singleFld[0].indexOf('servoState') !== -1) {
           //TD.setAttribute("align", "left");
           TD.setAttribute("style", "padding-left:30px; height: 18px; font-size: 13px;");
@@ -250,7 +299,9 @@ function parsePayload(payload) {
         }
 
       }
-      webSocketConn.send("DOMloaded");
+      if (!DOMloaded) {
+      	webSocketConn.send("DOMloaded");
+      }
       DOMloaded = true;
     }
   
@@ -260,16 +311,18 @@ function parsePayload(payload) {
     // [1] <noSensors>
     if (singleFld[0].indexOf("noSensors") > -1) {
       noSensors = singleFld[1] * 1;
+      for(let r=0; r<noSensors; r++) {
+      	sRelays.push(-1);
+      }
       buildDataSets(noSensors);
       mySensorChart.update();
-      //buildDataSets(noSensors);
       myServoChart.update();
       
     } else if (singleFld[0].indexOf("tempC") > -1) {
       // [0] tempC<n>
       // [1] <nnn.nnn℃>
       document.getElementById( singleFld[0]).innerHTML = singleFld[1];
-      
+
     } else if (singleFld[0].indexOf("tempBar") > -1) {
       // [0] tempBar<n>B
       // [1] <perc>
@@ -355,7 +408,9 @@ function parsePayload(payload) {
       	mySensorChart.update();
       }
     
+//=============================================================================================
     } else if (payload.indexOf("plotServoState") > -1) {
+//=============================================================================================
       singlePair = payload.split(":");
       // plotServoState=<n>:TS=<(day) HH-MM>:S<n>=<tempC>:..:S<nn>=<state>
       var SKIP;
@@ -395,10 +450,16 @@ function parsePayload(payload) {
           // [1] <tempC>
           var sensorID = singleFld[0].replace("S", "") * 1;
           // sensorID = "<n>"
-          newData.datasets.label[sensorID] = singleFld[0];
+        //newData.datasets.label[sensorID] = singleFld[0];
+          if (sRelays[sensorID] < 1) 
+          			newData.datasets.label[sensorID] = "  ";
+          else	newData.datasets.label[sensorID] = "R"+sRelays[sensorID];
           if ((singleFld[1] * 1) == 0)
-          		 newData.datasets.data[sensorID]  = null;
-          else newData.datasets.data[sensorID]  = singleFld[1] * 1;
+          		 	newData.datasets.data[sensorID]  = null;
+          else 	newData.datasets.data[sensorID]  = singleFld[1] * 1;
+          if (sRelays[sensorID] < 1) {
+          	newData.datasets.data[sensorID]  = null;
+          }
         }
       } // for i ..
       if (!SKIP) {
@@ -453,22 +514,35 @@ function addTableHeader(table) {
     TH.innerHTML = "Temperatuur";
     TH.setAttribute("align", "right");
     TH.setAttribute("style", "font-size: 14pt; width: 150px; padding-left:10px;");
+
+    TH = TR.insertCell(4);
+    TH.innerHTML = "Relay";
+    TH.setAttribute("align", "left");
+    TH.setAttribute("style", "font-size: 12pt; width: 30px; padding-left:10px;");
     
   } else {
     var TH = TR.insertCell(0);
     TH.innerHTML = "Naam";
     TH.setAttribute("align", "left");
     TH.setAttribute("style", "font-size: 14pt; width: 250px; padding-left:10px;");
+
     TH = TR.insertCell(1);
     TH.innerHTML = "Temperatuur";
     TH.setAttribute("align", "right");
     TH.setAttribute("style", "font-size: 14pt; width: 150px; padding-left:10px;");
+
     TH = TR.insertCell(2);
     TH.innerHTML = "temp Bar";
     TH.setAttribute("id", "barRange");
     TH.setAttribute("style", "padding-left:30px;");
     TH.setAttribute("align", "left");
+
     TH = TR.insertCell(3);
+    TH.innerHTML = "Relay";
+    TH.setAttribute("align", "left");
+    TH.setAttribute("style", "font-size: 12pt; width: 30px; padding-left:10px;");
+    
+    TH = TR.insertCell(4);
     TH.innerHTML = "Servo/Valve";
     TH.setAttribute("id", "servoState");
     TH.setAttribute("style", "padding-left:90px;");
@@ -480,11 +554,12 @@ function addTableHeader(table) {
  
 //-------------------------------------------------------------------------------------------
 function moveBar(barID, perc) {
-  var elem = document.getElementById(barID);
-  frame(perc);
-  function frame(w) {
-      elem.style.width = w + '%';
-  }
+	var elem = document.getElementById(barID);
+	frame(perc);
+	function frame(w) {
+ 	  elem.style.width = w + '%';
+ 	}
+
 } // moveBar
 
 //----------- fill sensorData object --------------------------------------------------------
@@ -504,19 +579,19 @@ function buildDataSets(noSensors) {
     dataSetServo.label 				= null; //"S"+s; //contains the 'Y; axis label
     dataSetServo.fill  				= 'false';	// seems to have no effect
     dataSetServo.borderColor 	= colors[(s%colors.length)];
+    dataSetServo.backgroundColor 	= colors[(s%colors.length)];
   //dataSetServo.fillColor    = colors[(s%colors.length)];
-  //dataSetServo.pointBorderColor = colors[(s%colors.length)];
-  //dataSetServo.pointBorderWidth	= 10;	// werkt!
-  //dataSetServo.pointHoverBackgroundColor = colors[(s%colors.length)];
-  //dataSetServo.pointLabelFontColor  = colors[(s%colors.length)];
-  //dataSetServo.backgroundColor = colors[(s%colors.length)];	// doet niets?
+    dataSetServo.pointColor   = colors[(s%colors.length)];
+    dataSetServo.pointBackgroundColor   = colors[(s%colors.length)];
+    dataSetServo.pointHoverBackgroundColor = colors[(s%colors.length)];
+    dataSetServo.pointLabelFontColor  = colors[(s%colors.length)];
     dataSetServo.data 				= []; //contains the 'Y; axis data
 
     for (let p = 0; p < _MAX_DATAPOINTS; p++) {
       y.push(null); // push some data aka generate distinct separate lines
       if (s === 0) {
-          sensorData.labels.push(p); // adds x axis labels (timestamp)
-          servoData.labels.push(p);  // adds x axis labels (timestamp)
+          sensorData.labels.push(null); // adds x axis labels (timestamp)
+          servoData.labels.push(null);  // adds x axis labels (timestamp)
       }
     } // for p ..
     sensorData.datasets[s].data = y; //send new line data to dataset
@@ -527,20 +602,16 @@ function buildDataSets(noSensors) {
 
 //----------- shift dataSet object -------------------------------------------------------
 function shiftDataSets(noSensors, dataSet, newData) {
+	if (noSensors == 0) return;
   for (let s=0; s<noSensors; s++) {
     
     for (let p = 0; p < _MAX_DATAPOINTS; p++) {
     	if (s===0) {
-    		//sensorData.labels[p] = sensorData.labels[p+1];	// timestamp!
     		dataSet.labels[p] = dataSet.labels[p+1];	// timestamp!
     	}
-      //sensorData.datasets[s].data[p] = sensorData.datasets[s].data[p+1];
       dataSet.datasets[s].data[p] = dataSet.datasets[s].data[p+1];
       //}
     } // for p ..
-    //sensorData.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
-   	//sensorData.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
-    //sensorData.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
     dataSet.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
    	dataSet.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
     dataSet.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
@@ -555,16 +626,11 @@ function emptyDataSets(noSensors, dataSet) {
     
     for (let p = 0; p < _MAX_DATAPOINTS; p++) {
     	if (s===0) {
-    		//sensorData.labels[p] = sensorData.labels[p+1];	// timestamp!
     		dataSet.labels[p] = null;	// timestamp!
     	}
-      //sensorData.datasets[s].data[p] = sensorData.datasets[s].data[p+1];
       dataSet.datasets[s].data[p] = null;
       //}
     } // for p ..
-    //sensorData.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
-   	//sensorData.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
-    //sensorData.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
     dataSet.datasets[s].label = null; 	// add new data at end
    	dataSet.labels[_MAX_DATAPOINTS] = null;				// timestamp
     dataSet.datasets[s].data[_MAX_DATAPOINTS]  = null; // add new data at end

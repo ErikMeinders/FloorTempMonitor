@@ -33,9 +33,9 @@ float getRawTemp(int8_t devNr)
     
 #ifdef TESTDATA       
   if (devNr == 0 )                                
-    tempR = random(35.0, 50.0);   // hjm: 25.0 - 29.0 ?            
+    tempR = random(353.6, 501.2) / 10.01;   // hjm: 25.0 - 29.0 ?            
   else  
-    tempR = random(18.0, 38.0);               
+    tempR = random(181.20, 388.8) / 10.02;               
 #else
   tempR = sensors.getTempCByIndex(_SA[devNr].index);
 #endif
@@ -291,14 +291,14 @@ boolean _needToPoll()
  
     // let LED flash on during probing of sensors
     
-    digitalWrite(LED_BUILTIN, LED_ON);
+    digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
     
     // call sensors.requestTemperatures() to issue a global temperature
     // request to all devices on the bus
    
     DebugT("Requesting temperatures...\n");
     timeThis(sensors.requestTemperatures());
-    digitalWrite(LED_BUILTIN, LED_OFF);
+    digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
   } 
     
   return toReturn;

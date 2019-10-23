@@ -229,15 +229,18 @@ void updateSysInfo(uint8_t wsClient)
 void updateDOM()
 {
   for (int i = 0; i < noSensors; i++) {
-    DebugTf("Add Sensor[%2d]: sensorID[%s] name[%s]\n", i
+    DebugTf("Add Sensor[%2d]: sensorID[%s] name[%s] relay[%d]\n", i
             , _SA[i].sensorID
-            , _SA[i].name);
+            , _SA[i].name
+            , _SA[i].servoNr);
 
-    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0:servoState%d=-"
-            , i, i
-            , i, _SA[i].sensorID
-            , i, _SA[i].name
-            , i, i, i);
+    sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0:relay%d=%d:servoState%d=-"
+            , i, i                // index, index
+            , i, _SA[i].sensorID  // index, sensorID
+            , i, _SA[i].name      // index, name
+            , i, i                // temp, tempBar
+            , i, _SA[i].servoNr   // index, servoNr
+            , i);                 // servoState
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }
 

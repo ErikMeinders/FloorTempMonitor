@@ -35,7 +35,7 @@
 #define PROFILING             // comment this line out if you want not profiling 
 #define PROFILING_THRESHOLD 25 // defaults to 3ms - don't show any output when duration below TH
 
-// #define TESTDATA
+//  #define TESTDATA
 /******************** don't change anything below this comment **********************/
 
 #include <Timezone.h>           // https://github.com/JChristensen/Timezone
@@ -50,11 +50,13 @@
 #define _SA                   sensorArray
 #define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
 #define HEATER_ON_TEMP        40.0
+#define LED_BUILTIN_ON        LOW
+#define LED_BUILTIN_OFF       HIGH
+#define LED_WHITE             14      // D5
+#define LED_RED               12      // D6
+#define LED_GREEN             13      // D7 - ONLY USE FOR HEARTBEAT!!
 #define LED_ON                HIGH
 #define LED_OFF               LOW
-#define LED_RED               12
-#define LED_GREEN             13
-#define LED_WHITE             14
 
 #define ONE_WIRE_BUS          0     // Data Wire is plugged into GPIO-00
 #define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
@@ -72,6 +74,7 @@
 DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
 
 DECLARE_TIMER(pingCheck,    30) // check connection every 30 seconds 
+DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
 DECLARE_TIMER(sensorPoll,   20) // update sensors every 20s 
 
@@ -179,6 +182,18 @@ String upTime()
 
 
 //===========================================================================================
+void handleHeartBeat()
+{
+  if ( DUE (heartBeat) ) {
+    digitalWrite(LED_GREEN, LED_ON); 
+  } 
+  else
+  if ((millis() - heartBeat_last) > 1000) {
+    digitalWrite(LED_GREEN, LED_OFF);
+  }
+} //  handleHeartBeat()
+
+//===========================================================================================
 void setup()
 {
   Serial.begin(115200);
@@ -273,10 +288,10 @@ void setup()
   delay(5000); // time to start telnet
   setupDallasSensors();
 
-#ifdef TESTDATA                                               // TESTDATA
-  noSensors = 12;                                             // TESTDATA
-  for (int s=0; s < noSensors; s++) {                         // TESTDATA
-    sprintf(_SA[s].name, "Sensor %d", (s+1));                  // TESTDATA
+#ifdef TESTDATA                                       // TESTDATA
+  noSensors = 11;                                              // TESTDATA
+  for (int s=0; s < noSensors; s++) {                          // TESTDATA
+    sprintf(_SA[s].name, "Sensor %d", (s+2));                  // TESTDATA
     sprintf(_SA[s].sensorID, "0x2800ab0000%02x", (s*3) + 3);   // TESTDATA
     _SA[s].servoNr     =  (s+1);                               // TESTDATA
     _SA[s].position    = s+2;                                  // TESTDATA
@@ -284,7 +299,7 @@ void setup()
     _SA[s].deltaTemp   = 15 + s;                               // TESTDATA
     _SA[s].tempFactor  = 1.0;                                  // TESTDATA
     _SA[s].servoTimer  = millis();                             // TESTDATA
-  }                                                           // TESTDATA
+  }                                                            // TESTDATA
   sprintf(_SA[5].name, "*Flux IN");                            // TESTDATA
   _SA[5].position      =  0;                                   // TESTDATA
   _SA[5].deltaTemp     =  2; // is _PULSE_TIME                 // TESTDATA
@@ -295,7 +310,7 @@ void setup()
   _SA[6].servoNr       = -1;                                   // TESTDATA
   sprintf(_SA[7].name, "*Room Temp.");                         // TESTDATA
   _SA[7].servoNr       = -1;                                   // TESTDATA
-#endif                                                        // TESTDATA
+#endif                                                // TESTDATA
 
   Debugln("========================================================================================");
   sortSensors();
@@ -315,11 +330,13 @@ void setup()
 //===========================================================================================
 void loop()
 {
+  handleHeartBeat();                  // blink GREEN led
+  
   timeThis( webSocket.loop() );
   timeThis( MDNS.update() );
   timeThis( httpServer.handleClient() );
   timeThis( handleNTP() );
-//timeThis( checkI2C_Mux() );         // maybe call setupI2C_Mux() in the process (if needed) ..
+  timeThis( checkI2C_Mux() );         // maybe call setupI2C_Mux() in the process (if needed) ..
   timeThis( handleSensors() );        // update upper part of screen
   timeThis( handleDatapoints() );     // update graph in lower screen half
   

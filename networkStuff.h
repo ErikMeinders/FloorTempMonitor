@@ -27,7 +27,7 @@ ESP8266WebServer        httpServer (80);
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-bool        isConnected = false;
+bool        connectedToWebsocket = false;
 
 //gets called when WiFiManager enters configuration mode
 //===========================================================================================

@@ -1,7 +1,7 @@
 /*
-**  Program   : ESP8266_basic
+**  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v0.6.8 (19-10-2019)"
+#define _FW_VERSION "v0.6.9 (23-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -32,9 +32,8 @@
 #define HAS_FSEXPLORER
 #define SHOW_PASSWRDS
 
-// #define PROFILING             // comment this line out if you want not profiling 
-#define PROFILING_THRESHOLD 5 // defaults to 3ms - don't show any output when duration below TH
-
+#define PROFILING             // comment this line out if you want not profiling 
+#define PROFILING_THRESHOLD 25 // defaults to 3ms - don't show any output when duration below TH
 
 // #define TESTDATA
 /******************** don't change anything below this comment **********************/
@@ -48,7 +47,7 @@
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
-#define _S                    sensorArray
+#define _SA                   sensorArray
 #define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
 #define HEATER_ON_TEMP        40.0
 #define LED_ON                HIGH
@@ -58,21 +57,23 @@
 #define LED_WHITE             14
 
 #define ONE_WIRE_BUS          0     // Data Wire is plugged into GPIO-00
-//#define TEMPERATURE_PRECISION  9    // 12
 #define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
 #define _MAX_DATAPOINTS       100   // 24 hours every 15 minutes - more will crash the gui
+#define _LAST_DATAPOINT      (_MAX_DATAPOINTS -1)
 #define _REFLOW_TIME         (5*60000) // 5 minutes
-#define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
+#define _DELTATEMP_CHECK      2     // when to check the deltaTemp's in minutes
 #define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
 #define _MIN                  60000 // milliSecs in a minute
 
-#define _PLOT_INTERVAL        60    // in seconds
-
-DECLARE_TIMER(sensorPoll,   5) // update sensors every 5s 
+#define _PLOT_INTERVAL        300    // in seconds
 
 DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
+
+DECLARE_TIMER(pingCheck,    30) // check connection every 30 seconds 
+
+DECLARE_TIMER(sensorPoll,   20) // update sensors every 20s 
 
 DECLARE_TIMER(screenClockRefresh, 10)
 
@@ -137,24 +138,28 @@ typedef struct {
 typedef struct {
   uint32_t  timestamp;
   float     tempC[_MAX_SENSORS];
+  int8_t    servoStateV[_MAX_SENSORS];
 } dataStruct;
 
 sensorStruct  sensorArray[_MAX_SENSORS];
 dataStruct    dataStore[_MAX_DATAPOINTS+1];
 
-char      cMsg[150], fChar[10];
+char      cMsg[150];
 String    pTimestamp;
-int8_t    prevNtpHour     = 0;
-uint64_t  upTimeSeconds;
+int8_t    prevNtpHour         = 0;
+uint32_t  startTimeNow;
 
 int8_t    noSensors;
-int8_t    cycleNr         = 0;
+int8_t    cycleNr             = 0;
 uint8_t   wsClientID;
-int8_t    lastSaveHour    = 0;
-bool      connectedToMux  = false;
-bool      SPIFFSmounted   = false;
-bool      readRaw         = false;
-bool      cycleAllSensors = false;
+int8_t    lastSaveHour        = 0;
+bool      connectedToMux      = false;
+bool      SPIFFSmounted       = false;
+bool      readRaw             = false;
+bool      cycleAllSensors     = false;
+bool      onlyUpdateLastPoint = false;
+bool      onlyUpdateSensors   = false;
+bool      onlyUpdateServos    = false;
 
 
 
@@ -162,10 +167,12 @@ bool      cycleAllSensors = false;
 String upTime()
 {
   char    calcUptime[20];
+  uint32_t  upTimeNow = now() - startTimeNow; // upTimeNow = seconds
 
-  sprintf(calcUptime, "%d(d):%02d(h):%02d", int((upTimeSeconds / (60 * 60 * 24)) % 365)
-          , int((upTimeSeconds / (60 * 60)) % 24)
-          , int((upTimeSeconds / (60)) % 60));
+  sprintf(calcUptime, "%d[d] %02d:%02d" 
+          , (int)((upTimeNow / (60 * 60 * 24)) % 365)
+          , (int)((upTimeNow / (60 * 60)) % 24) // hours
+          , (int)((upTimeNow / 60) % 60));       // minuten
   return calcUptime;
 
 } // upTime()
@@ -200,6 +207,7 @@ void setup()
   MDNS.port(81);  // webSockets
 
   ntpInit();
+  startTimeNow = now();
 
   for (int I = 0; I < 10; I++) {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
@@ -255,6 +263,9 @@ void setup()
 
   DebugTln( "HTTP server gestart\r" );
   digitalWrite(LED_GREEN, LED_OFF);
+  
+  sprintf(cMsg, "Last reset reason: [%s]\r", ESP.getResetReason().c_str());
+  DebugTln(cMsg);
 
   //--- Start up the library for the DS18B20 sensors
   sensors.begin();
@@ -263,26 +274,27 @@ void setup()
   setupDallasSensors();
 
 #ifdef TESTDATA                                               // TESTDATA
-  noSensors = 9;                                              // TESTDATA
+  noSensors = 12;                                             // TESTDATA
   for (int s=0; s < noSensors; s++) {                         // TESTDATA
-    sprintf(_S[s].name, "Sensor %d", (s+1));                  // TESTDATA
-    sprintf(_S[s].sensorID, "0x2800000000%02x", s*3);         // TESTDATA
-    _S[s].servoNr     =  s;                                   // TESTDATA
-    _S[s].position    = s+2;                                  // TESTDATA
-    _S[s].closeCount  =  0;                                   // TESTDATA
-    _S[s].deltaTemp   = 15 + s;                               // TESTDATA
-    _S[s].servoTimer  = millis();                             // TESTDATA
+    sprintf(_SA[s].name, "Sensor %d", (s+1));                  // TESTDATA
+    sprintf(_SA[s].sensorID, "0x2800ab0000%02x", (s*3) + 3);   // TESTDATA
+    _SA[s].servoNr     =  (s+1);                               // TESTDATA
+    _SA[s].position    = s+2;                                  // TESTDATA
+    _SA[s].closeCount  =  0;                                   // TESTDATA
+    _SA[s].deltaTemp   = 15 + s;                               // TESTDATA
+    _SA[s].tempFactor  = 1.0;                                  // TESTDATA
+    _SA[s].servoTimer  = millis();                             // TESTDATA
   }                                                           // TESTDATA
-  sprintf(_S[5].name, "*Flux IN");                            // TESTDATA
-  _S[5].position      =  0;                                   // TESTDATA
-  _S[5].deltaTemp     =  1;                                   // TESTDATA
-  _S[5].servoNr       = -1;                                   // TESTDATA
-  sprintf(_S[6].name, "*Flux RETOUR");                        // TESTDATA
-  _S[6].position      =  1;                                   // TESTDATA
-  _S[6].deltaTemp     =  0;                                   // TESTDATA
-  _S[6].servoNr       = -1;                                   // TESTDATA
-  sprintf(_S[7].name, "*Room Temp.");                         // TESTDATA
-  //_S[7].servoNr       = -1;                                 // TESTDATA
+  sprintf(_SA[5].name, "*Flux IN");                            // TESTDATA
+  _SA[5].position      =  0;                                   // TESTDATA
+  _SA[5].deltaTemp     =  2; // is _PULSE_TIME                 // TESTDATA
+  _SA[5].servoNr       = -1;                                   // TESTDATA
+  sprintf(_SA[6].name, "*Flux RETOUR");                        // TESTDATA
+  _SA[6].position      =  1;                                   // TESTDATA
+  _SA[6].deltaTemp     =  0;                                   // TESTDATA
+  _SA[6].servoNr       = -1;                                   // TESTDATA
+  sprintf(_SA[7].name, "*Room Temp.");                         // TESTDATA
+  _SA[7].servoNr       = -1;                                   // TESTDATA
 #endif                                                        // TESTDATA
 
   Debugln("========================================================================================");
@@ -303,16 +315,19 @@ void setup()
 //===========================================================================================
 void loop()
 {
-  timeThis(httpServer.handleClient());
-  timeThis(webSocket.loop());
-  timeThis(MDNS.update());
-  timeThis(handleNTP());
-  checkI2C_Mux();                   // maybe call setupI2C_Mux() again ..
-  timeThis(handleSensors());        // update upper part of screen
-  timeThis(handleDatapoints());     // update graph in lower screen half
+  timeThis( webSocket.loop() );
+  timeThis( MDNS.update() );
+  timeThis( httpServer.handleClient() );
+  timeThis( handleNTP() );
+//timeThis( checkI2C_Mux() );         // maybe call setupI2C_Mux() in the process (if needed) ..
+  timeThis( handleSensors() );        // update upper part of screen
+  timeThis( handleDatapoints() );     // update graph in lower screen half
   
-  timeThis(handleWebSockRefresh()); // essentially update of clock on screen
+  timeThis( handleWebSockRefresh() ); // essentially update of clock on screen
   
-  timeThis(checkDeltaTemps());
-  timeThis(handleCycleServos());
+  timeThis( checkDeltaTemps() );
+  timeThis( handleCycleServos() );
+
+  timeThis( handlePing() );
+
 } 

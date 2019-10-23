@@ -46,7 +46,7 @@ public:
   I2CMUX();
 
   bool    begin(TwoWire &wireBus = Wire, uint8_t deviceAddress = I2C_SLAVE_ADDRESS);
-  bool    isConnected();
+  bool    connectedToWebsocket();
   byte    getMajorRelease();
   byte    getMinorRelease();
   byte    getWhoAmI();

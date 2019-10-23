@@ -141,25 +141,25 @@ void calibrate_low(int sensorIndex, float lowTemp)
 
   DynamicJsonDocument c(64);
   
-  float tempR = sensors.getTempCByIndex(_S[sensorIndex].index);
+  float tempR = sensors.getTempCByIndex(_SA[sensorIndex].index);
 
   // this should be lowTemp, change tempOffset
   // so that reading + offset equals lowTemp
   // that is, offset = lowTemp - raw reading 
 
-  _S[sensorIndex].tempOffset = lowTemp - tempR;
+  _SA[sensorIndex].tempOffset = lowTemp - tempR;
 
   c["index"]  = sensorIndex;
-  c["offset"] = _S[sensorIndex].tempOffset;
+  c["offset"] = _SA[sensorIndex].tempOffset;
 
   calibrations.add(c);
-  updateIniRec(_S[sensorIndex]);
+  updateIniRec(_SA[sensorIndex]);
 
 }
 
 void calibrate_high(int sensorIndex, float t)
 {
-  float tempR = sensors.getTempCByIndex(_S[sensorIndex].index);
+  float tempR = sensors.getTempCByIndex(_SA[sensorIndex].index);
   DynamicJsonDocument c(64);
 
   // calculate correction factor
@@ -173,13 +173,13 @@ void calibrate_high(int sensorIndex, float t)
   // make sure to use the calibrated reading, 
   // so add the offset!
   
-  _S[sensorIndex].tempFactor = t  / ( tempR + _S[sensorIndex].tempOffset );
+  _SA[sensorIndex].tempFactor = t  / ( tempR + _SA[sensorIndex].tempOffset );
 
   c["index"]  = sensorIndex;
-  c["factor"] = _S[sensorIndex].tempFactor;
+  c["factor"] = _SA[sensorIndex].tempFactor;
 
   calibrations.add(c);
-  updateIniRec(_S[sensorIndex]);
+  updateIniRec(_SA[sensorIndex]);
 }
 
 DynamicJsonDocument toRetCalDoc(500);

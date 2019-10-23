@@ -12,25 +12,30 @@
 
 
 //===========================================================================================
-void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t lenght)
+void webSocketEvent(uint8_t wsClient, WStype_t WStype, uint8_t * payload, size_t length)
 {
   String  wsPayload = String((char *) &payload[0]);
-  char *  wsPayloadC = (char *) &payload[0];
+  //char *  wsPayloadC = (char *) &payload[0];
   String  wsString;
 
   wsClientID = wsClient;  // only the last connected Client gets updates
 
-  switch (type) {
+  switch (WStype) {
+    
+    case WStype_ERROR: 
+      DebugTf("Some ERROR occured .. [%d] get binary length: %d\n", wsClient, length);
+      break;
+
     case WStype_DISCONNECTED:
       DebugTf("[%u] Disconnected!\r\n", wsClient);
-      isConnected = false;
+      connectedToWebsocket = false;
       break;
 
     case WStype_CONNECTED: {
         IPAddress ip = webSocket.remoteIP(wsClient);
-        if (!isConnected) {
+        if (!connectedToWebsocket) {
           DebugTf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", wsClient, ip[0], ip[1], ip[2], ip[3], payload);
-          isConnected = true;
+          connectedToWebsocket = true;
           if (connectedToMux) {
             webSocket.sendTXT(wsClient, "state=Connected");
           } else {
@@ -39,20 +44,21 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
           readRaw = false;
           sprintf(cMsg, "noSensors=%d", noSensors);
           webSocket.sendTXT(wsClient, cMsg);
-          // updateDOM();
+          onlyUpdateLastPoint = false;
         }
 
       }
       break;
-
+        
     case WStype_TEXT:
       DebugTf("[%u] Got message: [%s]\r\n", wsClient, payload);
       String FWversion = String(_FW_VERSION);
-
+      
       if (wsPayload.indexOf("updateDOM") > -1) {
         DebugTln("now updateDOM()!");
         delay(100); // give it some time to load chartJS library and stuff
         updateDOM();
+        //onlyUpdateLastPoint = false;
       } else
       if (wsPayload.indexOf("DOMloaded") > -1) {
         DebugTln("received DOMloaded, send some datapoints");
@@ -65,12 +71,36 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
         DebugTln("set readRaw = true;");
         readRaw = true;
         forceUpdateSensorsDisplay();
+        onlyUpdateLastPoint = false;
+        updateDatapointsDisplay();
+      } else 
+      if (wsPayload.indexOf("chartType=N") > -1) {
+        DebugTln("set chartType = N");
+        onlyUpdateLastPoint       = false;
+        onlyUpdateSensors    = false;
+        onlyUpdateServos  = false;
+        updateDatapointsDisplay();
+      } else 
+      if (wsPayload.indexOf("chartType=T") > -1) {
+        DebugTln("set chartType = T;");
+        onlyUpdateLastPoint       = false;
+        onlyUpdateSensors    = true;
+        onlyUpdateServos  = false;
+        updateDatapointsDisplay();
+      } else 
+      if (wsPayload.indexOf("chartType=S") > -1) {
+        DebugTln("set chartType = T;");
+        onlyUpdateLastPoint       = false;
+        onlyUpdateSensors    = false;
+        onlyUpdateServos  = true;
         updateDatapointsDisplay();
       } else 
       if (wsPayload.indexOf("calibratedMode") > -1) {
         DebugTln("set readRaw = false;");
         readRaw = false;
         forceUpdateSensorsDisplay();
+        onlyUpdateLastPoint = false;
+        onlyUpdateSensors   = true;
         updateDatapointsDisplay();
       } else
       //---- sensorEdit.html ---------------------------------
@@ -92,17 +122,31 @@ void webSocketEvent(uint8_t wsClient, WStype_t type, uint8_t * payload, size_t l
       }
       break;
 
-  } // switch(type)
+  } // switch(WStype)
 
 } // webSocketEvent()
 
+
+//===========================================================================================
+void handlePing()
+{
+  if ( DUE (pingCheck) ) {
+    for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
+      webSocket.sendPing(i);
+    }
+  } 
+
+} // handlePing()
 
 //===========================================================================================
 void handleWebSockRefresh()
 {
   if (DUE(screenClockRefresh)) {
     String DT  = buildDateTimeString();
-    sprintf(cMsg, "clock=WiFi RSSI: %4ddBm &nbsp; %s", WiFi.RSSI(), DT.c_str());
+    sprintf(cMsg, "Up:%15.15s", upTime().c_str());
+    sprintf(cMsg, "clock=upTime:%15.15s WiFi RSSI: %4ddBm &nbsp; %s", upTime().c_str()
+                                                                , WiFi.RSSI()
+                                                                , DT.c_str());
     DebugTln(cMsg);
     webSocket.sendTXT(wsClientID, cMsg);
     if (connectedToMux) {
@@ -114,9 +158,9 @@ void handleWebSockRefresh()
     webSocket.sendTXT(wsClientID, cMsg);
   }
 
-} // handleWebSockRefreshh()
+} // handleWebSockRefresh()
 
-
+/********
 //===========================================================================================
 void updateSysInfo(uint8_t wsClient)
 {
@@ -177,6 +221,7 @@ void updateSysInfo(uint8_t wsClient)
   webSocket.sendTXT(wsClientID, "msgType=sysInfo" + wsString);
 
 } // updateSysInfo()
+********/
 
 
 
@@ -185,13 +230,13 @@ void updateDOM()
 {
   for (int i = 0; i < noSensors; i++) {
     DebugTf("Add Sensor[%2d]: sensorID[%s] name[%s]\n", i
-            , _S[i].sensorID
-            , _S[i].name);
+            , _SA[i].sensorID
+            , _SA[i].name);
 
     sprintf(cMsg, "index%d=%d:sensorID%d=%s:name%d=%s:tempC%d=-:tempBar%d=0:servoState%d=-"
             , i, i
-            , i, _S[i].sensorID
-            , i, _S[i].name
+            , i, _SA[i].sensorID
+            , i, _SA[i].name
             , i, i, i);
     webSocket.sendTXT(wsClientID, "updateDOM:" + String(cMsg));
   }

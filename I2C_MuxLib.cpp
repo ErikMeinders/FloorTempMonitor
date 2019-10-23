@@ -26,7 +26,7 @@ bool I2CMUX::begin(TwoWire &wireBus, uint8_t deviceAddress)
 
   _I2Caddress = deviceAddress;
 
-  if (isConnected() == false)
+  if (connectedToWebsocket() == false)
     return (false); // Check for I2C_Relay_Multiplexer presence
   
   return (true); // Everything is OK!
@@ -34,13 +34,13 @@ bool I2CMUX::begin(TwoWire &wireBus, uint8_t deviceAddress)
 } // begin()
 
 //-------------------------------------------------------------------------------------
-bool I2CMUX::isConnected()
+bool I2CMUX::connectedToWebsocket()
 {
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
   if (_I2Cbus->endTransmission() != 0)
     return (false); // I2C Slave did not ACK
   return (true);
-} // isConnected()
+} // connectedToWebsocket()
 
 //-------------------------------------------------------------------------------------
 byte I2CMUX::getMajorRelease()
@@ -140,7 +140,9 @@ uint8_t I2CMUX::readReg1Byte(uint8_t addr)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (0); // Slave did not ack
   }
@@ -148,7 +150,9 @@ uint8_t I2CMUX::readReg1Byte(uint8_t addr)
   _I2Cbus->requestFrom((uint8_t)_I2Caddress, (uint8_t) 1);
   delay(5);
   if (_I2Cbus->available()) {
+    yield();
     return (_I2Cbus->read());
+    yield();
   }
 
   return (0); // Slave did not respond
@@ -164,7 +168,9 @@ int16_t I2CMUX::readReg2Byte(uint8_t addr)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (0); // Slave did not ack
   }
@@ -172,8 +178,11 @@ int16_t I2CMUX::readReg2Byte(uint8_t addr)
   _I2Cbus->requestFrom((uint8_t)_I2Caddress, (uint8_t) 2);
   delay(5);
   if (_I2Cbus->available()) {
+    yield();
     uint8_t LSB = _I2Cbus->read();
+    yield();
     uint8_t MSB = _I2Cbus->read();
+    yield();
     return ((int16_t)MSB << 8 | LSB);
   }
 
@@ -190,7 +199,9 @@ int32_t I2CMUX::readReg4Byte(uint8_t addr)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (0); // Slave did not ack
   }
@@ -198,10 +209,15 @@ int32_t I2CMUX::readReg4Byte(uint8_t addr)
   _I2Cbus->requestFrom((uint8_t)_I2Caddress, (uint8_t) 4);
   delay(5);
   if (_I2Cbus->available()) {
+    yield();
     uint8_t LSB   = _I2Cbus->read();
+    yield();
     uint8_t mLSB  = _I2Cbus->read();
+    yield();
     uint8_t mMSB  = _I2Cbus->read();
+    yield();
     uint8_t MSB   = _I2Cbus->read();
+    yield();
     uint32_t comb = MSB << 24 | mMSB << 16 | mLSB << 8 | LSB;
     return ((int32_t)MSB << 24 | mMSB << 16 | mLSB << 8 | LSB);
   }
@@ -223,8 +239,11 @@ bool I2CMUX::writeReg1Byte(uint8_t addr, uint8_t val)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   _I2Cbus->write(val);
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (false); // Slave did not ack
   }
@@ -242,9 +261,13 @@ bool I2CMUX::writeReg2Byte(uint8_t addr, int16_t val)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   _I2Cbus->write(val & 0xFF); // LSB
+  yield();
   _I2Cbus->write(val >> 8);   // MSB
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (false); // Slave did not ack
   }
@@ -263,10 +286,15 @@ bool I2CMUX::writeReg3Byte(uint8_t addr, int32_t val)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   _I2Cbus->write(val &0xFF);     // LSB
+  yield();
   _I2Cbus->write(val >> 8);       // mLSB
+  yield();
   _I2Cbus->write(val >> 16);      // mMSB
+  yield();
   //_I2Cbus->write(val >> 24);    // MSB
   if (_I2Cbus->endTransmission() != 0) {
     return (false); // Slave did not ack
@@ -285,10 +313,15 @@ bool I2CMUX::writeReg4Byte(uint8_t addr, int32_t val)
   _statusTimer = millis();
 
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(addr);
+  yield();
   _I2Cbus->write(val & 0xFF); // LSB
+  yield();
   _I2Cbus->write(val >> 8);   // mLSB
+  yield();
   _I2Cbus->write(val >> 16);  // mMSB
+  yield();
   _I2Cbus->write(val >> 24);  // MSB
   if (_I2Cbus->endTransmission() != 0) {
     return (false); // Slave did not ack
@@ -308,10 +341,14 @@ bool I2CMUX::writeCommand2Bytes(byte CMD, byte GPIO_PIN)
 
   //Serial.printf("\nwriteCommand2Bytes: CMD[%d], GPIO[%d] \n", CMD, GPIO_PIN);
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(I2CMUX_COMMAND);
+  yield();
   // val is [-------- cccccccc pppppppp]
-  _I2Cbus->write(CMD &0xFF);          // Command
-  _I2Cbus->write(GPIO_PIN &0xFF);     // GPIO_PIN
+  _I2Cbus->write(CMD);          // Command
+  yield();
+  _I2Cbus->write(GPIO_PIN);     // GPIO_PIN
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (false); // Slave did not ack
   }
@@ -329,11 +366,16 @@ bool I2CMUX::writeCommand3Bytes(byte CMD, byte GPIO_PIN, byte HIGH_LOW)
 
   //Serial.printf("\nwriteCommand3Bytes: CMD[%d], GPIO[%d], HL[%d] \n", CMD, GPIO_PIN, HIGH_LOW);
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
+  yield();
   _I2Cbus->write(I2CMUX_COMMAND);
+  yield();
   // val is [-------- cccccccc pppppppp vvvvvvvv]
-  _I2Cbus->write(CMD &0xFF);          // Command
-  _I2Cbus->write(GPIO_PIN &0xFF);     // GPIO_PIN
-  _I2Cbus->write(HIGH_LOW &0xFF);     // HIGH_LOW
+  _I2Cbus->write(CMD);          // Command
+  yield();
+  _I2Cbus->write(GPIO_PIN);     // GPIO_PIN
+  yield();
+  _I2Cbus->write(HIGH_LOW);     // HIGH_LOW
+  yield();
   if (_I2Cbus->endTransmission() != 0) {
     return (false); // Slave did not ack
   }

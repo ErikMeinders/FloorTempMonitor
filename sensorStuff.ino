@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : helperStuff, part of FloorTempMonitor
-**  Version  : v0.6.7
+**  Version  : v0.6.9
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -33,7 +33,7 @@ float getRawTemp(int8_t devNr)
     
 #ifdef TESTDATA       
   if (devNr == 0 )                                
-    tempR = random(353.6, 501.2) / 10.01;   // hjm: 25.0 - 29.0 ?            
+    tempR = random(153.6, 191.2) / 10.01;   // hjm: 25.0 - 29.0 ?            
   else  
     tempR = random(181.20, 388.8) / 10.02;               
 #else
@@ -331,6 +331,7 @@ void printSensorArray()
            , _SA[s].name
            , _SA[s].tempOffset
            , _SA[s].tempFactor);
+     _SA[s].servoState = SERVO_IS_OPEN; // initial state
   }
 } // printSensorArray()
 

@@ -1,7 +1,7 @@
 /*
 ***************************************************************************
 **  Program  : servoStuff, part of FloorTempMonitor
-**  Version  : v0.6.7
+**  Version  : v0.6.9
 **
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -264,21 +264,37 @@ bool setupI2C_Mux()
   }
   digitalWrite(LED_RED, LED_OFF);
 
+  DebugT("Close all servo's ..16 ");
   I2cExpander.digitalWrite(0, CLOSE_SERVO);
-  delay(500);
+  delay(300);
   for (int s=15; s>0; s--) {
     I2cExpander.digitalWrite(s, CLOSE_SERVO);
-    delay(250);
+    Debugf("%d ",s);
+    delay(150);
   }
+  Debugln();
+  DebugT("Open all servo's ...");
   for (int s=15; s>0; s--) {
     I2cExpander.digitalWrite(s, OPEN_SERVO);
-    if (s < noSensors) {
-      _SA[s].servoState = SERVO_IS_OPEN;
-    }
-    delay(250);
+    Debugf("%d ",s);
+    //if (s < noSensors) {                    // init servoState is moved 
+    //  _SA[s].servoState = SERVO_IS_OPEN;    // to printSensorArray()
+    //}                                       // ..
+    delay(150);
   }
-  delay(500);
+  delay(250);
   I2cExpander.digitalWrite(0, OPEN_SERVO);
+  Debugln(16);
+
+  //-- reset state of all servo's --------------------------
+  for (int s=0; s<noSensors; s++) {
+    if (_SA[s].servoNr > 0) {
+      if (_SA[s].servoState == SERVO_IS_CLOSED) {
+        I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO); 
+        DebugTf("(re)Close servoNr[%d] for sensor[%s]\n", _SA[s].servoNr, _SA[s].name);
+      } 
+    }
+  }
   
   return true;
   

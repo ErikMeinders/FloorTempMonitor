@@ -1,7 +1,7 @@
 /*
 **  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v0.6.9 (23-10-2019)"
+#define _FW_VERSION "v0.6.9 (24-10-2019)"
 /*
 **  Copyright (c) 2019 Willem Aandewiel
 **
@@ -338,6 +338,7 @@ void loop()
   timeThis( handleNTP() );
   timeThis( checkI2C_Mux() );         // maybe call setupI2C_Mux() in the process (if needed) ..
   timeThis( handleSensors() );        // update upper part of screen
+  timeThis( checkI2C_Mux() );         // handle Sensors may take a long time ..
   timeThis( handleDatapoints() );     // update graph in lower screen half
   
   timeThis( handleWebSockRefresh() ); // essentially update of clock on screen

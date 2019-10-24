@@ -40,6 +40,11 @@ chartData.datasets = [];     // add 'datasets' array element to object
 //----------------Sensor Temp Chart----------------------------------------------------------
 var mySensorChart;
 function renderSensorChart(dataSet) {
+		
+	if (mySensorChart) {
+    mySensorChart.destroy();
+  }
+
 	var ctxSensor = document.getElementById("dataChart").getContext("2d");
 	mySensorChart = new Chart(ctxSensor, {
           type: 'line',
@@ -80,6 +85,11 @@ function renderSensorChart(dataSet) {
 //----------------Servo State Chart----------------------------------------------------------
 var myServoChart;
 function renderServoChart(dataSet) {
+	
+	if (myServoChart) {
+    myServoChart.destroy();
+  }
+
 	var ctxServo = document.getElementById("dataChart").getContext("2d");
 	myServoChart = new Chart(ctxServo, {
           type: 'line',
@@ -669,12 +679,6 @@ function setRawMode() {
 //-------------------------------------------------------------------------------------------
 function setChartType(type) {
 	console.log("in setChartType("+type+") ..");
-  if (mySensorChart) {
-  	mySensorChart.destroy();
-  }
-  if (myServoChart) {
-  	myServoChart.destroy();
-  }
 
   if (type == "T")  {
   	console.log("chartType set to 'T'");

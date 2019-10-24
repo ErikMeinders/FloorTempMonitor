@@ -35,7 +35,7 @@
 #define PROFILING             // comment this line out if you want not profiling 
 #define PROFILING_THRESHOLD 25 // defaults to 3ms - don't show any output when duration below TH
 
-//  #define TESTDATA
+#//  define TESTDATA
 /******************** don't change anything below this comment **********************/
 
 #include <Timezone.h>           // https://github.com/JChristensen/Timezone
@@ -62,14 +62,14 @@
 #define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
 #define _MAX_NAME_LEN         12
 #define _FIX_SETTINGSREC_LEN  85
-#define _MAX_DATAPOINTS       100   // 24 hours every 15 minutes - more will crash the gui
+#define _MAX_DATAPOINTS       120   // 24 hours every 15 minutes - more will crash the gui
 #define _LAST_DATAPOINT      (_MAX_DATAPOINTS -1)
 #define _REFLOW_TIME         (5*60000) // 5 minutes
-#define _DELTATEMP_CHECK      2     // when to check the deltaTemp's in minutes
+#define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
 #define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
 #define _MIN                  60000 // milliSecs in a minute
 
-#define _PLOT_INTERVAL        300    // in seconds
+#define _PLOT_INTERVAL        120    // in seconds
 
 DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
 
@@ -157,6 +157,7 @@ int8_t    cycleNr             = 0;
 uint8_t   wsClientID;
 int8_t    lastSaveHour        = 0;
 bool      connectedToMux      = false;
+uint8_t   connectionMuxLostCount    = 0;
 bool      SPIFFSmounted       = false;
 bool      readRaw             = false;
 bool      cycleAllSensors     = false;

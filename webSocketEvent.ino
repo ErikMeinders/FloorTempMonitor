@@ -143,10 +143,11 @@ void handleWebSockRefresh()
 {
   if (DUE(screenClockRefresh)) {
     String DT  = buildDateTimeString();
-    sprintf(cMsg, "Up:%15.15s", upTime().c_str());
-    sprintf(cMsg, "clock=upTime:%15.15s WiFi RSSI: %4ddBm &nbsp; %s", upTime().c_str()
-                                                                , WiFi.RSSI()
-                                                                , DT.c_str());
+    sprintf(cMsg, "clock=[I2C disconnects %d] | [upTime:%15.15s] | [WiFi RSSI: %4ddBm] | [%s]"
+                                                        , connectionMuxLostCount
+                                                        , upTime().c_str()
+                                                        , WiFi.RSSI()
+                                                        , DT.c_str());
     DebugTln(cMsg);
     webSocket.sendTXT(wsClientID, cMsg);
     if (connectedToMux) {

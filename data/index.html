@@ -29,7 +29,7 @@
 </style>
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.min.js"></script>
 </head>
 <body>
 <div class="header">
@@ -61,23 +61,33 @@
   </table>
   <hr>
   <!-- REST -->
-  <p>|<input type="checkbox" id="rawTemp" value="doRawTemp" onChange="setRawMode()"> Raw temp. readings 
-    &nbsp; &nbsp; &nbsp;
-    | Chart:  
+  <p>| &nbsp; <input type="checkbox" id="rawTemp" value="doRawTemp" onChange="setRawMode()"> Raw temp. readings 
+  	&nbsp;
+    | &nbsp; 
+    Chart:  
     <input type="radio" name="chartType" value="N" 
              							onchange="setChartType('N')" checked /> Geen
-  	&nbsp; &nbsp;
+  	&nbsp;
     <input type="radio" name="chartType" value="T" 
              							onchange="setChartType('T')" /> Temperatuur
-  	&nbsp; &nbsp;
+  	&nbsp;
 		<input type="radio" name="chartType" value="S" 
 		         							onchange="setChartType('S')" /> Servo's
+		&nbsp;
+    | &nbsp; 
+    Timeline:  
+    <input type="radio" name="timeLine" value="S" 
+             							onchange="setTimeLine('S')" checked /> Short
+  	&nbsp;
+    <input type="radio" name="timeLine" value="L" 
+             							onchange="setTimeLine('L')" /> Long
+  	&nbsp; 
 		|
   </p>  
 
 <!--  <div id="Redirect"></div> -->
-  <div><canvas id="sensorsChart" style="display: none;" width="900" height="250"></canvas></div>
-  <div><canvas id="servosChart"  style="display: none;" width="900" height="250"></canvas></div>
+  <div><canvas id="dataChart" style="display: none;" width="900" height="350"></canvas></div>
+<!--  <div><canvas id="servosChart"  style="display: none;" width="900" height="250"></canvas></div> -->
   <p> </p>
   <p> </p>
   

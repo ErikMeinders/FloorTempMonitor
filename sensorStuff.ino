@@ -32,10 +32,12 @@ float getRawTemp(int8_t devNr)
   float tempR;
     
 #ifdef TESTDATA       
-  if (devNr == 0 )                                
-    tempR = random(153.6, 191.2) / 10.01;   // hjm: 25.0 - 29.0 ?            
-  else  
-    tempR = random(181.20, 388.8) / 10.02;               
+  static float tempR0;
+  if (devNr == 0 ) {
+    tempR0 = (tempR0 + (random(273.6, 591.2) / 10.01)) /2.0;   // hjm: 25.0 - 29.0 ?  
+    tempR = tempR0;          
+  } else  
+    tempR = (random(201.20, 308.8) / 10.02);               
 #else
   tempR = sensors.getTempCByIndex(_SA[devNr].index);
 #endif
@@ -73,13 +75,13 @@ void updateSensorData(int8_t devNr)
 
   if (_SA[devNr].servoNr > 0) {
     switch(_SA[devNr].servoState) {
-      case SERVO_IS_OPEN:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  20 +devNr;
+      case SERVO_IS_OPEN:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  30 +devNr;
                                 break;
-      case SERVO_IS_CLOSED:     dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -20 +devNr;
+      case SERVO_IN_LOOP:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =   5 +devNr;
                                 break;
-      case SERVO_COUNT0_CLOSE:  dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -10 +devNr;
+      case SERVO_COUNT0_CLOSE:  dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -20 +devNr;
                                 break;
-      case SERVO_IN_LOOP:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  10 +devNr;
+      case SERVO_IS_CLOSED:     dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -25 +devNr;
                                 break;
     } // switch() 
 
@@ -421,7 +423,7 @@ void updateDatapointsDisplay()
   } // if (onlyUpdateSensors) ..
 
   if (onlyUpdateServos) {
-    DebugTln("Send servo State's ..");
+    DebugT("Send servo State's ..");
     if (onlyUpdateLastPoint) {
       Debug(" .. only last point!");
       startFrom = _LAST_DATAPOINT;

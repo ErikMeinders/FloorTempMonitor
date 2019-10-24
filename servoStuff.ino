@@ -208,17 +208,18 @@ void checkI2C_Mux()
 
   if (errorCountDown > 0) {
     errorCountDown--;
-    delay(10);
+    delay(20);
     errorCountUp = 0;
     return;
   }
   if (errorCountUp > 5) {
-    errorCountDown = 1000;
+    errorCountDown = 5000;
   }
   
   //DebugTln("getWhoAmI() ..");
   whoAmI       = I2cExpander.getWhoAmI();
   if (!connectedToMux || (whoAmI != I2C_MUX_ADDRESS)) {
+    connectionMuxLostCount++;
     digitalWrite(LED_RED, LED_ON);
     connectedToMux = setupI2C_Mux();
     if (connectedToMux)
@@ -254,7 +255,7 @@ bool setupI2C_Mux()
     DebugTln("Connected to the I2C multiplexer!");
   } else {
     DebugTln("Not Connected to the I2C multiplexer !ERROR!");
-    delay(500);
+    delay(100);
     return false;
   }
   whoAmI       = I2cExpander.getWhoAmI();

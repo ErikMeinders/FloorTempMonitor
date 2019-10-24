@@ -21,24 +21,30 @@ let sRelays		= [];
 let DOMloaded = false;
 let addHeader = true;
 let readRaw   = false;
-let _MAX_DATAPOINTS = 100 -1;  // must be the same as in FloorTempMonitor in main .ino -1 (last one is zero)
-let noSensors    = 0;
+let _MAX_DATAPOINTS = 120 -1;  // must be the same as in FloorTempMonitor in main .ino -1 (last one is zero)
+let showDatapoints  = parseInt(_MAX_DATAPOINTS / 3);
+let noSensors = 0;
+var dataPoint = 0;
+var chartType = 'N';
 //----- chartJS --------
 // Red for input sensor0 (=hot), blue for retour sensor1 (=cold)
 var colors          = [   'Red', 'Blue', 'Green', 'Yellow', 'FireBrick', 'CornflowerBlue', 'Orange'
                         , 'DeepSkyBlue', 'Gray', 'Purple', 'Brown', 'MediumVioletRed', 'LightSalmon'
                         , 'BurlyWood', 'Gold'
                        ];
-//var sensorL         = [];
-var sensorData      = {};     //declare an object
-sensorData.labels   = [];     // add 'labels' element to object (X axis)
-sensorData.datasets = [];     // add 'datasets' array element to object
+
+var chartData     = {};     //declare an object
+chartData.labels   = [];     // add 'labels' element to object (X axis)
+chartData.datasets = [];     // add 'datasets' array element to object
 
 //----------------Sensor Temp Chart----------------------------------------------------------
-var ctxSensor = document.getElementById("sensorsChart").getContext("2d");
-var mySensorChart = new Chart(ctxSensor, {
+var mySensorChart;
+function renderSensorChart(dataSet) {
+	var ctxSensor = document.getElementById("dataChart").getContext("2d");
+	mySensorChart = new Chart(ctxSensor, {
           type: 'line',
-          data: sensorData,
+          //data: chartData,
+          data: dataSet,
           options : {
             responsive: true,
             maintainAspectRatio: true,
@@ -68,16 +74,16 @@ var mySensorChart = new Chart(ctxSensor, {
             }
           }
     });
+		
+}	// renderSensorChart()
 
 //----------------Servo State Chart----------------------------------------------------------
-var servoData       = {};     //declare an object
-servoData.labels    = [];     // add 'labels' element to object (X axis)
-servoData.datasets  = [];     // add 'datasets' array element to object
-
-var ctxServo = document.getElementById("servosChart").getContext("2d");
-var myServoChart = new Chart(ctxServo, {
+var myServoChart;
+function renderServoChart(dataSet) {
+	var ctxServo = document.getElementById("dataChart").getContext("2d");
+	myServoChart = new Chart(ctxServo, {
           type: 'line',
-          data: servoData,
+          data: dataSet,
           options : {
             responsive: true,
             maintainAspectRatio: true,
@@ -88,10 +94,10 @@ var myServoChart = new Chart(ctxServo, {
             		// Use the label callback to display servo state in the tooltip
             		label: function(tooltipItem, data) { 
             				let state = "?";
-  									if (tooltipItem.yLabel > 20) state = "Open";
-  									else if (tooltipItem.yLabel > 10) state = "Loop";
+  									if (tooltipItem.yLabel > 29) 			state = "Open";
+  									else if (tooltipItem.yLabel > 5) 	state = "Loop";
   									else if (tooltipItem.yLabel < 0)  state = "Closed";
-  									else state = "unKnown";
+  									else 															state = "unKnown";
   									//data.datasets[tooltipItem.datasetIndex].pointHoverBackgroundColor;
   									return data.datasets[tooltipItem.datasetIndex].label+": "+state;
   								},
@@ -108,20 +114,22 @@ var myServoChart = new Chart(ctxServo, {
                 },
                 ticks: {
                   display: false,
-                  max: +35,
-                  min: -20,
-                  stepSize: 10,
+                  max: +45,
+                  min: -25,
+                  stepSize: 23,
                 },
               }]
             }
           }
     });
+		
+}	// renderSensorChart()
 
 window.onload=bootsTrap;
 
-window.onerror = function myErrorHandler(errorMsg, lineNumber) {
-    console.log("Error occured in line["+lineNumber+"]: " + errorMsg);
-    return false;
+window.onerror = function myErrorHandler(errorMsg, url, lineNumber, columnNo, error) {
+    console.log("Error occured on lineNumber["+ lineNumber+"] => [" + error +"]");
+    return true;
 }
 
 window.onfocus = function() {
@@ -250,7 +258,7 @@ function parsePayload(payload) {
     } else {
       // compensated mode -- skip first two fields --
       for (let i=2; i<singlePair.length; i++) {
-      	console.log(singlePair[i]);
+      	//console.log(singlePair[i]);
         singleFld = singlePair[i].split("=");
         if (singleFld[0].indexOf("name") !== -1) {
           sensorNr = singleFld[0].replace("name", "") * 1;
@@ -315,8 +323,6 @@ function parsePayload(payload) {
       	sRelays.push(-1);
       }
       buildDataSets(noSensors);
-      mySensorChart.update();
-      myServoChart.update();
       
     } else if (singleFld[0].indexOf("tempC") > -1) {
       // [0] tempC<n>
@@ -378,7 +384,7 @@ function parsePayload(payload) {
         if (i == 0) { // this is the dataPoint for the next itterations
           // [0] plotSensorTemp
           // [1] <n>
-          var dataPoint = singleFld[1] * 1;
+          dataPoint = singleFld[1] * 1;
           //console.log("Sensor: dataPoint ["+dataPoint+"]");
           
         } else if (i==1) {  // this gives timestamp
@@ -386,8 +392,8 @@ function parsePayload(payload) {
           // [1] <(day) HH-MM>
           let timeStamp = singleFld[1].replace(/-/g,":");     // timeStamp
           // timeStamp = "<(day) HH:MM>"
-          if (timeStamp === sensorData.labels[_MAX_DATAPOINTS]) {
-          	console.log("SKIP ["+newData.labels+"] === ["+sensorData.labels[_MAX_DATAPOINTS]+"]");
+          if (timeStamp === chartData.labels[showDatapoints]) {
+          	console.log("SKIP ["+newData.labels+"] === ["+chartData.labels[showDatapoints]+"]");
           	SKIP = true;
           } else {
           	SKIP = false;
@@ -404,8 +410,12 @@ function parsePayload(payload) {
         }
       } // for i ..
       if (!SKIP) {
-      	shiftDataSets(noSensors, sensorData, newData);
-      	mySensorChart.update();
+      	shiftDataSets(newData);
+     		console.log("mySensorChart dataPoint["+dataPoint+"] of ["+showDatapoints+"]");
+      	if (dataPoint >= _MAX_DATAPOINTS) {
+      		renderSensorChart(chartData);
+      		mySensorChart.update();
+      	}
       }
     
 //=============================================================================================
@@ -429,7 +439,7 @@ function parsePayload(payload) {
         if (i == 0) { // this is the dataPoint for the next itterations
           // [0] plotSensorTemp
           // [1] <n>
-          var dataPoint = singleFld[1] * 1;
+          dataPoint = singleFld[1] * 1;
           //console.log("Servo: dataPoint ["+dataPoint+"]");
           
         } else if (i==1) {  // this gives timestamp
@@ -437,8 +447,8 @@ function parsePayload(payload) {
           // [1] <(day) HH-MM>
           let timeStamp = singleFld[1].replace(/-/g,":");     // timeStamp
           // timeStamp = "<(day) HH:MM>"
-          if (timeStamp === servoData.labels[_MAX_DATAPOINTS]) {
-          	console.log("SKIP ["+newData.labels+"] === ["+servoData.labels[_MAX_DATAPOINTS]+"]");
+          if (timeStamp === chartData.labels[showDatapoints]) {
+          	console.log("SKIP ["+newData.labels+"] === ["+chartData.labels[showDatapoints]+"]");
           	SKIP = true;
           } else {
           	SKIP = false;
@@ -463,8 +473,11 @@ function parsePayload(payload) {
         }
       } // for i ..
       if (!SKIP) {
-      	shiftDataSets(noSensors, servoData, newData);
-      	myServoChart.update();
+      	shiftDataSets(newData);
+      	if (dataPoint >= _MAX_DATAPOINTS) {
+      		renderServoChart(chartData);
+      		myServoChart.update();
+      	}
       }
     
     }
@@ -563,77 +576,75 @@ function moveBar(barID, perc) {
 } // moveBar
 
 //----------- fill sensorData object --------------------------------------------------------
-function buildDataSets(noSensors) {
+function buildDataSets() {
+	console.log("buildDataSets(): for ["+noSensors+"] sensors and ["+showDatapoints+"] dataPoints");
+
+	chartData     = {};     //declare an object
+	chartData.labels   = [];     // add 'labels' element to object (X axis)
+	chartData.datasets = [];     // add 'datasets' array element to object
+
   for (let s=0; s<noSensors; s++) {
     var y = [];
     
-    sensorData.datasets.push({}); //create a new line dataset
-    var dataSetSensor 				= sensorData.datasets[s];
-    dataSetSensor.label 			= null; //"S"+s; //contains the 'Y; axis label
-    dataSetSensor.fill  			= 'false';
-    dataSetSensor.borderColor = colors[(s%colors.length)];
-    dataSetSensor.data 				= []; //contains the 'Y; axis data
+    chartData.datasets.push({}); //create a new line dataset
+    chartData.datasets[s].fill  			= 'false';
+    chartData.datasets[s].borderColor = colors[(s%colors.length)];
+    chartData.datasets[s].data 			= []; //contains the 'Y; axis data
+    chartData.datasets[s].label 		= null; //"S"+s; //contains the 'Y; axis label
 
-    servoData.datasets.push({});  //create a new line dataset
-    var dataSetServo  				= servoData.datasets[s];
-    dataSetServo.label 				= null; //"S"+s; //contains the 'Y; axis label
-    dataSetServo.fill  				= 'false';	// seems to have no effect
-    dataSetServo.borderColor 	= colors[(s%colors.length)];
-    dataSetServo.backgroundColor 	= colors[(s%colors.length)];
-  //dataSetServo.fillColor    = colors[(s%colors.length)];
-    dataSetServo.pointColor   = colors[(s%colors.length)];
-    dataSetServo.pointBackgroundColor   = colors[(s%colors.length)];
-    dataSetServo.pointHoverBackgroundColor = colors[(s%colors.length)];
-    dataSetServo.pointLabelFontColor  = colors[(s%colors.length)];
-    dataSetServo.data 				= []; //contains the 'Y; axis data
-
-    for (let p = 0; p < _MAX_DATAPOINTS; p++) {
+    for (let p = 0; p < showDatapoints; p++) {
       y.push(null); // push some data aka generate distinct separate lines
       if (s === 0) {
-          sensorData.labels.push(null); // adds x axis labels (timestamp)
-          servoData.labels.push(null);  // adds x axis labels (timestamp)
+          chartData.labels.push(p); // adds x axis labels (timestamp)
       }
     } // for p ..
-    sensorData.datasets[s].data = y; //send new line data to dataset
-    servoData.datasets[s].data  = y; //send new line data to dataset
+    chartData.datasets[s].data 	= y; //send new line data to dataset
   } // for s ..
   
 } // buildDataSets();
 
 //----------- shift dataSet object -------------------------------------------------------
-function shiftDataSets(noSensors, dataSet, newData) {
+function shiftDataSets(newData) {
 	if (noSensors == 0) return;
+	console.log("shiftDataSets(): for ["+noSensors+"] sensors and ["+showDatapoints+"] dataPoints");
+
   for (let s=0; s<noSensors; s++) {
     
-    for (let p = 0; p < _MAX_DATAPOINTS; p++) {
+    for (let p = 0; p < showDatapoints; p++) {
     	if (s===0) {
-    		dataSet.labels[p] = dataSet.labels[p+1];	// timestamp!
+    		chartData.labels[p] = chartData.labels[p+1];	// timestamp!
     	}
-      dataSet.datasets[s].data[p] = dataSet.datasets[s].data[p+1];
-      //}
+      chartData.datasets[s].data[p] = chartData.datasets[s].data[p+1];
+      //console.log("s["+s+"]p["+p+"] =>"+dataSet.datasets[s].data[p]);
     } // for p ..
-    dataSet.datasets[s].label = newData.datasets.label[s]; 	// add new data at end
-   	dataSet.labels[_MAX_DATAPOINTS] = newData.labels;				// timestamp
-    dataSet.datasets[s].data[_MAX_DATAPOINTS]  = newData.datasets.data[s]; // add new data at end
+   	chartData.labels[showDatapoints] 						= newData.labels;							// timestamp
+    chartData.datasets[s].label   							= newData.datasets.label[s]; 	// add new data at end
+    chartData.datasets[s].data[showDatapoints]	= newData.datasets.data[s]; 	// add new data at end
 
   } // for s ..
   
 } // shiftDataSets();
 
 //----------- empty dataSet object -------------------------------------------------------
-function emptyDataSets(noSensors, dataSet) {
+function emptyDataSets() {
+	console.log("emptyDataSets(): for ["+noSensors+"] sensors and ["+showDatapoints+"] dataPoints");
   for (let s=0; s<noSensors; s++) {
     
-    for (let p = 0; p < _MAX_DATAPOINTS; p++) {
+    for (let p = 0; p < showDatapoints; p++) {
     	if (s===0) {
-    		dataSet.labels[p] = null;	// timestamp!
+    		chartData.labels[p] = null;	// timestamp!
+    		//dataSet.labels[p] = null;	// timestamp!
     	}
-      dataSet.datasets[s].data[p] = null;
+      chartData.datasets[s].data[p] = null;
+      //dataSet.datasets[s].data[p] = null;
       //}
     } // for p ..
-    dataSet.datasets[s].label = null; 	// add new data at end
-   	dataSet.labels[_MAX_DATAPOINTS] = null;				// timestamp
-    dataSet.datasets[s].data[_MAX_DATAPOINTS]  = null; // add new data at end
+    chartData.datasets[s].label 								= null; 	// add new data at end
+    //dataSet.datasets[s].label 								= null; 	// add new data at end
+   	chartData.labels[showDatapoints] 						= null;				// timestamp
+   	//dataSet.labels[showDatapoints] 						= null;				// timestamp
+    chartData.datasets[s].data[showDatapoints]  = null; // add new data at end
+    //dataSet.datasets[s].data[showDatapoints]  = null; // add new data at end
 
   } // for s ..
   
@@ -658,29 +669,61 @@ function setRawMode() {
 //-------------------------------------------------------------------------------------------
 function setChartType(type) {
 	console.log("in setChartType("+type+") ..");
+  if (mySensorChart) {
+  	mySensorChart.destroy();
+  }
+  if (myServoChart) {
+  	myServoChart.destroy();
+  }
+
   if (type == "T")  {
   	console.log("chartType set to 'T'");
-    document.getElementById('sensorsChart').style.display = "block";
-    document.getElementById('servosChart').style.display  = "none";
-    emptyDataSets(noSensors, servoData);
+  	chartType = 'T';
+    emptyDataSets();
+    document.getElementById('dataChart').style.display = "block";
+    //document.getElementById('sensorsChart').style.display = "block";
+    //document.getElementById('servosChart').style.display  = "none";
+   	buildDataSets();
+   	renderSensorChart(chartData);
     webSocketConn.send("chartType=T");
 
   } else if (type == "S") {
   	console.log("chartType set to 'S'");
-    document.getElementById('sensorsChart').style.display = "none";
-    emptyDataSets(noSensors, sensorData);
-    document.getElementById('servosChart').style.display  = "block";
+  	chartType = 'S';
+    emptyDataSets();
+    document.getElementById('dataChart').style.display = "block";
+    //document.getElementById('sensorsChart').style.display = "none";
+    //document.getElementById('servosChart').style.display  = "block";
+   	buildDataSets();
+   	renderSensorChart(chartData);
     webSocketConn.send("chartType=S");
 
   } else {
   	console.log("chartType set to 'N'");
-    document.getElementById('sensorsChart').style.display = "none";
-    emptyDataSets(noSensors, sensorData);
-    document.getElementById('servosChart').style.display  = "none";
-    emptyDataSets(noSensors, servoData);
+  	chartType = 'N';
+    emptyDataSets();
+    document.getElementById('dataChart').style.display = "none";
+    //document.getElementById('sensorsChart').style.display = "none";
+    //document.getElementById('servosChart').style.display  = "none";
     webSocketConn.send("chartType=N");
   }
 } // setChartType()
+
+//-------------------------------------------------------------------------------------------
+function setTimeLine(type) {
+	console.log("in setTimeLine("+type+") ..");
+ 	emptyDataSets();
+  if (type == "L")  {
+  	console.log("timeLine set to 'L'");
+  	showDatapoints = _MAX_DATAPOINTS;
+  } else {
+  	console.log("timeLine set to 'S'");
+  	showDatapoints = parseInt(_MAX_DATAPOINTS / 3);
+  }
+ 	//buildDataSets();
+  setChartType(chartType);
+
+} // setTimeLine()
 
  
 /*

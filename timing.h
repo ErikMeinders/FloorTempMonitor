@@ -14,25 +14,27 @@
  *  
  */
  
+#ifndef PROFILING_INCLUDED
+#define PROFILING_INCLUDED
 #ifdef PROFILING
 
 #ifndef PROFILING_THRESHOLD
 #define PROFILING_THRESHOLD 3
 #endif
 
-#define timeThis(FN)    ({ unsigned long st=millis(); \
+#define timeThis(FN)    ({ unsigned long start_time=millis(); \
                            FN; \
                            yield(); \
-                           unsigned long duration=millis() - st; \
+                           unsigned long duration=millis() - start_time; \
                            if (duration >= PROFILING_THRESHOLD) \
-                            Debugf("function %s [called from %s:%d] took %ld ms\n",\
+                            DebugTf("Function %s [called from %s:%d] took %lu ms\n",\
                                     #FN, __FUNCTION__, __LINE__, duration); \
                         })
-#else
+#else // PROFILING
 
 #define timeThis(FN)    FN ;
 
-#endif
+#endif // PROFILING
 
 /*
  * DECLARE_TIMER(timername, interval)
@@ -60,15 +62,12 @@
  *    }
  *  }
  */
- 
-#define DECLARE_TIMER(timerName, timerTime)    unsigned long timerName##_last = millis(), timerName##_interval = timerTime * 1000;
-#define DECLARE_TIMERms(timerName, timerTime)  unsigned long timerName##_last = millis(), timerName##_interval = timerTime ;
+#define DECLARE_TIMERm(timerName, timerTime)    static unsigned long timerName##_last = millis(), timerName##_interval = timerTime * 60 * 1000;
+#define DECLARE_TIMERs(timerName, timerTime)    static unsigned long timerName##_last = millis(), timerName##_interval = timerTime * 1000;
+#define DECLARE_TIMERms(timerName, timerTime)   static unsigned long timerName##_last = millis(), timerName##_interval = timerTime ;
+
+#define DECLARE_TIMER DECLARE_TIMERs
 
 #define DUE(timerName) (( (millis() - timerName##_last) < timerName##_interval) ? 0 : (timerName##_last=millis()))
 
-//void waitAmSec(unsigned long ms)
-//{
-//  DECLARE_TIMERms ( theWait, ms )
-//  while ( !DUE( theWait ))
-//    yield();
-//}
+#endif // PROFILING_INCLUDED

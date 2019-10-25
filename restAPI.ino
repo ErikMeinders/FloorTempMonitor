@@ -1,8 +1,8 @@
 #include <ArduinoJson.h>
 
-#define MAX_CACHE_AGE (uint32_t) 60
+DECLARE_TIMER(cacheRefresh, 60)
 
-uint32_t _last_cache_refresh=0;
+#define CALIBRATE_HIGH 25
 
 // some helper functions
 
@@ -24,30 +24,25 @@ void _returnJSON400(const char * message)
 
 // global vars
 
-DynamicJsonDocument _doc(4096);
+DynamicJsonDocument _cache(4096); // the cache
 
 void _cacheJSON()
 {
-  
-  uint32_t _now=now();
-  
-  if((_now - _last_cache_refresh) < MAX_CACHE_AGE)
+  if(!DUE(cacheRefresh)) 
   {
-    Debugf("No need to refresh cache, age is %lu (max %lu)\n", _now - _last_cache_refresh, MAX_CACHE_AGE);
+    Debugf("No need to refresh JSON cache\n");
     return;
   }
 
-  Debugf("Populate the cache\n");
+  Debugf("Time to populate the JSON cache\n");
 
-  _doc.clear();
-  
-  _last_cache_refresh=_now;
-  
-  JsonArray sensors = _doc.createNestedArray("sensors");
+  _cache.clear();
+    
+  JsonArray sensors = _cache.createNestedArray("sensors");
 
   // some extra fields and sensors for testing purposes
   
-  _doc["time"] = "Now";
+  // _cache["time"] = "Now";
   
   for(int8_t s=0; s<noSensors; s++)
   {
@@ -67,12 +62,11 @@ void _cacheJSON()
   }
 }
 
-
-int _find_sensorIndex_by_query() // api/describe_sensor?[name|sensorID]=<string>
+int _find_sensorIndex_in_query() // api/describe_sensor?[name|sensorID]=<string>
 {  
-   _cacheJSON();
+   _cacheJSON(); // first update cache - if necessary
 
-  JsonArray arr = _doc["sensors"];
+  JsonArray arr = _cache["sensors"];
 
   // describe_sensor takes name= or sensorID= as query parameters
   // e.g. api/describe_sensor?sensorID=0x232323232323
@@ -99,7 +93,7 @@ int _find_sensorIndex_by_query() // api/describe_sensor?[name|sensorID]=<string>
       
       for(JsonObject obj : arr)
       {
-        Debugf("Comparing %s with %s\n", obj[Key], Value);
+        Debugf("Comparing %s with %s\n", obj[Key].as<char*>(), Value);
         
         if ( !strcmp(obj[Key],Value))
         {
@@ -128,7 +122,7 @@ void handleAPI_list_sensors() // api/list_sensors
 {  
   _cacheJSON();
 
-  JsonObject obj = _doc.as<JsonObject>() ;
+  JsonObject obj = _cache.as<JsonObject>() ;
   
   _returnJSON(obj);
    
@@ -136,30 +130,32 @@ void handleAPI_list_sensors() // api/list_sensors
 
 JsonArray calibrations;
 
-void calibrate_low(int sensorIndex, float lowTemp)
+void calibrate_low(int sensorIndex, float lowCalibratedTemp)
 {
 
   DynamicJsonDocument c(64);
   
-  float tempR = sensors.getTempCByIndex(_SA[sensorIndex].index);
+  float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].index);
 
   // this should be lowTemp, change tempOffset
   // so that reading + offset equals lowTemp
   // that is, offset = lowTemp - raw reading 
 
-  _SA[sensorIndex].tempOffset = lowTemp - tempR;
-
+  _SA[sensorIndex].tempOffset = lowCalibratedTemp - tempRaw;
+  _SA[sensorIndex].tempFactor = 1.0;
+  
   c["index"]  = sensorIndex;
   c["offset"] = _SA[sensorIndex].tempOffset;
 
   calibrations.add(c);
+  
   updateIniRec(_SA[sensorIndex]);
 
 }
 
-void calibrate_high(int sensorIndex, float t)
+void calibrate_high(int sensorIndex, float hiCalibratedTemp)
 {
-  float tempR = sensors.getTempCByIndex(_SA[sensorIndex].index);
+  float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].index);
   DynamicJsonDocument c(64);
 
   // calculate correction factor
@@ -173,7 +169,7 @@ void calibrate_high(int sensorIndex, float t)
   // make sure to use the calibrated reading, 
   // so add the offset!
   
-  _SA[sensorIndex].tempFactor = t  / ( tempR + _SA[sensorIndex].tempOffset );
+  _SA[sensorIndex].tempFactor = hiCalibratedTemp  / ( tempRaw + _SA[sensorIndex].tempOffset );
 
   c["index"]  = sensorIndex;
   c["factor"] = _SA[sensorIndex].tempFactor;
@@ -182,7 +178,15 @@ void calibrate_high(int sensorIndex, float t)
   updateIniRec(_SA[sensorIndex]);
 }
 
-DynamicJsonDocument toRetCalDoc(500);
+void calibrate_sensor(int sensorIndex, float realTemp)
+{
+  if ( realTemp < CALIBRATE_HIGH )
+    calibrate_low(sensorIndex, realTemp);
+  else
+    calibrate_high(sensorIndex, realTemp);
+}
+
+DynamicJsonDocument toRetCalDoc(512);
 
 void handleAPI_calibrate_sensor()
 {
@@ -191,15 +195,16 @@ void handleAPI_calibrate_sensor()
   // /api/calibrate_sensor?temp=<float>[&[name|sensorID]=<string>]
   // *** actualTemp should come from a calibrated source
   
-  const char* actualTemp=httpServer.arg("temp").c_str();
+  const char* actualTempString=httpServer.arg("temp").c_str();
+  
   // check correct use
   
-  if (strlen(actualTemp) <= 0)
+  if (strlen(actualTempString) <= 0)
   {
-     _returnJSON400("temp is mandatory query parameter");
+     _returnJSON400("temp is mandatory query parameter in calibration function");
      return;
   }
-  float actualTempf = atof(actualTemp);
+  float actualTemp = atof(actualTempString);
   
   // prepare some JSON stuff to return
   
@@ -211,47 +216,32 @@ void handleAPI_calibrate_sensor()
   if (strlen(httpServer.arg("name").c_str()) +
       strlen(httpServer.arg("sensorID").c_str()) > 0)
   {
-      int sensorToCalibrate = _find_sensorIndex_by_query();
+    int sensorToCalibrate = _find_sensorIndex_in_query();
+
+    calibrate_sensor(sensorToCalibrate, actualTemp);
       
-      if ( actualTempf < 15.0 )
-        calibrate_low(sensorToCalibrate,actualTempf);
-      else
-        calibrate_high(sensorToCalibrate, actualTempf );
   } else {
 
-    // calibrate all sensors
+    // otherwise, calibrate all sensors
     
-    if ( actualTempf < 15.0 )
-    
-      // calibrating for low degrees
-      
-      for (int s=0 ; s < noSensors ; s++)
-         calibrate_low(s, actualTempf);
-      
-    else {
-  
-      // calibrating for a high temperature
-      
-      // for all sensors, 
-    
-      for (int s=0 ; s < noSensors ; s++)
-        calibrate_high(s, actualTempf);
-      
-    }
+    for (int sensorToCalibrate=0 ; sensorToCalibrate < noSensors ; sensorToCalibrate++)
+      calibrate_sensor(sensorToCalibrate, actualTemp);
+
   }
+  
   _returnJSON(toRetCalDoc.as<JsonObject>());
 }
 
 void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>
 {  
-  int si = _find_sensorIndex_by_query();
+  int si = _find_sensorIndex_in_query();
   
   Debugf("sensorIndex=%d\n", si);
   
   if (si < 0 )
     return;
   
-  JsonObject toRet = _doc["sensors"][si];
+  JsonObject toRet = _cache["sensors"][si];
   _returnJSON(toRet);
 }
 
@@ -259,25 +249,25 @@ DynamicJsonDocument toRetDoc(50);
 
 void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 {
-  int si = _find_sensorIndex_by_query();
+  int si = _find_sensorIndex_in_query();
   
   Debugf("sensorIndex=%d\n", si);
   
   if (si < 0 )
     return;
   
-  toRetDoc["temperature"] = _doc["sensors"][si]["temperature"];
-  JsonObject toRet = toRetDoc.as<JsonObject>();
-  _returnJSON(toRet);
+  toRetDoc["temperature"] = _cache["sensors"][si]["temperature"];
+  // JsonObject toRet = toRetDoc.as<JsonObject>();
+  //_returnJSON(toRet);
 
-  
+  _returnJSON( toRetDoc.as<JsonObject>() );
 }
 
 // bogus handler for testing
 
 void nothingAtAll()
 {
-  httpServer.send(200, "text/html",  "done nothing at all");
+  httpServer.send(200, "text/html",  "options are: list_sensors, describe_sensor?name=str, get_temperature?name=str, calibrate_sensors?temp=ff.fff[&name=str]");
 
 }
 

@@ -26,7 +26,7 @@ bool I2CMUX::begin(TwoWire &wireBus, uint8_t deviceAddress)
 
   _I2Caddress = deviceAddress;
 
-  if (connectedToWebsocket() == false)
+  if (connectedToMux() == false)
     return (false); // Check for I2C_Relay_Multiplexer presence
   
   return (true); // Everything is OK!
@@ -34,7 +34,7 @@ bool I2CMUX::begin(TwoWire &wireBus, uint8_t deviceAddress)
 } // begin()
 
 //-------------------------------------------------------------------------------------
-bool I2CMUX::connectedToWebsocket()
+bool I2CMUX::connectedToMux()
 {
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
   if (_I2Cbus->endTransmission() != 0)

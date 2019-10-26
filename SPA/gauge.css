@@ -1,26 +1,74 @@
-.outer {
-	width: 600px;
-	height: 200px;
+* {
+	box-sizing: border-box
+  }
+  
+  html {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	font-family: 'Dosis', sans-serif;
+	line-height: 1.6;
+	color: #666;
+	background: #F6F6F6;
+  }
+ 
+  #gauges_canvas {
+	max-width: 1200px;
 	margin: 0 auto;
+  }
+  
+.outer {
+	display: flex;
+	flex-wrap: wrap;
 }
-.outer .chart-container {
+
+.chart-container {
 	width: 300px;
-	float: left;
+	float: none;
 	height: 200px;
+}
+
+.card {
+  	margin: 1rem;
+ 	background: white;
+  	box-shadow: 2px 4px 25px rgba(0, 0, 0, .1);
+  	border-radius: 12px;
+  	overflow: hidden;
+  	transition: all .2s linear;
 }
 .highcharts-yaxis-grid .highcharts-grid-line {
 	display: none;
 }
-
-@media (max-width: 600px) {
-	.outer {
-		width: 100%;
-		height: 400px;
+  
+  .card:hover {
+	box-shadow: 2px 8px 45px rgba(0, 0, 0, .15);
+	transform: translate3D(0, -2px, 0);
+  }
+  
+  @media screen and (min-width: 600px) {
+	.card {
+	  flex: 1 1 calc(50% - 2rem);
 	}
-	.outer .chart-container {
-		width: 300px;
-		float: none;
-		margin: 0 auto;
+  }
+  
+  @media screen and (min-width: 900px) {
+	.card {
+	  flex: 1 1 calc(33% - 2rem);
 	}
-
-}
+  }
+  
+  h1 {
+	
+	text-align: center;
+	padding: 1.5rem 2.5rem;
+	background-image: linear-gradient(120deg, hsl(214, 83%, 21%) 0%, #314b77 100%);
+	margin: 0 0 2rem 0;
+	font-size: 1.5rem;
+	color: white;
+  }
+  
+  p {
+	
+	padding: 0 2.5rem 2.5rem;
+	margin: 0;
+  }
+  

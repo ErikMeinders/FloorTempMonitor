@@ -33,7 +33,7 @@ var gaugeOptions = {
         ],
         lineWidth: 0,
         minorTickInterval: null,
-        tickAmount: 2,
+        tickAmount: 10,
         title: {
             y: -70
         },
@@ -60,6 +60,7 @@ var Gauges = [];
 const app = document.getElementById('gauges_canvas');
 
 var request = new XMLHttpRequest();
+
 request.open('GET', APIGW+'list_sensors', true);
 
 request.onload = function () {
@@ -76,10 +77,29 @@ request.onload = function () {
       // when no chart for sensor, create one
       if( ( document.getElementById('container-'+sensor.name)) == null )
       {
+        const card  = document.createElement('div');
+        card.setAttribute('class', 'card');
+        card.setAttribute('id', 'card_'+sensor.name);
+
+        app.appendChild(card);
+
+        var h1 = document.createElement('h1');
+        h1.setAttribute('id', 'h1_'+sensor.name);
+        h1.textContent = sensor.name;
+        
         const newChart = document.createElement('div');
         newChart.setAttribute("class","chart-container");
         newChart.setAttribute("id", 'container-'+sensor.name);
-        app.appendChild(newChart);
+
+        var p = document.createElement('p');
+        p.setAttribute('id', 'p_'+sensor.name);
+        p.textContent  =`SensorId: ${sensor.sensorID}`
+
+        card.appendChild(h1);
+        card.appendChild(newChart);
+        card.appendChild(p);
+
+        var info_id = 'info_'+sensor.name;
 
         Gauges[sensor.counter] = Highcharts.chart('container-'+sensor.name, Highcharts.merge(gaugeOptions, {
             yAxis: {
@@ -93,15 +113,15 @@ request.onload = function () {
             credits: {
                 enabled: false
             },
-        
+            
             series: [{
                 name: 'C',
                 data: [Math.floor(sensor.temperature)],
                 dataLabels: {
                     format:
                         '<div style="text-align:center">' +
-                        '<span style="font-size:25px">{y}</span><br/>' +
-                        '<span style="font-size:12px;opacity:0.4">degrees</span>' +
+                        '<span style="font-size:25px">{y}&deg;C</span><br/>' +
+                        '<span style="font-size:10px;opacity:0.4" id='+info_id+'>degrees</span>' +
                         '</div>'
                 },
                 tooltip: {
@@ -116,7 +136,28 @@ request.onload = function () {
         var point;
 
         point = chart.series[0].points[0];
-        point.update(Math.floor(sensor.temperature));
+        point.update(Math.floor(sensor.temperature*10.0)/10.0);
+        
+        // change if statement to respond to valve settings once API changed
+
+        if (sensor.temperature < 30)
+            newColor = '#0000ee';
+        else
+            newColor = '#ee0000';
+
+        chart.update( { plotOptions: {
+            solidgauge: {
+                dataLabels: {
+                    y: 5,
+                    borderWidth: 3,
+                    useHTML: true,
+                    borderColor: `${newColor}`
+                }
+            }
+        }});
+
+        document.getElementById ("info_"+sensor.name).innerHTML="&Delta;t"+Math.floor(10*(data["sensors"][0].temperature - sensor.temperature))/10.0;
+        
       }
       
     });

@@ -207,7 +207,7 @@ bool handleFileRead(String path)
     if (SPIFFS.exists(pathWithGz))
       path += ".gz";
     File file = SPIFFS.open(path, "r");
-    size_t sent = httpServer.streamFile(file, contentType);
+    httpServer.streamFile(file, contentType);
     file.close();
     return true;
   }

@@ -1,0 +1,126 @@
+<!--
+***************************************************************************  
+**  Program  : index.html, part of FloorTempMonitor
+**  Version  : v0.6.9
+**
+**  Copyright (c) 2019 Willem Aandewiel
+**
+**  TERMS OF USE: MIT License. See bottom of file.                                                            
+***************************************************************************      
+-->
+<!DOCTYPE html>
+<html charset="UTF-8">
+<head>
+<style type='text/css'>
+   body { background-color: lightblue;}
+	.header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 10; background: lightblue; -webkit-box-shadow: 0 7px 8px rgba(0, 0, 0, 0.12); -moz-box-shadow: 0 7px 8px rgba(0, 0, 0, 0.12); box-shadow: 0 7px 8px rgba(0, 0, 0, 0.12);}
+  .header__content-text { text-align: left; padding-top: 1px;}
+	.header__content-text a:hover { color: #c2dfff; background: #c2dfff; /* only for FSexplorer - Rest does not work */}
+  .page__content-container { margin: 50px auto; width: 95%; padding: 5px;}  
+  .nav-clock {position: fixed; top: 1px; right: 10px; color: black; font-size: small; text-align: right; padding-right: 10px; }
+  .nav-right { flex: 1 1 0; text-align: right; width: 20%; }
+  .nav-img { top: 1px; display: inline-block; width: 40px; height: 40px; }
+  .nav-item { display: inline-block; font-size: 16px; padding: 10px 0; height: 20px; border: none; color: black; }
+  .progressBar { width: 100%; height: 16px; background: lightGray; display: block; }
+  .tempBar { width: 1%; height: 18px; margin-top: 2px;}
+  .servoState { width: 120px; height: 18px; margin-top: 2px; font-size: 13pt; padding-left:10px; background: lightGray;}
+  #logWindow { font-size: 14px; margin-left: 20px; width: 90vw; height: 20vh; }
+  .footer { position: fixed; left: 0; bottom: 0; width: 100%; color: gray; font-size: small; text-align: right; }
+</style>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.min.js"></script>
+</head>
+<body>
+<div class="header">
+  <h1 class="header__content-text">
+      <span id="sysName"> &nbsp; &nbsp; FloorTempMonitor</span> &nbsp; &nbsp; &nbsp;
+      <span id="state" style='font-size: small;'>-</span> &nbsp;
+     	<a id='FSexplorer'  class='nav-img'>
+            <img src='/FSexplorer.png' alt='FSexplorer'>
+      </a>
+  </h1>
+      <div class='nav-right'>
+      	<span id='clock' class='nav-item nav-clock'>(time)</span>
+      </div>
+</div>	<!-- class=header -->
+
+<div class='page__content-container'>
+	<div>
+  	<span id="redirect"></span>
+  </div>  
+  <h3>Aangesloten DS18B20 sensoren</h3>
+  <table id="Sensors">
+  	<thead>
+  		<tr>
+    		<th align='left' width='250px'>Naam</th>
+    		<th align='right' width='200px'>Temperatuur</th>
+    		<th align='right'>Bar</th>
+    	</tr>
+    </thead>
+  </table>
+  <hr>
+  <!-- REST -->
+  <p>| &nbsp; <input type="checkbox" id="rawTemp" value="doRawTemp" onChange="setRawMode()"> Raw temp. readings 
+  	&nbsp; | &nbsp; 
+    Chart:  
+    <input type="radio" name="chartType" value="N" 
+             							onchange="setChartType('N')" checked /> Geen
+  	&nbsp;
+    <input type="radio" name="chartType" value="T" 
+             							onchange="setChartType('T')" /> Temperatuur
+  	&nbsp;
+		<input type="radio" name="chartType" value="S" 
+		         							onchange="setChartType('S')" /> Servo's
+		&nbsp; | &nbsp; 
+    Timeline:  
+    <input type="radio" name="timeLine" value="S" 
+             							onchange="setTimeLine('S')" checked /> Short
+  	&nbsp;
+    <input type="radio" name="timeLine" value="L" 
+             							onchange="setTimeLine('L')" /> Long
+  	&nbsp; 
+		|
+  </p>  
+
+<!--  <div id="Redirect"></div> -->
+  <div><canvas id="dataChart" style="display: none;" width="900" height="300"></canvas></div>
+<!--  <div><canvas id="servosChart"  style="display: none;" width="900" height="250"></canvas></div> -->
+  <p> </p>
+  <p> </p>
+  
+  </div> <!-- class='page__content-container' -->
+  
+<script src="/floortempmon.js"></script>
+
+</body>
+  <div class="footer">
+    <hr>
+    2019 &copy; Willem Aandewiel &nbsp; &nbsp;
+  </div>
+</html>
+
+<!--
+***************************************************************************
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to permit
+* persons to whom the Software is furnished to do so, subject to the
+* following conditions:
+*
+* The above copyright notice and this permission notice shall be included
+* in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+* OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+* OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+* THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+* 
+***************************************************************************
+-->

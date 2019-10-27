@@ -144,7 +144,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
                 I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO);  
                 _SA[s].servoState = SERVO_COUNT0_CLOSE;
                 _SA[s].servoTimer = millis();
-                DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%d] seconds\n", s
+                DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%lu] seconds\n", s
                                                              , _SA[s].name
                                                              , (_REFLOW_TIME - (millis() - _SA[s].servoTimer)) / 1000);
                 break;

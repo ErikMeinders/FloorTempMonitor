@@ -18,16 +18,13 @@
 #endif
 #include <WiFiManager.h>        // version 0.14.0 - https://github.com/tzapu/WiFiManager
 #include <TelnetStream.h>       // Version 0.0.1 - https://github.com/jandrassy/TelnetStream
-#include <WebSocketsServer.h>   // Version 20.05.2015 - https://github.com/Links2004/arduinoWebSockets
 
 ESP8266WebServer        httpServer (80);
 #ifdef USE_UPDATE_SERVER
   ESP8266HTTPUpdateServer httpUpdater(true);
 #endif
 
-WebSocketsServer webSocket = WebSocketsServer(81);
 
-bool        connectedToWebsocket = false;
 
 //gets called when WiFiManager enters configuration mode
 //===========================================================================================

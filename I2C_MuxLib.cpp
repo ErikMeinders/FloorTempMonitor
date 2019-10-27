@@ -40,7 +40,7 @@ bool I2CMUX::connectedToMux()
   if (_I2Cbus->endTransmission() != 0)
     return (false); // I2C Slave did not ACK
   return (true);
-} // connectedToWebsocket()
+} 
 
 //-------------------------------------------------------------------------------------
 byte I2CMUX::getMajorRelease()
@@ -87,13 +87,13 @@ byte I2CMUX::getStatus()
 bool I2CMUX::writeCommand(byte command)
 {
   Serial.printf("Command [%d]\n", command);
-  return (writeReg1Byte(I2CMUX_COMMAND, command));
+  return writeReg1Byte(I2CMUX_COMMAND, command);
 }
 
 //-------------------------------------------------------------------------------------
 bool I2CMUX::pinMode(byte GPIO_PIN, byte PINMODE)
 {
-  return(writeCommand3Bytes(_BV(CMD_PINMODE), GPIO_PIN, PINMODE));
+  return writeCommand3Bytes(_BV(CMD_PINMODE), GPIO_PIN, PINMODE) ;
 }
 
 //-------------------------------------------------------------------------------------
@@ -101,8 +101,9 @@ bool I2CMUX::digitalRead(byte GPIO_PIN)
 {
   if (writeCommand2Bytes(_BV(CMD_DIGITALREAD), GPIO_PIN)) {
     delay(2);
-    return (readReg1Byte(I2CMUX_LASTGPIOSTATE));
+    return readReg1Byte(I2CMUX_LASTGPIOSTATE);
   }
+  return false;
 }
 
 //-------------------------------------------------------------------------------------
@@ -218,7 +219,7 @@ int32_t I2CMUX::readReg4Byte(uint8_t addr)
     yield();
     uint8_t MSB   = _I2Cbus->read();
     yield();
-    uint32_t comb = MSB << 24 | mMSB << 16 | mLSB << 8 | LSB;
+    // uint32_t comb = MSB << 24 | mMSB << 16 | mLSB << 8 | LSB;
     return ((int32_t)MSB << 24 | mMSB << 16 | mLSB << 8 | LSB);
   }
 
@@ -395,8 +396,8 @@ void I2CMUX::showRegister(size_t const size, void const * const ptr)
   unsigned char byte;
   int i, j;
   Serial.print("[");
-  for (i=size-1; i>=0; i--) {
-    if (i != (size-1)) Serial.print(" ");
+  for (i=(int)(size-1); i>=0; i--) {
+    if (i != (int)(size-1)) Serial.print(" ");
     for (j=7; j>=0; j--) {
       byte = (b[i] >> j) & 1;
       Serial.print(byte);

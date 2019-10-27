@@ -1,9 +1,9 @@
 /*
 **  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v0.6.9 (24-10-2019)"
+#define _FW_VERSION "v0.7.0 (27-10-2019)"
 /*
-**  Copyright (c) 2019 Willem Aandewiel
+**  Copyright (c) 2019 Willem Aandewiel / Erik Meinders
 **
 **  TERMS OF USE: MIT License. See bottom of file.
 ***************************************************************************
@@ -33,7 +33,7 @@
 #define SHOW_PASSWRDS
 
 #define PROFILING             // comment this line out if you want not profiling 
-#define PROFILING_THRESHOLD 25 // defaults to 3ms - don't show any output when duration below TH
+#define PROFILING_THRESHOLD 45 // defaults to 3ms - don't show any output when duration below TH
 
 #//  define TESTDATA
 /******************** don't change anything below this comment **********************/
@@ -49,7 +49,7 @@
 
 #define _SA                   sensorArray
 #define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
-#define HEATER_ON_TEMP        40.0
+#define HEATER_ON_TEMP        47.0
 #define LED_BUILTIN_ON        LOW
 #define LED_BUILTIN_OFF       HIGH
 #define LED_WHITE             14      // D5
@@ -73,12 +73,11 @@
 
 DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
 
-DECLARE_TIMER(pingCheck,    30) // check connection every 30 seconds 
 DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
-DECLARE_TIMER(sensorPoll,   20) // update sensors every 20s 
+DECLARE_TIMER(sensorPoll,   15) // update sensors every 20s 
 
-DECLARE_TIMER(screenClockRefresh, 10)
+DECLARE_TIMERm(UptimeDisplay,1)
 
 /*********************************************************************************
 * Uitgangspunten:
@@ -121,9 +120,9 @@ TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ a
 
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
-enum    { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0_CLOSE, ERROR };
+enum   e_servoState { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0_CLOSE, ERROR };
 
-typedef struct {
+typedef struct _sensorStruct {
   int8_t    index;
   char      sensorID[20];
   uint8_t   position;
@@ -138,7 +137,7 @@ typedef struct {
   uint32_t  servoTimer;     //-- not in sensors.ini
 } sensorStruct;
 
-typedef struct {
+typedef struct _dataStruct{
   uint32_t  timestamp;
   float     tempC[_MAX_SENSORS];
   int8_t    servoStateV[_MAX_SENSORS];
@@ -188,11 +187,14 @@ void handleHeartBeat()
   if ( DUE (heartBeat) ) {
     digitalWrite(LED_GREEN, LED_ON); 
   } 
-  else
-  if ((millis() - heartBeat_last) > 1000) {
+  
+  if ( SINCE(heartBeat) > 1000) {
     digitalWrite(LED_GREEN, LED_OFF);
   }
-} //  handleHeartBeat()
+
+  if ( DUE (UptimeDisplay))
+    DebugTf("Running %s\n",upTime().c_str());
+} 
 
 //===========================================================================================
 void setup()
@@ -219,8 +221,6 @@ void setup()
   digitalWrite(LED_RED, LED_OFF);
 
   startMDNS(_HOSTNAME);
-  MDNS.addService("arduino", "tcp", 81);
-  MDNS.port(81);  // webSockets
 
   ntpInit();
   startTimeNow = now();
@@ -229,20 +229,10 @@ void setup()
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     delay(100);
   }
-//================ SPIFFS ===========================================
-  if (!SPIFFS.begin()) {
-    DebugTln("SPIFFS Mount failed\r");   // Serious problem with SPIFFS
-    SPIFFSmounted = false;
 
-  } else {
-    DebugTln("SPIFFS Mount succesfull\r");
-    SPIFFSmounted = true;
-  }
-//=============end SPIFFS =========================================
-
-  webSocket.begin();
-  webSocket.onEvent(webSocketEvent);
-
+  SPIFFSmounted = SPIFFS.begin();
+  DebugTf("SPIFFS Mount = %s \r",SPIFFSmounted ? "true" : "false");   // Serious problem with SPIFFS
+  
   httpServer.begin(); // before .ons
 
   apiInit();
@@ -333,7 +323,6 @@ void loop()
 {
   handleHeartBeat();                  // blink GREEN led
   
-  timeThis( webSocket.loop() );
   timeThis( MDNS.update() );
   timeThis( httpServer.handleClient() );
   timeThis( handleNTP() );
@@ -342,11 +331,8 @@ void loop()
   timeThis( checkI2C_Mux() );         // handle Sensors may take a long time ..
   timeThis( handleDatapoints() );     // update graph in lower screen half
   
-  timeThis( handleWebSockRefresh() ); // essentially update of clock on screen
-  
   timeThis( checkDeltaTemps() );
   timeThis( handleCycleServos() );
 
-  timeThis( handlePing() );
 
 } 

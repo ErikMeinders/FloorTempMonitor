@@ -139,24 +139,21 @@ request.onload = function () {
         
         // change if statement to respond to valve settings once API changed
 
-        if (sensor.temperature < 30)
-            newColor = '#0000ee';
+        if (sensor.servostate == 0) //servo is open
+            newTitle = '<div style="color: red;">';
         else
-            newColor = '#ee0000';
-
-        chart.update( { plotOptions: {
-            solidgauge: {
-                dataLabels: {
-                    y: 5,
-                    borderWidth: 3,
-                    useHTML: true,
-                    borderColor: `${newColor}`
-                }
-            }
-        }});
-
-        document.getElementById ("info_"+sensor.name).innerHTML="&Delta;t"+Math.floor(10*(data["sensors"][0].temperature - sensor.temperature))/10.0;
+            newTitle = '<div style="color: green;">';
+        newTitle += sensor.name+'</div>';
         
+        chart.update({
+                yAxis: {
+                        title: {
+                            text: `${newTitle}`
+                        }
+                    },
+                });
+
+        document.getElementById ("info_"+sensor.name).innerHTML="&Delta;t "+Math.floor(10*(data["sensors"][0].temperature - sensor.temperature))/10.0+"|"+sensor.deltatemp;
       }
       
     });

@@ -15,10 +15,10 @@ void _debugBOL(const char *fn, int line)
 {
    
 #ifdef USE_NTP_TIME
-  sprintf(_bol, "[%02d:%02d:%02d] [%8d] %-12.12s(%4d): ", \
+  sprintf(_bol, "[%02d:%02d:%02d] [%8u] %-12.12s(%4d): ", \
                 hour(), minute(), second(), ESP.getFreeHeap(), fn, line);
 #else
-  sprintf(_bol, "[%8d] %-12.12s(%4d): ", \
+  sprintf(_bol, "[%8u] %-12.12s(%4d): ", \
                 ESP.getFreeHeap(), fn, line); 
 #endif
                  

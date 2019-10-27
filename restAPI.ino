@@ -1,8 +1,12 @@
 #include <ArduinoJson.h>
 
-DECLARE_TIMER(cacheRefresh, 60)
+DECLARE_TIMER(cacheRefresh, 15)
 
 #define CALIBRATE_HIGH 25
+
+// global vars
+
+static DynamicJsonDocument _cache(4096); // the cache
 
 // some helper functions
 
@@ -22,27 +26,19 @@ void _returnJSON400(const char * message)
   httpServer.send(400, "application/json", message);
 }
 
-// global vars
-
-DynamicJsonDocument _cache(4096); // the cache
-
 void _cacheJSON()
 {
   if(!DUE(cacheRefresh)) 
   {
-    Debugf("No need to refresh JSON cache\n");
+    DebugTf("No need to refresh JSON cache\n");
     return;
   }
 
-  Debugf("Time to populate the JSON cache\n");
+  DebugTf("Time to populate the JSON cache\n");
 
   _cache.clear();
     
   JsonArray sensors = _cache.createNestedArray("sensors");
-
-  // some extra fields and sensors for testing purposes
-  
-  // _cache["time"] = "Now";
   
   for(int8_t s=0; s<noSensors; s++)
   {
@@ -55,7 +51,9 @@ void _cacheJSON()
     so["offset"]      = sensorArray[s].tempOffset;
     so["factor"]      = sensorArray[s].tempFactor;
     so["temperature"] = sensorArray[s].tempC;
-    
+    so["servonr"]     = sensorArray[s].servoNr;
+    so["servostate"]  = sensorArray[s].servoState;
+    so["deltatemp"]   = sensorArray[s].deltaTemp;
     so["counter"]     = s;
     
     sensors.add(so);
@@ -186,10 +184,12 @@ void calibrate_sensor(int sensorIndex, float realTemp)
     calibrate_high(sensorIndex, realTemp);
 }
 
-DynamicJsonDocument toRetCalDoc(512);
+
 
 void handleAPI_calibrate_sensor()
 {
+  DynamicJsonDocument toRetCalDoc(512);
+
   // a temperature should be given and optionally a sensor(name or ID)
   // when sensor is missing, all sensors are calibrated
   // /api/calibrate_sensor?temp=<float>[&[name|sensorID]=<string>]
@@ -245,12 +245,12 @@ void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>
   _returnJSON(toRet);
 }
 
-DynamicJsonDocument toRetDoc(50);
 
 void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 {
   int si = _find_sensorIndex_in_query();
-  
+  DynamicJsonDocument toRetDoc(50);
+
   Debugf("sensorIndex=%d\n", si);
   
   if (si < 0 )

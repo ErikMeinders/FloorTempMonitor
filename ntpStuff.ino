@@ -23,7 +23,7 @@ static const char ntpPool[][30] = { "time.google.com",
                                     "1.nl.pool.ntp.org",
                                     "3.nl.pool.ntp.org"
                                   };
-static int        ntpPoolIndx = 0;
+static unsigned int        ntpPoolIndx = 0;
 
 char              ntpServerName[50];
 
@@ -105,7 +105,7 @@ time_t getNtpTime()
         secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
         secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
         secsSince1900 |= (unsigned long)packetBuffer[43];
-        time_t t = (secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR);
+        //time_t t = (secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR);
 
         return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
       }

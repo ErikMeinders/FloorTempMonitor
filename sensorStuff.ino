@@ -93,172 +93,6 @@ void updateSensorData(int8_t devNr)
 
 
 // function to print the temperature for a device
-//===========================================================================================
-float _previousSensorDisplay[_MAX_SENSORS];
-int _previousLow=0;
-int _previousHigh=0;
-int _high=60;
-int _low=10;
-
-//===========================================================================================
-void forceUpdateSensorsDisplay()
-{
-  // clear cache of previous displayed value
-  
-  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
-    _previousSensorDisplay[sensorNr] = 0.0;
-  
-  updateSensorsDisplay();
-}
-
-//===========================================================================================
-void updateSensorsDisplay()
-{
-  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
-  {
-    yield();
-    updateSensorDisplay(sensorNr);
-  }
-  
-  // don't update leganda unless out of sync
-  // for now, just once, _low && _high are not updated
-  
-  if( _previousLow != _low || _previousHigh != _high)
-  {
-    // _previousLow  = _low;
-    // _previousHigh = _high;
-
-    //--- hier iets slims om de temperatuur grafisch weer te geven ---
-    //--- bijvoorbeeld de afwijking t.o.v. ATAG uit temp en ATAG retour temp
-    
-    sprintf(cMsg, "barRange=low %d&deg;C - high %d&deg;C", _low, _high);
-    webSocket.sendTXT(wsClientID, cMsg);
-  }
-}
-
-//===========================================================================================
-void updateSensorDisplay(int8_t devNr)
-{
-  float tempToUse;
-  
-  // temp to use, raw or calibrated
-
-  if(readRaw)
-    tempToUse = dataStore[_LAST_DATAPOINT].tempC[devNr];
-  else
-    tempToUse = _SA[devNr].tempC;
-
-  // only update if actual value differs from previous
-  
-  if ((int) (100.0 * tempToUse) != (int) (100.0 * _previousSensorDisplay[devNr] ) )
-  {
-    // update number on screen
-    
-    _previousSensorDisplay[devNr] = tempToUse;
-    
-    sprintf(cMsg, "tempC%d=%6.3f&#176;C", devNr, tempToUse);
-    webSocket.sendTXT(wsClientID, cMsg);
-
-    // update bar
-    
-    int8_t mapTemp = map(tempToUse, _low, _high, 0, 100); // mappen naar 0-100% van de bar
-    sprintf(cMsg, "tempBar%dB=%d", devNr, mapTemp);
-    webSocket.sendTXT(wsClientID, cMsg);
-  }
-  
-  
-}
-
-//===========================================================================================
-void updateServosDisplay()
-{
-  for(int sensorNr = 0; sensorNr < noSensors; sensorNr++)
-  {
-      yield();
-      updateServoDisplay(sensorNr);
-  }  
-}
-
-//===========================================================================================
-void updateServoDisplay(int8_t devNr)
-{  
-  int32_t   stateTime = 0;
-  char      cStateTime[15];
-  float     tempToUse;
-  
-  // temp to use, raw or calibrated
-
-  if (devNr == 0)
-    return;
-    
-  if(readRaw)
-    tempToUse = dataStore[_LAST_DATAPOINT].tempC[devNr];
-  else
-    tempToUse = _SA[devNr].tempC;
-  
-  switch (_SA[devNr].servoState ) {
-    case SERVO_IS_OPEN:
-            if (_SA[devNr].servoNr == -1) {  // no Servo
-              sprintf(cMsg, "servoState%dS=&Delta;T %.1f&deg;C", devNr, (_SA[0].tempC - tempToUse));
-            } else {
-              sprintf(cMsg, "servoState%dS=OPEN (&Delta;T %.1f&deg;C [%.1f])", devNr, (_SA[0].tempC - tempToUse), _SA[devNr].deltaTemp);
-            }
-            break;
-    case SERVO_IS_CLOSED:
-            stateTime = (_PULSE_TIME * _MIN) - (millis() - _SA[devNr].servoTimer);
-            if (stateTime > 0) {
-              DebugTf("[%s] CLOSE time [%d] > 0\n", _SA[devNr].name, (stateTime / _MIN) +1);
-              if (stateTime > _MIN)
-                    sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
-              else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
-            } else {
-              DebugTf("[%s] CLOSE time [%d] < 0\n", _SA[devNr].name, stateTime / _MIN);
-              cStateTime[0] = '.';
-              cStateTime[1] = '.';
-              cStateTime[2] = '.';
-              cStateTime[3] = '\0';
-            }
-            sprintf(cMsg, "servoState%dS=CLOSED %s", devNr, cStateTime);
-            break;
-    case SERVO_IN_LOOP:
-            stateTime = _REFLOW_TIME - (millis() - _SA[devNr].servoTimer);
-            if (stateTime > 0) {
-              DebugTf("[%s] LOOP time [%d] > 0\n", _SA[devNr].name, (stateTime / _MIN) +1);
-              if (stateTime > _MIN)
-                    sprintf(cStateTime, " (%d min.)", (stateTime + _MIN) / _MIN);  // '+ _MIN' voor afronding ...
-              else  sprintf(cStateTime, " (%d sec.)",  stateTime / 1000);
-            } else {
-              DebugTf("[%s] LOOP time [%d] < 0\n", _SA[devNr].name, stateTime / _MIN);
-              cStateTime[0] = '.';
-              cStateTime[1] = '.';
-              cStateTime[2] = '.';
-              cStateTime[3] = '\0';
-            }
-            sprintf(cMsg, "servoState%dS=LOOP %s", devNr, cStateTime);
-            break;
-    case SERVO_COUNT0_CLOSE:
-            stateTime = _REFLOW_TIME - (millis() - _SA[devNr].servoTimer);
-            if (stateTime > 0) {
-              DebugTf("[%s] CYCLE time left [%d]sec's > 0\n", _SA[devNr].name, (stateTime / 1000) +1);
-              if (stateTime > _MIN)
-                    sprintf(cStateTime, "(%d min.)", (stateTime + _MIN) / _MIN); // '+ _MIN' voor afronding
-              else  sprintf(cStateTime, "(%d sec.)",  stateTime / 1000);
-            } else {
-              DebugTf("[%s] CYCLE time [%d]sec's < 0\n", _SA[devNr].name, stateTime / 1000);
-              cStateTime[0] = '.';
-              cStateTime[1] = '.';
-              cStateTime[2] = '.';
-              cStateTime[3] = '\0';
-            }
-            sprintf(cMsg, "servoState%dS=CYCLE %s", devNr, cStateTime);
-            break;
-  }
-  
-  webSocket.sendTXT(wsClientID, cMsg);
-  
-  
-} 
-
 
 //===========================================================================================
 void handleDatapoints()
@@ -267,11 +101,9 @@ void handleDatapoints()
   
   if ( DUE(graphUpdate) ) {
         
-    updateDatapointsDisplay();
-
     // after displaying, shift all points
     
-    shiftUpDatapoints();
+    timeThis(shiftUpDatapoints());
   }
 
   // time for hourly writing datapoints
@@ -300,6 +132,7 @@ boolean _needToPoll()
    
     DebugT("Requesting temperatures...\n");
     timeThis(sensors.requestTemperatures());
+    yield();
     digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
   } 
     
@@ -312,12 +145,11 @@ void handleSensors()
   if (_needToPoll())
   {
     for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) 
+    {
       timeThis(updateSensorData(sensorNr));
-      
-    for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) {
-      timeThis(updateSensorDisplay(sensorNr));
-      timeThis(updateServoDisplay(sensorNr));
+      yield();
     }
+      
   }
 } // handleSensors()
 
@@ -364,111 +196,6 @@ void shiftUpDatapoints()
   
 } // shiftUpDatapoints()
 
-//=======================================================================
-void updateDatapointsDisplay()
-{
-  char cPoints[(sizeof(char) * _MAX_SENSORS * 15)];
-  char cLine[(sizeof(cPoints) + 20)];
-  int  startFrom = 0;
-
-  Debugln();
-  if (onlyUpdateSensors) {
-    DebugT("Send Sensor's temp ..");
-    if (onlyUpdateLastPoint) {
-      Debug(" .. only last point!");
-      startFrom = _LAST_DATAPOINT;
-    } 
-    Debugln();
-
-    for (int p=startFrom; p < _MAX_DATAPOINTS ; p++) {  // last dataPoint is most recent measurement
-      yield();
-
-      // compose tooltip
-    
-      if (_PLOT_INTERVAL < 61) {
-        sprintf(cMsg, "plotSensorTemp=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
-            , hour(dataStore[p].timestamp)
-            , minute(dataStore[p].timestamp)
-            , second(dataStore[p].timestamp));
-      } else {
-        sprintf(cMsg, "plotSensorTemp=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
-            , hour(dataStore[p].timestamp)
-            , minute(dataStore[p].timestamp));
-      }
-      //DebugTf("[%s]\n", cMsg);
-    
-      cPoints[0] = '\0';
-      for(int s=0; s < noSensors; s++) {
-        float tempToUse = readRaw ? dataStore[p].tempC[s] : _calibrated(dataStore[p].tempC[s],s);
-      
-        if (tempToUse > 0) {
-          if (cPoints[0] == '\0') {
-            sprintf(cPoints, "S%d=%f",             s, tempToUse);
-          } else {
-            sprintf(cPoints, "%s:S%d=%f", cPoints, s, tempToUse);
-          }
-        }
-        //DebugTf("-->[%s]\n", cPoints);
-      }
-      sprintf(cLine, "%s:%s", cMsg, cPoints);
-      if (dataStore[p].timestamp > 0) {
-        //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
-        webSocket.sendTXT(wsClientID, cLine);
-        delay(1);  //-- give GUI some time to process
-      }
-    } // for p ...
-
-    onlyUpdateLastPoint = true;
-
-  } // if (onlyUpdateSensors) ..
-
-  if (onlyUpdateServos) {
-    DebugT("Send servo State's ..");
-    if (onlyUpdateLastPoint) {
-      Debug(" .. only last point!");
-      startFrom = _LAST_DATAPOINT;
-    } 
-    Debugln();
-    
-    for (int p=startFrom; p < _MAX_DATAPOINTS ; p++) {  // last dataPoint is most recent measurement
-      yield();
-
-      // compose tooltip
-    
-      if (_PLOT_INTERVAL < 61) {
-        sprintf(cMsg, "plotServoState=%d:TS=(%d) %02d-%02d-%02d", p, day(dataStore[p].timestamp)
-            , hour(dataStore[p].timestamp)
-            , minute(dataStore[p].timestamp)
-            , second(dataStore[p].timestamp));
-      } else {
-        sprintf(cMsg, "plotServoState=%d:TS=(%d) %02d-%02d", p, day(dataStore[p].timestamp)
-            , hour(dataStore[p].timestamp)
-            , minute(dataStore[p].timestamp));
-      }
-      //DebugTf("[%s]\n", cMsg);
-    
-      cPoints[0] = '\0';
-      for(int s=0; s < noSensors; s++) {
-        if (cPoints[0] == '\0') {
-          sprintf(cPoints, "S%d=%d",             s, dataStore[p].servoStateV[s]);
-        } else {
-          sprintf(cPoints, "%s:S%d=%d", cPoints, s, dataStore[p].servoStateV[s]);
-        }
-        //DebugTf("-->[%s]\n", cPoints);
-      }
-      sprintf(cLine, "%s:%s", cMsg, cPoints);
-      if (dataStore[p].timestamp > 0) {
-        //DebugTf("sendTX(%d, [%s]\n", wsClientID, cLine);
-        webSocket.sendTXT(wsClientID, cLine);
-        delay(1);  //-- give GUI some time to process
-      }
-    } // for p ...
-
-    onlyUpdateLastPoint = true;
-
-  } // if(onlyUpdateServos) ..
-
-} // publishDatapoints()
 
 //=======================================================================
 int8_t editSensor(int8_t recNr)
@@ -488,7 +215,6 @@ int8_t editSensor(int8_t recNr)
                               , tmpRec.servoNr
                               , tmpRec.deltaTemp);
    DebugTln(cMsg);                           
-   webSocket.sendTXT(wsClientID, cMsg);
    return recNr;
   
 } // editSensor()

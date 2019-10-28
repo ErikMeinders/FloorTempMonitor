@@ -27,9 +27,9 @@ bool I2CMUX::begin(TwoWire &wireBus, uint8_t deviceAddress)
   _I2Caddress = deviceAddress;
 
   if (connectedToMux() == false)
-    return (false); // Check for I2C_Relay_Multiplexer presence
+    return false; // Check for I2C_Relay_Multiplexer presence
   
-  return (true); // Everything is OK!
+  return true; // Everything is OK!
 
 } // begin()
 
@@ -38,8 +38,8 @@ bool I2CMUX::connectedToMux()
 {
   _I2Cbus->beginTransmission((uint8_t)_I2Caddress);
   if (_I2Cbus->endTransmission() != 0)
-    return (false); // I2C Slave did not ACK
-  return (true);
+    return false; // I2C Slave did not ACK
+  return true;
 } 
 
 //-------------------------------------------------------------------------------------

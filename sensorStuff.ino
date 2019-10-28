@@ -87,7 +87,7 @@ void updateSensorData(int8_t devNr)
 
   } else {
     dataStore[_LAST_DATAPOINT].servoStateV[devNr] = 0;
-  } // switch()
+  }
   
 } // updateSensorData()
 
@@ -146,8 +146,8 @@ void handleSensors()
   {
     for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) 
     {
-      timeThis(updateSensorData(sensorNr));
       yield();
+      timeThis(updateSensorData(sensorNr));
     }
       
   }

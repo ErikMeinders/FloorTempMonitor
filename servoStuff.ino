@@ -217,19 +217,28 @@ void checkI2C_Mux()
   }
   
   //DebugTln("getWhoAmI() ..");
-  whoAmI       = I2cExpander.getWhoAmI();
-  if (!connectedToMux || (whoAmI != I2C_MUX_ADDRESS)) {
-    connectionMuxLostCount++;
-    digitalWrite(LED_RED, LED_ON);
-    connectedToMux = setupI2C_Mux();
-    if (connectedToMux)
-          errorCountUp = 0;
-    else  errorCountUp++;
-    return;
-  }
-  if (I2cExpander.digitalRead(0) == CLOSE_SERVO) {
-    I2cExpander.digitalWrite(0, OPEN_SERVO);
-  }
+  if( I2cExpander.connectedToMux())
+  {
+    if ( (whoAmI = I2cExpander.getWhoAmI()) == I2C_MUX_ADDRESS)
+    {
+      if (I2cExpander.digitalRead(0) == CLOSE_SERVO)
+        I2cExpander.digitalWrite(0, OPEN_SERVO);
+      return;
+    } else
+      DebugTf("Connected to different I2cExpander %x",whoAmI );
+  } else 
+      DebugTf("Connection lost to I2cExpander");
+  
+  connectionMuxLostCount++;
+  digitalWrite(LED_RED, LED_ON);
+
+  if (setupI2C_Mux())
+    errorCountUp = 0;
+  else  
+    errorCountUp++;
+  
+  
+
   //DebugTln("getMajorRelease() ..");
   //majorRelease = I2cExpander.getMajorRelease();
   //DebugTln("getMinorRelease() ..");

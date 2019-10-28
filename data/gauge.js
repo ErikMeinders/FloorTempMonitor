@@ -53,8 +53,6 @@ var gaugeOptions = {
     }
 };
 
-const APIGW='http://192.168.2.84/api/';
-
 var Gauges = [];
 
 const app = document.getElementById('gauges_canvas');

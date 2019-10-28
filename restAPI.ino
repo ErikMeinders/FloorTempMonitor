@@ -249,7 +249,7 @@ void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>
 void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 {
   int si = _find_sensorIndex_in_query();
-  DynamicJsonDocument toRetDoc(50);
+  DynamicJsonDocument toRetDoc(64);
 
   Debugf("sensorIndex=%d\n", si);
   
@@ -263,6 +263,18 @@ void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
   _returnJSON( toRetDoc.as<JsonObject>() );
 }
 
+void handleAPI_get_status()
+{
+  
+  DynamicJsonDocument toRetDoc(128);
+
+  toRetDoc["disconnects"] = connectionMuxLostCount;
+  toRetDoc["uptime"] = upTime();
+  toRetDoc["rssi"] = WiFi.RSSI();
+
+  _returnJSON( toRetDoc.as<JsonObject>() );
+
+}
 // bogus handler for testing
 
 void nothingAtAll()
@@ -274,6 +286,7 @@ void nothingAtAll()
 void apiInit()
 {
   httpServer.on("/api",  nothingAtAll);
+  httpServer.on("/api/get_status", handleAPI_get_status);
   httpServer.on("/api/list_sensors", handleAPI_list_sensors);
   httpServer.on("/api/describe_sensor", handleAPI_describe_sensor);
   httpServer.on("/api/get_temperature", handleAPI_get_temperature);

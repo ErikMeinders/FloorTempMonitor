@@ -266,12 +266,12 @@ void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 void handleAPI_get_status()
 {
   
-  DynamicJsonDocument toRetDoc(128);
+  DynamicJsonDocument toRetDoc(256);
 
   toRetDoc["disconnects"] = connectionMuxLostCount;
   toRetDoc["uptime"] = upTime();
   toRetDoc["rssi"] = WiFi.RSSI();
-  toRetDoc["ESPrr"] = ESP.getResetReason().c_str();
+  toRetDoc["ESPrr"] = ESP.getResetReason();
 
   _returnJSON( toRetDoc.as<JsonObject>() );
 

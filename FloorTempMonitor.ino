@@ -165,6 +165,8 @@ uint8_t   connectionMuxLostCount    = 0;
 bool      SPIFFSmounted       = false;
 bool      cycleAllSensors     = false;
 
+void      (*loopFunctionArray[4])();
+
 //===========================================================================================
 String upTime()
 {
@@ -317,10 +319,18 @@ void setup()
   
   roomsInit();
 
+  loopFunctionArray[0]= handleSensors;
+  loopFunctionArray[1]= handleRoomTemps;
+  loopFunctionArray[2]= handleDatapoints;
+  loopFunctionArray[3]= erix;
+
 } // setup()
 
-void (*loopFunctionArray[])() = {handleSensors, handleRoomTemps, handleDatapoints};
+void erix()
+{
+  DebugTf("Aangeroepen!\n");
 
+}
 int8_t fnindex=0;
 
 //===========================================================================================
@@ -333,23 +343,26 @@ void loop()
   timeThis( handleNTP() );
 
   timeThis( checkI2C_Mux() );         //  call setupI2C_Mux() 
-  timeThis( handleSensors() );        // update return water temperature information
+  //timeThis( handleSensors() );        // update return water temperature information
   
-  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
-  timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
+  //timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
+  //timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
   
-  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
-  timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
+  //timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
+  //timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
 
-  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
+  //timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
   timeThis( handleDatapoints() );     // update datapoint for trends
 
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 
   timeThis( servosAlign() );
 
-  // DebugTf("fnindex = %d, loopFunctionArray[] = %lu\n", fnindex, loopFunctionArray[fnindex]);
-  timeThis(loopFunctionArray[fnindex]);
+  DebugTf("fnindex = %d\n", fnindex);
+  loopFunctionArray[fnindex]();
+  //(*loopFunctionArray[fnindex])();
+  
+  DebugTf("function was called\n");
 
   fnindex+=1;
   fnindex%=(sizeof(loopFunctionArray)/sizeof(loopFunctionArray[0]));

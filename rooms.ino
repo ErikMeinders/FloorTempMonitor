@@ -5,8 +5,6 @@
 #define MAX_UFHLOOPS_PER_ROOM   2
 #define MAX_NAMELEN             20
 
-// const char *R="{\"status\": \"ok\", \"version\": \"3.403\", \"request\": {\"route\": \"/telist\" }, \"response\": [{\"id\":0,\"name\":\"Keuken\",\"code\":\"11391347\",\"model\":1,\"lowBattery\":\"no\",\"version\":2.32,\"te\":21.4,\"hu\":39,\"te+\":22.1,\"te+t\":\"00:01\",\"te-\":20.8,\"te-t\":\"05:43\",\"hu+\":39,\"hu+t\":\"12:42\",\"hu-\":35,\"hu-t\":\"00:41\",\"outside\":\"yes\",\"favorite\":\"no\"},{\"id\":1,\"name\":\"Muziek kamer\",\"code\":\"2815108\",\"model\":1,\"lowBattery\":\"no\",\"version\":2.32,\"te\":19.4,\"hu\":45,\"te+\":19.6,\"te+t\":\"00:19\",\"te-\":18.8,\"te-t\":\"07:09\",\"hu+\":45,\"hu+t\":\"13:04\",\"hu-\":41,\"hu-t\":\"03:26\",\"outside\":\"no\",\"favorite\":\"no\"},{\"id\":2,\"name\":\"Julius\",\"code\":\"14974854\",\"model\":1,\"lowBattery\":\"no\",\"version\":2.32,\"te\":19.3,\"hu\":48,\"te+\":19.7,\"te+t\":\"08:11\",\"te-\":19.2,\"te-t\":\"06:17\",\"hu+\":58,\"hu+t\":\"08:21\",\"hu-\":45,\"hu-t\":\"00:01\",\"outside\":\"no\",\"favorite\":\"no\"},{\"id\":4,\"name\":\"Master Bedroom\",\"channel\":2,\"model\":0,\"te\":17.1,\"hu\":45,\"te+\":19.5,\"te+t\":\"00:00\",\"te-\":16.6,\"te-t\":\"08:24\",\"hu+\":45,\"hu+t\":\"08:57\",\"hu-\":38,\"hu-t\":\"03:11\",\"outside\":\"no\",\"favorite\":\"no\"}]}";
-
 typedef struct _troom {
     char    Name[MAX_NAMELEN];                 // display name matches SensorNames
     int     Servos[MAX_UFHLOOPS_PER_ROOM];     // array of indices in Servos array (max 2)
@@ -46,7 +44,7 @@ void roomsInit(){
             &Rooms[i].Servos[1],
             &Rooms[i].targetTemp);
         
-        yield();
+        timeCritical();
         dumpRoom(i);
     }
 }
@@ -90,8 +88,9 @@ void handleRoomTemps()
         {
             char jsonName[20];
             float jsonTemp;
+            bool  nameFound=false;
 
-            yield();
+            timeCritical();
 
             sscanf(ptr,"\"name\":\"%[^\"]", jsonName);
             ptr = (char*) &ptr[7];
@@ -108,20 +107,20 @@ void handleRoomTemps()
 
             for( int8_t roomIndex=0 ; roomIndex < noRooms ; roomIndex++)
             {
-                yield();
+                timeCritical();
 
                 if(!strcmp(Rooms[roomIndex].Name,jsonName))
                 {
                     Rooms[roomIndex].actualTemp = jsonTemp;
                     //DebugTf("Match for room %s (%f) in room %s\n", jsonName, jsonTemp, Rooms[roomIndex].Name);
 
-                    strcpy(jsonName,"found");
+                    nameFound=true;
                     dumpRoom(roomIndex);
                     break;
                 }
             }
             
-            if(strcmp(jsonName, "found"))
+            if(!nameFound)
                 DebugTf("No match for room %s (%f)\n", jsonName, jsonTemp);   
         }  
     } else 

@@ -9,7 +9,6 @@
 
 typedef struct _troom {
     char    Name[MAX_NAMELEN];                 // display name matches SensorNames
-    char    HWName[MAX_NAMELEN];               // HomeWizard name of sensor
     int     Servos[MAX_UFHLOOPS_PER_ROOM];     // array of indices in Servos array (max 2)
     float   targetTemp;                        // target temp for room
     float   actualTemp;                        // actual room temp
@@ -30,23 +29,22 @@ void roomsInit(){
     const char *rInit[MAXROOMS];
 
     // hardcoded for now, should come from rooms.ini file
-    rInit[0] = "Living;1,7;22.5;Julius\n";
-    rInit[1] = "Basement;4,-1;17.5;Muziek kamer\n";
-    rInit[2] = "Kitchen;3,5;21.5;Keuken\n";
-    rInit[3] = "Dining;6,-1;22.5;Master Bedroom\n";
-    rInit[4] = "Office;8,-1;20.5;Kantoor\n";
-    rInit[5] = "Utility;9,-1;18.5;Bijkeuken\n";
+    rInit[0] = "Living;1,7;22.5";
+    rInit[1] = "Basement;4,-1;17.5";
+    rInit[2] = "Kitchen;3,5;21.5";
+    rInit[3] = "Dining;6,-1;22.5";
+    rInit[4] = "Office;8,-1;20.5";
+    rInit[5] = "Utility;9,-1;18.5";
 
     noRooms = 6;
 
     for(byte i=0 ; i < noRooms ; i++)
     {
-        sscanf(rInit[i],"%[^;];%d,%d;%f;%[^\n]", 
+        sscanf(rInit[i],"%[^;];%d,%d;%f", 
             Rooms[i].Name, 
             &Rooms[i].Servos[0],
             &Rooms[i].Servos[1],
-            &Rooms[i].targetTemp,
-            Rooms[i].HWName);
+            &Rooms[i].targetTemp);
         
         yield();
         dumpRoom(i);
@@ -55,13 +53,12 @@ void roomsInit(){
 
 void dumpRoom(byte i)
 {
-    DebugTf("RoomDump: Name: %s Servos [%d,%d] Target/ActualTemp %f/%f HomeWizard room name: %s\n",  
+    DebugTf("RoomDump: Name: %s Servos [%d,%d] Target/ActualTemp %f/%f \n",  
             Rooms[i].Name, 
             Rooms[i].Servos[0],
             Rooms[i].Servos[1],
             Rooms[i].targetTemp,
-            Rooms[i].actualTemp,
-            Rooms[i].HWName);
+            Rooms[i].actualTemp);
 }
 
 #define QuotedString(x) "\"##x##\""
@@ -113,7 +110,7 @@ void handleRoomTemps()
             {
                 yield();
 
-                if(!strcmp(Rooms[roomIndex].HWName,jsonName))
+                if(!strcmp(Rooms[roomIndex].Name,jsonName))
                 {
                     Rooms[roomIndex].actualTemp = jsonTemp;
                     //DebugTf("Match for room %s (%f) in room %s\n", jsonName, jsonTemp, Rooms[roomIndex].Name);

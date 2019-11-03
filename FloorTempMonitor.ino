@@ -76,7 +76,7 @@ DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
 
 DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
-DECLARE_TIMER(sensorPoll,   15) // update sensors every 20s 
+DECLARE_TIMERm(sensorPoll,   1) // update sensors every 20s 
 
 DECLARE_TIMERm(UptimeDisplay,1)
 
@@ -320,8 +320,8 @@ void setup()
   roomsInit();
 
   loopFunctionArray[0]= handleSensors;
-  loopFunctionArray[1]= handleRoomTemps;
-  loopFunctionArray[2]= handleDatapoints;
+  loopFunctionArray[1]= checkDeltaTemps;
+  loopFunctionArray[2]= handleRoomTemps;
   loopFunctionArray[3]= erix;
 
 } // setup()
@@ -352,9 +352,9 @@ void loop()
   //timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
 
   //timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
-  timeThis( handleDatapoints() );     // update datapoint for trends
+  //timeThis( handleDatapoints() );     // update datapoint for trends
 
-  timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
+  //timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 
   timeThis( servosAlign() );
 

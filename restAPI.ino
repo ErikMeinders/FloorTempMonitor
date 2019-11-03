@@ -271,6 +271,7 @@ void handleAPI_get_status()
   toRetDoc["disconnects"] = connectionMuxLostCount;
   toRetDoc["uptime"] = upTime();
   toRetDoc["rssi"] = WiFi.RSSI();
+  toRetDoc["ESPrr"] = ESP.getResetReason().c_str();
 
   _returnJSON( toRetDoc.as<JsonObject>() );
 

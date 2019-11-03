@@ -319,6 +319,9 @@ void setup()
 
 } // setup()
 
+void (*loopFunctionArray[])() = {handleSensors, handleRoomTemps, handleDatapoints};
+
+int8_t fnindex=0;
 
 //===========================================================================================
 void loop()
@@ -344,4 +347,11 @@ void loop()
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 
   timeThis( servosAlign() );
+
+  // DebugTf("fnindex = %d, loopFunctionArray[] = %lu\n", fnindex, loopFunctionArray[fnindex]);
+  timeThis(loopFunctionArray[fnindex]);
+
+  fnindex+=1;
+  fnindex%=(sizeof(loopFunctionArray)/sizeof(loopFunctionArray[0]));
+
 } 

@@ -62,9 +62,9 @@
  *    }
  *  }
  */
-#define DECLARE_TIMERm(timerName, timerTime)    static unsigned long timerName##_last = millis(), timerName##_interval = timerTime * 60 * 1000;
-#define DECLARE_TIMER(timerName, timerTime)    static unsigned long timerName##_last = millis(), timerName##_interval = timerTime * 1000;
-#define DECLARE_TIMERms(timerName, timerTime)   static unsigned long timerName##_last = millis(), timerName##_interval = timerTime ;
+#define DECLARE_TIMERm(timerName, timerTime)    static unsigned long timerName##_interval = timerTime * 60 * 1000,      timerName##_last = millis()+random(timerName##_interval);
+#define DECLARE_TIMER(timerName, timerTime)     static unsigned long timerName##_interval = timerTime * 1000,           timerName##_last = millis()+random(timerName##_interval);
+#define DECLARE_TIMERms(timerName, timerTime)   static unsigned long timerName##_interval = timerTime,                  timerName##_last = millis()+random(timerName##_interval);
 
 #define DECLARE_TIMERs DECLARE_TIMER
 

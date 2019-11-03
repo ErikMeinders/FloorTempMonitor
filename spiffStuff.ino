@@ -84,7 +84,7 @@ bool appendIniFile(int8_t index, char* devID)
   _SA[index].tempFactor = 1.00000;
   _SA[index].servoNr    = -1; // not attached to a servo
   _SA[index].deltaTemp  = 20.0;
-  _SA[index].closeCount = 0;
+  //_SA[index].closeCount = 0;
   sprintf(fixedRec, "%s; %d; %-15.15s; %8.6f; %8.6f; %2d; %4.1f;"
                                                 , _SA[index].sensorID
                                                 , _SA[index].position

@@ -52,7 +52,7 @@ void _cacheJSON()
     so["factor"]      = sensorArray[s].tempFactor;
     so["temperature"] = sensorArray[s].tempC;
     so["servonr"]     = sensorArray[s].servoNr;
-    so["servostate"]  = sensorArray[s].servoState;
+    so["servostate"]  = sensorArray[s].servoNr < 0 ? 0 : servoArray[sensorArray[s].servoNr].servoState;
     so["deltatemp"]   = sensorArray[s].deltaTemp;
     so["counter"]     = s;
     

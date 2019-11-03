@@ -1,6 +1,6 @@
 #include <ArduinoJson.h>
 
-DECLARE_TIMER(cacheRefresh, 15)
+DECLARE_TIMER(cacheRefresh, 60)
 
 #define CALIBRATE_HIGH 25
 

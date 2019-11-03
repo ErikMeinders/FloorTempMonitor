@@ -20,7 +20,7 @@ HTTPClient apiClient;
 WiFiClient apiWiFiclient;
 String apiEndpoint = "http://192.168.2.24/geheim1967/telist";
 
-DECLARE_TIMERs(roomUpdate,15);
+DECLARE_TIMERs(roomUpdate,60);
 
 void roomsInit(){
 

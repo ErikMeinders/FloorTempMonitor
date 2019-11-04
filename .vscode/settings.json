@@ -13,6 +13,8 @@
         "bitset": "cpp",
         "functional": "cpp",
         "mutex": "cpp",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "filesystem": "cpp",
+        "regex": "cpp"
     }
 }

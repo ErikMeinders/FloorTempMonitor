@@ -4,7 +4,7 @@
 
 void timeCritical()
 {
-    yield();
-    I2cExpander.connectedToMux();
+    timeThis( yield() );
+    timeThis( I2cExpander.connectedToMux() ) ;
     timeThis( httpServer.handleClient() );
 }

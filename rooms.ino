@@ -82,22 +82,31 @@ void handleRoomTemps()
 
         // process all records in resonse (name, te) pairs
 
+        Response.trim();
         ptr=&Response.c_str()[0];
 
+        DebugTf("ptr = >%s<\n", ptr);
         while( (ptr=strstr(ptr,"\"name\"")))
         {
             char jsonName[20];
             float jsonTemp;
             bool  nameFound=false;
 
+            DebugTf("ptr = >%s<\n", ptr);
+
             timeCritical();
+
 
             sscanf(ptr,"\"name\":\"%[^\"]", jsonName);
             ptr = (char*) &ptr[7];
 
             //DebugTf("name found: >%s<\n", jsonName);
             
-            ptr = strstr(ptr,"\"te\"");
+            if(!(ptr = strstr(ptr,"\"te\"")))
+            {
+                DebugTf("[HomeWizard] Incomplete JSON response, no 'te' found for %s\n", jsonName);
+                break;
+            }
             sscanf(ptr,"\"te\":%f", &jsonTemp);
             ptr = (char*) &ptr[5];
 
@@ -124,7 +133,7 @@ void handleRoomTemps()
                 DebugTf("No match for room %s (%f)\n", jsonName, jsonTemp);   
         }  
     } else 
-        DebugTf("API call to HomeWizard failed with rc %d\n", apiRC);
+        DebugTf("[HomeWizard] API call failed with rc %d\n", apiRC);
     
     apiClient.end();  
 }

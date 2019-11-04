@@ -265,13 +265,15 @@ void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 
 void handleAPI_get_status()
 {
-  
   DynamicJsonDocument toRetDoc(256);
 
-  toRetDoc["disconnects"] = connectionMuxLostCount;
   toRetDoc["uptime"] = upTime();
   toRetDoc["rssi"] = WiFi.RSSI();
+  toRetDoc["disconnects"] = connectionMuxLostCount;
   toRetDoc["ESPrr"] = ESP.getResetReason();
+  toRetDoc["ESPheap"] = ESP.getFreeHeap();
+  toRetDoc["ESPhfrag"] = ESP.getHeapFragmentation();
+  toRetDoc["ESPhmax"] = ESP.getMaxFreeBlockSize();
 
   _returnJSON( toRetDoc.as<JsonObject>() );
 

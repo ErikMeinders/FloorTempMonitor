@@ -85,6 +85,12 @@ void handleRoomTemps()
         Response.trim();
         ptr=&Response.c_str()[0];
 
+        if (!strlen(ptr) || ptr[strlen(ptr)-1] != '}')
+        {
+            DebugTf("[HomeWizard] No response or last char not '}'\n");
+            // just a warning, do proceed to find usable values in result
+        }
+
         DebugTf("ptr = >%s<\n", ptr);
         while( (ptr=strstr(ptr,"\"name\"")))
         {
@@ -95,8 +101,7 @@ void handleRoomTemps()
             DebugTf("ptr = >%s<\n", ptr);
 
             timeCritical();
-
-
+            
             sscanf(ptr,"\"name\":\"%[^\"]", jsonName);
             ptr = (char*) &ptr[7];
 

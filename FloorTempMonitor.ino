@@ -2,6 +2,7 @@
 **  Program   : FloorTempMonitor
 */
 #define _FW_VERSION "v0.7.0 (27-10-2019)"
+
 /*
 **  Copyright (c) 2019 Willem Aandewiel / Erik Meinders
 **
@@ -43,6 +44,7 @@
 #include "Debug.h"
 #include "timing.h"
 #include "networkStuff.h"
+#include "FloorTempMonitor.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library

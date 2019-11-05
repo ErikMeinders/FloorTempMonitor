@@ -1,23 +1,11 @@
 #include <ArduinoJson.h>
 #include <ESP8266HTTPClient.h>
 
-#define MAXROOMS                8
-#define MAX_UFHLOOPS_PER_ROOM   2
-#define MAX_NAMELEN             20
-
-typedef struct _troom {
-    char    Name[MAX_NAMELEN];                 // display name matches SensorNames
-    int     Servos[MAX_UFHLOOPS_PER_ROOM];     // array of indices in Servos array (max 2)
-    float   targetTemp;                        // target temp for room
-    float   actualTemp;                        // actual room temp
-} room_t;
-
-room_t Rooms[MAXROOMS];
-
-int noRooms = 0;
+#include "FloorTempMonitor.h"
 
 HTTPClient apiClient;
 WiFiClient apiWiFiclient;
+
 String apiEndpoint = "http://192.168.2.24/geheim1967/telist";
 
 DECLARE_TIMERs(roomUpdate,60);
@@ -27,14 +15,16 @@ void roomsInit(){
     const char *rInit[MAXROOMS];
 
     // hardcoded for now, should come from rooms.ini file
-    rInit[0] = "Living;1,7;22.5";
-    rInit[1] = "Basement;4,-1;17.5";
-    rInit[2] = "Kitchen;3,5;21.5";
-    rInit[3] = "Dining;6,-1;22.5";
-    rInit[4] = "Office;8,-1;20.5";
-    rInit[5] = "Utility;9,-1;18.5";
 
-    noRooms = 6;
+    rInit[0] = "Living;1,7;22.5";
+    rInit[1] = "Hallway;2,-1;22.5";
+    rInit[2] = "Kitchen;3,5;21.5";
+    rInit[3] = "Basement;4,-1;17.5";
+    rInit[4] = "Dining;6,-1;22.5";
+    rInit[5] = "Office;8,-1;20.5";
+    rInit[6] = "Utility;9,-1;18.5";
+
+    noRooms = 7;
 
     for(byte i=0 ; i < noRooms ; i++)
     {
@@ -71,14 +61,15 @@ void handleRoomTemps()
     // Make API call
 
     timeThis(apiClient.begin(apiWiFiclient, apiEndpoint));
+
     timeThis(apiRC=apiClient.GET());
     if ( apiRC > 0)    // OK
     {
         const char *ptr;    
         String Response;
         // get response
+
         timeThis(Response = apiClient.getString()); 
-        //DebugTf("Receive API response >%s<", Response);
 
         // process all records in resonse (name, te) pairs
 
@@ -114,8 +105,6 @@ void handleRoomTemps()
             }
             sscanf(ptr,"\"te\":%f", &jsonTemp);
             ptr = (char*) &ptr[5];
-
-            //DebugTf("name found: >%s< with te >%f<\n", jsonName, jsonTemp);
 
             // assign API result to correct Room 
 

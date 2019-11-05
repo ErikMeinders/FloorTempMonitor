@@ -1,4 +1,5 @@
 #include <ArduinoJson.h>
+#include "FloorTempMonitor.h"
 
 DECLARE_TIMER(cacheRefresh, 60)
 
@@ -6,7 +7,8 @@ DECLARE_TIMER(cacheRefresh, 60)
 
 // global vars
 
-static DynamicJsonDocument _cache(4096); // the cache
+static DynamicJsonDocument _cache(4096);   // the cache for sensors
+static DynamicJsonDocument toRetDoc(1024);  // generic doc to return, clear() before use!
 
 // some helper functions
 
@@ -52,7 +54,7 @@ void _cacheJSON()
     so["factor"]      = sensorArray[s].tempFactor;
     so["temperature"] = sensorArray[s].tempC;
     so["servonr"]     = sensorArray[s].servoNr;
-    so["servostate"]  = sensorArray[s].servoNr < 0 ? 0 : servoArray[sensorArray[s].servoNr].servoState;
+    // so["servostate"]  = sensorArray[s].servoNr < 0 ? 0 : servoArray[sensorArray[s].servoNr].servoState;
     so["deltatemp"]   = sensorArray[s].deltaTemp;
     so["counter"]     = s;
     
@@ -188,7 +190,9 @@ void calibrate_sensor(int sensorIndex, float realTemp)
 
 void handleAPI_calibrate_sensor()
 {
-  DynamicJsonDocument toRetCalDoc(512);
+  //DynamicJsonDocument toRetCalDoc(512);
+
+  toRetDoc.clear();
 
   // a temperature should be given and optionally a sensor(name or ID)
   // when sensor is missing, all sensors are calibrated
@@ -208,8 +212,7 @@ void handleAPI_calibrate_sensor()
   
   // prepare some JSON stuff to return
   
-  toRetCalDoc.clear();
-  calibrations = toRetCalDoc.createNestedArray("calibrations");
+  calibrations = toRetDoc.createNestedArray("calibrations");
   
   // was a name or sensorID specified --> calibrate only that one sensor
   
@@ -229,7 +232,7 @@ void handleAPI_calibrate_sensor()
 
   }
   
-  _returnJSON(toRetCalDoc.as<JsonObject>());
+  _returnJSON(toRetDoc.as<JsonObject>());
 }
 
 void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>
@@ -249,7 +252,9 @@ void handleAPI_describe_sensor() // api/describe_sensor?[name|sensorID]=<string>
 void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 {
   int si = _find_sensorIndex_in_query();
-  DynamicJsonDocument toRetDoc(64);
+  //DynamicJsonDocument toRetDoc(64);
+
+  toRetDoc.clear();
 
   Debugf("sensorIndex=%d\n", si);
   
@@ -265,8 +270,10 @@ void handleAPI_get_temperature() // api/get_temperature?[name|sensorID]=<string>
 
 void handleAPI_get_status()
 {
-  DynamicJsonDocument toRetDoc(256);
+  // DynamicJsonDocument toRetDoc(256);
 
+  toRetDoc.clear();
+  
   toRetDoc["uptime"] = upTime();
   toRetDoc["rssi"] = WiFi.RSSI();
   toRetDoc["disconnects"] = connectionMuxLostCount;
@@ -282,16 +289,67 @@ void handleAPI_get_status()
 
 void nothingAtAll()
 {
-  httpServer.send(200, "text/html",  "options are: list_sensors, describe_sensor?name=str, get_temperature?name=str, calibrate_sensors?temp=ff.fff[&name=str]");
+  httpServer.send(200, "text/html",  "options are: /status, /sensor/{list,describe,temperature,calibrate}, /room/{list,temperature}");
+
+}
+
+void handleAPI_room_temperature()
+{
+  _returnJSON400("Not implemented yet");
+}
+void handleAPI_room_list()
+{
+  toRetDoc.clear();
+
+  JsonArray rooms = toRetDoc.createNestedArray("rooms");
+
+  for (room_t room : Rooms)
+  {
+    DynamicJsonDocument r(1024);
+    byte i;
+    
+    r.clear();
+
+    r["name"]   = room.Name;
+    r["target"] = room.targetTemp;
+    r["actual"] = room.actualTemp;
+
+    JsonArray servos = r.createNestedArray("servos");
+
+    for ( i=0 ; i < 2 ; i++)
+    {
+      if(room.Servos[i]<0)
+        break;
+/*
+      DynamicJsonDocument s(256);
+      
+      s.clear();
+      s["servoNr"] = room.Servos[i];
+      s["index"] = i;
+*/
+      servos.add(room.Servos[i]);
+    }
+    r["servocount"] = i;
+    rooms.add(r);
+
+  }
+
+  _returnJSON(toRetDoc.as<JsonObject>());
 
 }
 
 void apiInit()
 {
   httpServer.on("/api",  nothingAtAll);
-  httpServer.on("/api/get_status", handleAPI_get_status);
-  httpServer.on("/api/list_sensors", handleAPI_list_sensors);
-  httpServer.on("/api/describe_sensor", handleAPI_describe_sensor);
-  httpServer.on("/api/get_temperature", handleAPI_get_temperature);
-  httpServer.on("/api/calibrate_sensors", handleAPI_calibrate_sensor);
+
+  httpServer.on("/api/status", handleAPI_get_status);
+
+  httpServer.on("/api/sensor/list", handleAPI_list_sensors);
+  httpServer.on("/api/sensor/describe", handleAPI_describe_sensor);
+  httpServer.on("/api/sensor/temperature", handleAPI_get_temperature);
+  httpServer.on("/api/sensor/calibrate", handleAPI_calibrate_sensor);
+
+  httpServer.on("/api/room/list", handleAPI_room_list);
+  httpServer.on("/api/room/temperature", handleAPI_room_temperature);
+
 }

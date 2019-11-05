@@ -15,6 +15,7 @@
         "mutex": "cpp",
         "tuple": "cpp",
         "filesystem": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "cstddef": "cpp"
     }
 }

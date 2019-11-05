@@ -59,7 +59,7 @@ const app = document.getElementById('gauges_canvas');
 
 var request = new XMLHttpRequest();
 
-request.open('GET', APIGW+'list_sensors', true);
+request.open('GET', APIGW+'sensor/list', true);
 
 request.onload = function () {
 
@@ -163,7 +163,7 @@ request.onload = function () {
 }
 
 function refreshData() {
-  request.open('GET', APIGW+'list_sensors', true);
+  request.open('GET', APIGW+'sensor/list', true);
   request.send();
 };
 

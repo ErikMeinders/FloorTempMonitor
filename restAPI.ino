@@ -341,6 +341,41 @@ void handleAPI_room_list()
 
 }
 
+void handleAPI_servo_status()
+{
+  const char* statusText;
+  const char* Value=httpServer.arg("id").c_str();
+  
+  if(!strlen(Value))
+    _returnJSON400("mandatory id missing");
+
+  byte i = atoi(Value);
+
+  toRetDoc.clear();
+
+  toRetDoc["status"]  = servoArray[i].servoState;
+  
+  switch(servoArray[i].servoState) {
+    case SERVO_IS_OPEN:       
+      statusText = "OPEN";
+      break;
+    case SERVO_IN_LOOP:       
+      statusText = "LOOP";
+      break;
+    case SERVO_COUNT0_CLOSE:  
+      statusText = "COUNT0";
+      break;
+    case SERVO_IS_CLOSED:     
+      statusText = "CLOSED";
+      break;
+  } 
+
+  toRetDoc["message"] = statusText;
+
+  _returnJSON(toRetDoc.as<JsonObject>());
+
+}
+
 void apiInit()
 {
   httpServer.on("/api",  nothingAtAll);
@@ -354,5 +389,7 @@ void apiInit()
 
   httpServer.on("/api/room/list", handleAPI_room_list);
   httpServer.on("/api/room/temperature", handleAPI_room_temperature);
+
+  httpServer.on("/api/servo/status", handleAPI_servo_status);
 
 }

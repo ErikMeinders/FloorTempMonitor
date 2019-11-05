@@ -303,6 +303,8 @@ void handleAPI_room_list()
 
   JsonArray rooms = toRetDoc.createNestedArray("rooms");
 
+  int roomId = 0;
+
   for (room_t room : Rooms)
   {
     DynamicJsonDocument r(1024);
@@ -330,6 +332,7 @@ void handleAPI_room_list()
       servos.add(room.Servos[i]);
     }
     r["servocount"] = i;
+    r["id"] = roomId++;
     rooms.add(r);
 
   }

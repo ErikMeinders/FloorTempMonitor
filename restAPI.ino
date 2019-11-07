@@ -353,6 +353,7 @@ void handleAPI_servo_status()
 
   toRetDoc.clear();
 
+  toRetDoc["servo"] = i;
   toRetDoc["status"]  = servoArray[i].servoState;
   
   switch(servoArray[i].servoState) {
@@ -376,6 +377,19 @@ void handleAPI_servo_status()
 
 }
 
+void handleAPI_servo_statusarray()
+{
+  toRetDoc.clear();
+
+  JsonArray servos = toRetDoc.createNestedArray("servos");
+
+  for (byte i=0 ; i < 10; i++)
+  {  
+      servos.add(servoArray[i].servoState);
+  }
+  _returnJSON(toRetDoc.as<JsonObject>());
+}
+
 void apiInit()
 {
   httpServer.on("/api",  nothingAtAll);
@@ -391,5 +405,6 @@ void apiInit()
   httpServer.on("/api/room/temperature", handleAPI_room_temperature);
 
   httpServer.on("/api/servo/status", handleAPI_servo_status);
+  httpServer.on("/api/servo/statusarray", handleAPI_servo_statusarray);
 
 }

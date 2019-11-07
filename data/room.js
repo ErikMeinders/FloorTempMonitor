@@ -33,7 +33,7 @@ var gaugeOptions = {
         ],
         lineWidth: 1,
         minorTickInterval: null,
-        tickAmount: 2,
+        tickAmount: 8,
         title: {
             y: -70
         },
@@ -54,13 +54,37 @@ var gaugeOptions = {
 };
 
 var Rooms = [];
+var servoState = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 const app = document.getElementById('rooms_canvas');
 
 var requestRoom = new XMLHttpRequest();
+var requestServo = new XMLHttpRequest();
 
 // requestRoom.open('GET', APIGW+'room/list', true);
 
+function verbalState(i)
+{
+    sn="["+i+"]";
+
+    switch(servoState[i]) {
+        case 0:
+            return sn+" Open";
+        case 1:
+            return sn+" Closed";
+        default:
+            return sn+" Special"
+    }
+}
+
+requestServo.onload = function() {
+
+var data = JSON.parse(this.response);
+
+if (requestRoom.status >= 200 && requestRoom.status < 400) {
+    servoState = data["servos"];
+    }
+}
 requestRoom.onload = function () {
 
   // Begin accessing JSON data here
@@ -152,6 +176,12 @@ requestRoom.onload = function () {
                 });
 */
         document.getElementById ("info_"+room.name).innerHTML=Math.floor(10*(room.actual))/10.0+"|"+room.target;
+        iHTML="Loop A : "+verbalState(room.servos[0]);
+        if(room.servocount>1)
+        {
+            iHTML+=" | Loop B : "+verbalState(room.servos[1]);
+        }
+        document.getElementById ("p_"+room.name).innerHTML = iHTML;
       }
       
     });
@@ -163,8 +193,12 @@ requestRoom.onload = function () {
 }
 
 function refreshRoomData() {
-  requestRoom.open('GET', APIGW+'room/list', true);
-  requestRoom.send();
+
+    requestServo.open('GET', APIGW+'servo/statusarray', true);
+    requestServo.send();
+
+    requestRoom.open('GET', APIGW+'room/list', true);
+    requestRoom.send();
 };
 
 // requestRoom.send();

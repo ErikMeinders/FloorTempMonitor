@@ -67,22 +67,31 @@ function verbalState(i)
 {
     sn="["+i+"]";
 
+    console.log("display servoState for servo "+i+"from servoState"+servoState);
+
+    // servoState array starts at 0, where 0 is relais 16
+    // ToDo: add remaining time for Closed/Loop
+    //       add taget dt for Open
+
     switch(servoState[i]) {
         case 0:
             return sn+" Open";
         case 1:
             return sn+" Closed";
+        case 2:
+            return sn+" Reflow";
         default:
-            return sn+" Special"
+            return sn+" Specail"
     }
 }
 
 requestServo.onload = function() {
 
-var data = JSON.parse(this.response);
-
-if (requestRoom.status >= 200 && requestRoom.status < 400) {
-    servoState = data["servos"];
+    var data = JSON.parse(this.response);
+    console.log("servo.onload "+data["servos"]);
+    if (requestServo.status >= 200 && requestServo.status < 400) {
+        console.log("assigning to servoState");
+        servoState = data["servos"];
     }
 }
 requestRoom.onload = function () {
@@ -95,7 +104,8 @@ requestRoom.onload = function () {
     data["rooms"].forEach(room => {
       var chart;
 
-      // when no chart for room, create one
+      // when no chart for room, create one else just update based on IDs
+
       if( ( document.getElementById('container-'+room.name)) == null )
       {
         const card  = document.createElement('div');
@@ -112,13 +122,38 @@ requestRoom.onload = function () {
         newChart.setAttribute("class","chart-container");
         newChart.setAttribute("id", 'container-'+room.name);
 
-        var p = document.createElement('p');
-        p.setAttribute('id', 'p_'+room.name);
-        p.textContent  =`Temperature: ${room.actual}`
+        //var p = document.createElement('p');
+        //p.setAttribute('id', 'p_'+room.name);
+        //p.textContent  =`Temperature: ${room.actual}`
 
+        var ul = document.createElement('ul');
+        ul.setAttribute('class','valve-list');
+        
+        for (i=0 ; i < room.servocount ; i++)
+        {
+            var li1 = document.createElement('li');
+            li1.setAttribute('class', 'valve');
+                
+            var h31 = document.createElement('p');
+            h31.setAttribute( 'id', "valve-txt-"+room.servos[i]);
+            h31.innerHTML = "30 &#8451; | "+verbalState(room.servos[i]);
+       
+            var pg1 = document.createElement('progress');
+            pg1.setAttribute( 'id', "progress-"+room.servos[i]);
+            pg1.setAttribute('class', 'valve-1');
+            pg1.setAttribute('max', 45);
+            pg1.setAttribute('value', 30);
+            
+            li1.appendChild(h31);
+            li1.appendChild(pg1);
+
+            ul.appendChild(li1);
+        }    
+         
         card.appendChild(h1);
         card.appendChild(newChart);
-        card.appendChild(p);
+        //card.appendChild(p);
+        card.appendChild(ul);
 
         var info_id = 'info_'+room.name;
 
@@ -156,32 +191,15 @@ requestRoom.onload = function () {
         chart = Rooms[room.id];
         var point;
 
+        // update graph 
+
         point = chart.series[0].points[0];
         point.update(Math.floor(room.actual*10.0)/10.0);
         
-        // change if statement to respond to valve settings once API changed
-/*
-        if (sensor.servostate == 0) //servo is open
-            newTitle = '<div style="color: red;">';
-        else
-            newTitle = '<div style="color: green;">';
-        newTitle += sensor.name+'</div>';
-        
-        chart.update({
-                yAxis: {
-                        title: {
-                            text: `${newTitle}`
-                        }
-                    },
-                });
-*/
+        // update large number temperature
+
         document.getElementById ("info_"+room.name).innerHTML=Math.floor(10*(room.actual))/10.0+"|"+room.target;
-        iHTML="Loop A : "+verbalState(room.servos[0]);
-        if(room.servocount>1)
-        {
-            iHTML+=" | Loop B : "+verbalState(room.servos[1]);
-        }
-        document.getElementById ("p_"+room.name).innerHTML = iHTML;
+        
       }
       
     });

@@ -119,6 +119,15 @@ void handleRoomTemps()
 
                     nameFound=true;
                     dumpRoom(roomIndex);
+                    byte s;
+                    for(byte i=0 ; (s=Rooms[roomIndex].Servos[i]) > 0 ; i++)
+                    {
+                        if (Rooms[roomIndex].actualTemp > Rooms[roomIndex].targetTemp+0.2 && servoArray[s].servoState == 0)
+                        {
+                            servoClose(s);
+                        }
+                    }
+
                     break;
                 }
             }

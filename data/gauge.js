@@ -1,4 +1,4 @@
-var gaugeOptions = {
+var gaugeOptionsWater = {
 
     chart: {
         type: 'solidgauge'
@@ -55,7 +55,7 @@ var gaugeOptions = {
 
 var Gauges = [];
 
-const app = document.getElementById('gauges_canvas');
+const appWater = document.getElementById('gauges_canvas');
 
 var request = new XMLHttpRequest();
 
@@ -78,7 +78,7 @@ request.onload = function () {
         card.setAttribute('class', 'card');
         card.setAttribute('id', 'card_'+sensor.name);
 
-        app.appendChild(card);
+        appWater.appendChild(card);
 
         var h1 = document.createElement('h1');
         h1.setAttribute('id', 'h1_'+sensor.name);
@@ -158,7 +158,7 @@ request.onload = function () {
   } else {
     const errorMessage = document.createElement('marquee');
     errorMessage.textContent = `Gah, it's not working!`;
-    app.appendChild(errorMessage);
+    appWater.appendChild(errorMessage);
   }
 }
 

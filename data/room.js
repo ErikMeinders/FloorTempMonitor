@@ -55,18 +55,22 @@ var gaugeOptions = {
 
 var Rooms = [];
 var servoState = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+//var sensorTemp = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+//var sensorText = ["","","","","","","","","","",""];
+var sensorInfo = [{},{},{},{},{},{},{},{},{},{},{}];
 
 const app = document.getElementById('rooms_canvas');
 
-var requestRoom = new XMLHttpRequest();
+var requestRoom  = new XMLHttpRequest();
 var requestServo = new XMLHttpRequest();
+var requestSensor= new XMLHttpRequest();
 
 // requestRoom.open('GET', APIGW+'room/list', true);
 
 function verbalState(i)
 {
-    sn="["+i+"]";
-
+    //sn="valve "+i;
+    sn="";
     console.log("display servoState for servo "+i+"from servoState"+servoState);
 
     // servoState array starts at 0, where 0 is relais 16
@@ -81,16 +85,37 @@ function verbalState(i)
         case 2:
             return sn+" Reflow";
         default:
-            return sn+" Specail"
+            return sn+" Special"
     }
 }
+var influx=30.0;
+requestSensor.onload = function()
+{
+    var data = JSON.parse(this.response);
 
+    if (requestSensor.status >= 200 && requestSensor.status < 400) {
+        data["sensors"].forEach(sensor => {
+            if (sensor.servonr > 0)
+            {     
+                temperature = Math.floor(sensor.temperature*10)/10;   
+                delta = Math.floor((influx - temperature)*10)/10;
+                sensorInfo[sensor.servonr] = {
+                    temperature: temperature,
+                    targetdelta: sensor.deltatemp,
+                    delta: delta,
+                    text: "&Delta;t<sub>"+sensor.servonr+"</sub>: "+influx+"-"+temperature+"="+delta+" | " + sensor.deltatemp  
+                };
+            }
+            if (sensor.name == "influx")
+                influx = Math.floor(sensor.temperature*10)/10;
+        });
+    }
+
+}
 requestServo.onload = function() {
 
     var data = JSON.parse(this.response);
-    console.log("servo.onload "+data["servos"]);
     if (requestServo.status >= 200 && requestServo.status < 400) {
-        console.log("assigning to servoState");
         servoState = data["servos"];
     }
 }
@@ -102,106 +127,128 @@ requestRoom.onload = function () {
 
   if (requestRoom.status >= 200 && requestRoom.status < 400) {
     data["rooms"].forEach(room => {
-      var chart;
+        var chart;
 
-      // when no chart for room, create one else just update based on IDs
+        // when no chart for room, create one else just update based on IDs
 
-      if( ( document.getElementById('container-'+room.name)) == null )
-      {
-        const card  = document.createElement('div');
-        card.setAttribute('class', 'card');
-        card.setAttribute('id', 'card_'+room.name);
-
-        app.appendChild(card);
-
-        var h1 = document.createElement('h1');
-        h1.setAttribute('id', 'h1_'+room.name);
-        h1.textContent = room.name;
-        
-        const newChart = document.createElement('div');
-        newChart.setAttribute("class","chart-container");
-        newChart.setAttribute("id", 'container-'+room.name);
-
-        //var p = document.createElement('p');
-        //p.setAttribute('id', 'p_'+room.name);
-        //p.textContent  =`Temperature: ${room.actual}`
-
-        var ul = document.createElement('ul');
-        ul.setAttribute('class','valve-list');
-        
-        for (i=0 ; i < room.servocount ; i++)
+        if( ( document.getElementById('container-'+room.name)) == null )
         {
-            var li1 = document.createElement('li');
-            li1.setAttribute('class', 'valve');
+            const card  = document.createElement('div');
+            card.setAttribute('class', 'card');
+            card.setAttribute('id', 'card_'+room.name);
+
+            app.appendChild(card);
+
+            var h1 = document.createElement('h1');
+            h1.setAttribute('id', 'h1_'+room.name);
+            h1.textContent = room.name;
+            
+            const newChart = document.createElement('div');
+            newChart.setAttribute("class","chart-container");
+            newChart.setAttribute("id", 'container-'+room.name);
+
+            var ul = document.createElement('ul');
+            ul.setAttribute('class','valve-list');
+            
+            for (i=0 ; i < room.servocount ; i++)
+            {
+                var li1 = document.createElement('li');
+                li1.setAttribute('class', 'valve');
+                    
+                var h31 = document.createElement('p');
+                h31.setAttribute( 'id', "valve-txt-"+room.servos[i]);
+                h31.innerHTML = "30 &#8451; | "+verbalState(room.servos[i]);
+        
+                var pg1 = document.createElement('meter');
+                pg1.setAttribute( 'id', "progress-"+room.servos[i]);
+                pg1.setAttribute('class', 'valve-1');
+                pg1.setAttribute('max', 35);
+                pg1.setAttribute('min', 15);
+                pg1.setAttribute('high',32);
+                pg1.setAttribute('low', 20);
+
+                pg1.setAttribute('value', 20);
                 
-            var h31 = document.createElement('p');
-            h31.setAttribute( 'id', "valve-txt-"+room.servos[i]);
-            h31.innerHTML = "30 &#8451; | "+verbalState(room.servos[i]);
-       
-            var pg1 = document.createElement('progress');
-            pg1.setAttribute( 'id', "progress-"+room.servos[i]);
-            pg1.setAttribute('class', 'valve-1');
-            pg1.setAttribute('max', 45);
-            pg1.setAttribute('value', 30);
+                li1.appendChild(h31);
+                li1.appendChild(pg1);
+
+                ul.appendChild(li1);
+            }    
             
-            li1.appendChild(h31);
-            li1.appendChild(pg1);
+            card.appendChild(h1);
+            card.appendChild(newChart);
+            card.appendChild(ul);
 
-            ul.appendChild(li1);
-        }    
-         
-        card.appendChild(h1);
-        card.appendChild(newChart);
-        //card.appendChild(p);
-        card.appendChild(ul);
+            var info_id = 'info_'+room.name;
 
-        var info_id = 'info_'+room.name;
-
-        Rooms[room.id] = Highcharts.chart('container-'+room.name, Highcharts.merge(gaugeOptions, {
-            yAxis: {
-                min: 15,
-                max: 25,
-                title: {
-                    text: `${room.name}`
-                }
-            },
-        
-            credits: {
-                enabled: false
-            },
-            
-            series: [{
-                name: 'C',
-                data: [Math.floor(room.actual)],
-                dataLabels: {
-                    format:
-                        '<div style="text-align:center">' +
-                        '<span style="font-size:25px">{y}&deg;C</span><br/>' +
-                        '<span style="font-size:10px;opacity:0.4" id='+info_id+'>degrees</span>' +
-                        '</div>'
+            Rooms[room.id] = Highcharts.chart('container-'+room.name, Highcharts.merge(gaugeOptions, {
+                yAxis: {
+                    min: 15,
+                    max: 25,
+                    title: {
+                        text: `${room.name}`
+                    }
                 },
-                tooltip: {
-                    valueSuffix: ' degrees'
-                }
-            }]
-        
-        }));
-      } else {
+            
+                credits: {
+                    enabled: false
+                },
+                
+                series: [{
+                    name: 'C',
+                    data: [Math.floor(room.actual)],
+                    dataLabels: {
+                        format:
+                            '<div style="text-align:center">' +
+                            '<span style="font-size:25px">{y}&deg;C</span><br/>' +
+                            '<span style="font-size:10px;opacity:0.4" id='+info_id+'>degrees</span>' +
+                            '</div>'
+                    },
+                    tooltip: {
+                        valueSuffix: ' degrees'
+                    }
+                }]
+            
+            }));
+        } 
 
         chart = Rooms[room.id];
-        var point;
 
-        // update graph 
-
-        point = chart.series[0].points[0];
-        point.update(Math.floor(room.actual*10.0)/10.0);
+        // update gauge with actual temperature
         
-        // update large number temperature
+        var t = Math.floor(room.actual*10.0)/10.0;
+        var point = chart.series[0].points[0];
+        var temptext="";
 
-        document.getElementById ("info_"+room.name).innerHTML=Math.floor(10*(room.actual))/10.0+"|"+room.target;
+        point.update(t);
         
-      }
-      
+        // update large display temperature
+
+        if (t > room.target+0.2)
+        {
+            temptext=t+">"+room.target+" [CLOSED]";
+        } else {
+            temptext=t+"<"+room.target+" [OPEN]";
+        }
+        document.getElementById ("info_"+room.name).innerHTML=temptext;
+        
+        // update UGFH loop info
+
+        for (i=0 ; i < room.servocount ; i++)
+        {
+            var t=sensorInfo[room.servos[i]].temperature;
+            var o=influx-sensorInfo[room.servos[i]].targetdelta;
+
+            console.log("updating progress for "+room.name+" with "+i+" "+servoState[ room.servos[i]] );
+            var h31=document.getElementById("valve-txt-"+room.servos[i]);
+            h31.innerHTML = sensorInfo[room.servos[i]].text+" | "+verbalState(room.servos[i]);
+        
+            var pg1=document.getElementById( "progress-"+room.servos[i]);
+            pg1.setAttribute('value', t);   
+            pg1.setAttribute('optimum', o);
+        }   
+        
+        
     });
   } else {
     const errorMessage = document.createElement('marquee');
@@ -211,17 +258,19 @@ requestRoom.onload = function () {
 }
 
 function refreshRoomData() {
+    requestRoom.open('GET', APIGW+'room/list', true);
+    requestRoom.send();
 
     requestServo.open('GET', APIGW+'servo/statusarray', true);
     requestServo.send();
 
-    requestRoom.open('GET', APIGW+'room/list', true);
-    requestRoom.send();
+    requestSensor.open('GET', APIGW+'sensor/list', true);
+    requestSensor.send();
 };
 
 // requestRoom.send();
 
-refreshRoomData();
+refreshRoomData(); // initial
 
-var timer = setInterval(refreshRoomData, 15 * 1000);
+var timer = setInterval(refreshRoomData, 15 * 1000); // repeat every 15s
 

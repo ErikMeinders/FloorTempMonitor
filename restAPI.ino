@@ -397,6 +397,8 @@ void apiInit()
   httpServer.on("/api/status", handleAPI_get_status);
 
   httpServer.on("/api/sensor/list", handleAPI_list_sensors);
+  httpServer.on("/api/sensor/status", handleAPI_list_sensors);
+
   httpServer.on("/api/sensor/describe", handleAPI_describe_sensor);
   httpServer.on("/api/sensor/temperature", handleAPI_get_temperature);
   httpServer.on("/api/sensor/calibrate", handleAPI_calibrate_sensor);

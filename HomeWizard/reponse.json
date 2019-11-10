@@ -1,0 +1,150 @@
+{
+  "status": "ok",
+  "version": "3.403",
+  "request": {
+    "route": "/get-sensors"
+  },
+  "response": {
+    "preset": 0,
+    "time": "2019-11-01 08:58",
+    "switches": [
+      {
+        "id": 0,
+        "name": "Mirror TV",
+        "type": "switch",
+        "status": "off",
+        "favorite": "no"
+      }
+    ],
+    "uvmeters": [
+
+    ],
+    "windmeters": [
+
+    ],
+    "rainmeters": [
+
+    ],
+    "thermometers": [
+      {
+        "id": 0,
+        "name": "Keuken",
+        "code": "11391347",
+        "model": 1,
+        "lowBattery": "no",
+        "version": 2.32,
+        "te": 21,
+        "hu": 36,
+        "te+": 22.1,
+        "te+t": "00:01",
+        "te-": 20.8,
+        "te-t": "05:43",
+        "hu+": 36,
+        "hu+t": "00:01",
+        "hu-": 35,
+        "hu-t": "00:41",
+        "outside": "yes",
+        "favorite": "no"
+      },
+      {
+        "id": 1,
+        "name": "Muziek kamer",
+        "code": "2815108",
+        "model": 1,
+        "lowBattery": "no",
+        "version": 2.32,
+        "te": 19,
+        "hu": 41,
+        "te+": 19.6,
+        "te+t": "00:19",
+        "te-": 18.8,
+        "te-t": "07:09",
+        "hu+": 43,
+        "hu+t": "00:01",
+        "hu-": 41,
+        "hu-t": "03:26",
+        "outside": "no",
+        "favorite": "no"
+      },
+      {
+        "id": 2,
+        "name": "Julius",
+        "code": "14974854",
+        "model": 1,
+        "lowBattery": "no",
+        "version": 2.32,
+        "te": 19.6,
+        "hu": 53,
+        "te+": 19.7,
+        "te+t": "08:11",
+        "te-": 19.2,
+        "te-t": "06:17",
+        "hu+": 58,
+        "hu+t": "08:21",
+        "hu-": 45,
+        "hu-t": "00:01",
+        "outside": "no",
+        "favorite": "no"
+      },
+      {
+        "id": 4,
+        "name": "Master Bedroom",
+        "channel": 2,
+        "model": 0,
+        "te": 18.4,
+        "hu": 45,
+        "te+": 19.5,
+        "te+t": "00:00",
+        "te-": 16.6,
+        "te-t": "08:24",
+        "hu+": 45,
+        "hu+t": "08:57",
+        "hu-": 38,
+        "hu-t": "03:11",
+        "outside": "no",
+        "favorite": "no"
+      }
+    ],
+    "weatherdisplays": [
+
+    ],
+    "energymeters": [
+
+    ],
+    "energylinks": [
+      {
+        "id": 0,
+        "favorite": "no",
+        "name": "EnergyLink",
+        "code": "735742",
+        "t1": "none",
+        "c1": 0,
+        "t2": "none",
+        "c2": 0,
+        "tariff": null,
+        "s1": null,
+        "s2": null,
+        "aggregate": null,
+        "used": null,
+        "gas": null,
+        "kwhindex": 0,
+        "wp": 0
+      }
+    ],
+    "heatlinks": [
+
+    ],
+    "hues": [
+
+    ],
+    "scenes": [
+
+    ],
+    "kakusensors": [
+
+    ],
+    "cameras": [
+
+    ]
+  }
+}

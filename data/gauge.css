@@ -1,20 +1,20 @@
 * {
 	box-sizing: border-box
-  }
+}
   
-  html {
+html {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	font-family: 'Dosis', sans-serif;
 	line-height: 1.6;
 	color: #666;
 	background: #F6F6F6;
-  }
+}
  
-  #gauges_canvas {
+#gauges_canvas {
 	max-width: 1200px;
 	margin: 0 auto;
-  }
+}
   
 .outer {
 	display: flex;
@@ -29,7 +29,7 @@
 
 .card {
   	margin: 1rem;
- 	background: white;
+ 	  background: white;
   	box-shadow: 2px 4px 25px rgba(0, 0, 0, .1);
   	border-radius: 12px;
   	overflow: hidden;
@@ -39,24 +39,24 @@
 	display: none;
 }
   
-  .card:hover {
+.card:hover {
 	box-shadow: 2px 8px 45px rgba(0, 0, 0, .15);
 	transform: translate3D(0, -2px, 0);
-  }
+}
   
-  @media screen and (min-width: 600px) {
+@media screen and (min-width: 600px) {
 	.card {
 	  flex: 1 1 calc(50% - 2rem);
 	}
-  }
+}
   
-  @media screen and (min-width: 900px) {
+@media screen and (min-width: 900px) {
 	.card {
 	  flex: 1 1 calc(33% - 2rem);
 	}
-  }
+}
   
-  h1 {
+h1 {
 	
 	text-align: center;
 	padding: 1.5rem 2.5rem;
@@ -64,11 +64,72 @@
 	margin: 0 0 2rem 0;
 	font-size: 1.5rem;
 	color: white;
-  }
+}
   
-  p {
-	
-	padding: 0 2.5rem 2.5rem;
+p {	
+	padding: 0 0.5rem 2.5rem;
 	margin: 0;
-  }
-  
+	border-radius: 6px;
+
+}
+
+@import "compass/css3";
+ h3 {
+  font-family: 'Dosis', sans-serif;
+  font-style: normal;
+	 font-size: 1em;
+}
+ meter, meter[role] {
+	 -webkit-appearance: none;
+	 -moz-appearance: none;
+	 appearance: none;
+	 border: none;
+	 background-size: auto;
+
+	 height: 25px;
+	 width: 250px;
+}
+ .valve-list {
+	 list-style: none;
+	 margin: 0;
+	 padding: 1em;
+}
+ .valve {
+	 margin-bottom: 1em;
+	 position: relative;
+}
+ .valve p {
+	 color: #030;
+	 left: 0.1em;
+	 line-height: 1;
+	 position: absolute;
+	 top: 0.3em;
+}
+ .valve ::-webkit-meter-value {
+	 -webkit-animation: bar-fill 2s;
+	 width: 0px;
+	 background-image: linear-gradient(to right, orange, red);
+
+}
+
+ .valve-1::-webkit-meter-optimum-value {
+   background-image: linear-gradient(to right, yellow, red);
+}
+
+.valve-1::-webkit-meter-suboptimum-value {
+	background-image: darkblue;
+}
+ .valve-1::-moz-meter-bar {
+   background-image: linear-gradient(to right, red , yellow);
+}
+ @-webkit-keyframes bar-fill {
+	 0% {
+		 width: 0;
+	}
+}
+ @keyframes bar-fill {
+	 0% {
+		 width: 0;
+	}
+}
+ 

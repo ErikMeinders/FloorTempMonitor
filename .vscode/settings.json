@@ -1,5 +1,5 @@
 {
-    "C_Cpp.intelliSenseEngineFallback": "Disabled",
+    "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "files.associations": {
         "__config": "cpp",
         "__tuple": "cpp",
@@ -13,6 +13,9 @@
         "bitset": "cpp",
         "functional": "cpp",
         "mutex": "cpp",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "filesystem": "cpp",
+        "regex": "cpp",
+        "cstddef": "cpp"
     }
 }

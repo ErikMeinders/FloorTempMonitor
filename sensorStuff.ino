@@ -74,7 +74,7 @@ void updateSensorData(int8_t devNr)
   dataStore[_LAST_DATAPOINT].tempC[devNr] = tempR;
 
   if (_SA[devNr].servoNr > 0) {
-    switch(_SA[devNr].servoState) {
+    switch(servoArray[_SA[devNr].servoNr].servoState) {
       case SERVO_IS_OPEN:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  30 +devNr;
                                 break;
       case SERVO_IN_LOOP:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =   5 +devNr;
@@ -87,7 +87,7 @@ void updateSensorData(int8_t devNr)
 
   } else {
     dataStore[_LAST_DATAPOINT].servoStateV[devNr] = 0;
-  } // switch()
+  }
   
 } // updateSensorData()
 
@@ -146,8 +146,8 @@ void handleSensors()
   {
     for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) 
     {
-      timeThis(updateSensorData(sensorNr));
       yield();
+      timeThis(updateSensorData(sensorNr));
     }
       
   }
@@ -165,7 +165,7 @@ void printSensorArray()
            , _SA[s].name
            , _SA[s].tempOffset
            , _SA[s].tempFactor);
-     _SA[s].servoState = SERVO_IS_OPEN; // initial state
+     servoArray[_SA[s].servoNr].servoState = SERVO_IS_OPEN; // initial state
   }
 } // printSensorArray()
 

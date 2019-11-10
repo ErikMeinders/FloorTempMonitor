@@ -2,6 +2,7 @@
 **  Program   : FloorTempMonitor
 */
 #define _FW_VERSION "v0.7.0 (27-10-2019)"
+
 /*
 **  Copyright (c) 2019 Willem Aandewiel / Erik Meinders
 **
@@ -43,6 +44,7 @@
 #include "Debug.h"
 #include "timing.h"
 #include "networkStuff.h"
+#include "FloorTempMonitor.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
@@ -58,24 +60,13 @@
 #define LED_ON                HIGH
 #define LED_OFF               LOW
 
-#define ONE_WIRE_BUS          0     // Data Wire is plugged into GPIO-00
-#define _MAX_SENSORS          18    // 16 Servo's/Relais + heater in & out
-#define _MAX_NAME_LEN         12
-#define _FIX_SETTINGSREC_LEN  85
-#define _MAX_DATAPOINTS       120   // 24 hours every 15 minutes - more will crash the gui
-#define _LAST_DATAPOINT      (_MAX_DATAPOINTS -1)
-#define _REFLOW_TIME         (5*60000) // 5 minutes
-#define _DELTATEMP_CHECK      1     // when to check the deltaTemp's in minutes
-#define _HOUR_CLOSE_ALL       3     // @03:00 start closing servos one-by-one. Don't use 1:00!
-#define _MIN                  60000 // milliSecs in a minute
-
 #define _PLOT_INTERVAL        120    // in seconds
 
 DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
 
 DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
-DECLARE_TIMER(sensorPoll,   15) // update sensors every 20s 
+DECLARE_TIMERm(sensorPoll,   1) // update sensors every 20s 
 
 DECLARE_TIMERm(UptimeDisplay,1)
 
@@ -120,31 +111,9 @@ TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ a
 
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
-enum   e_servoState { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0_CLOSE, ERROR };
-
-typedef struct _sensorStruct {
-  int8_t    index;
-  char      sensorID[20];
-  uint8_t   position;
-  char      name[_MAX_NAME_LEN];
-  float     tempOffset;
-  float     tempFactor;
-  int8_t    servoNr;
-  float     deltaTemp;      //-- in S0 -> closeTime
-  uint8_t   closeCount;
-  float     tempC;          //-- not in sensors.ini
-  uint8_t   servoState;     //-- not in sensors.ini
-  uint32_t  servoTimer;     //-- not in sensors.ini
-} sensorStruct;
-
-typedef struct _dataStruct{
-  uint32_t  timestamp;
-  float     tempC[_MAX_SENSORS];
-  int8_t    servoStateV[_MAX_SENSORS];
-} dataStruct;
-
 sensorStruct  sensorArray[_MAX_SENSORS];
 dataStruct    dataStore[_MAX_DATAPOINTS+1];
+servoStruct   servoArray[_MAX_SERVOS];
 
 char      cMsg[150];
 String    pTimestamp;
@@ -153,16 +122,10 @@ uint32_t  startTimeNow;
 
 int8_t    noSensors;
 int8_t    cycleNr             = 0;
-uint8_t   wsClientID;
 int8_t    lastSaveHour        = 0;
-bool      connectedToMux      = false;
 uint8_t   connectionMuxLostCount    = 0;
 bool      SPIFFSmounted       = false;
-bool      readRaw             = false;
 bool      cycleAllSensors     = false;
-bool      onlyUpdateLastPoint = false;
-bool      onlyUpdateSensors   = false;
-bool      onlyUpdateServos    = false;
 
 
 
@@ -286,7 +249,7 @@ void setup()
     sprintf(_SA[s].sensorID, "0x2800ab0000%02x", (s*3) + 3);   // TESTDATA
     _SA[s].servoNr     =  (s+1);                               // TESTDATA
     _SA[s].position    = s+2;                                  // TESTDATA
-    _SA[s].closeCount  =  0;                                   // TESTDATA
+    //_SA[s].closeCount  =  0;                                   // TESTDATA
     _SA[s].deltaTemp   = 15 + s;                               // TESTDATA
     _SA[s].tempFactor  = 1.0;                                  // TESTDATA
     _SA[s].servoTimer  = millis();                             // TESTDATA
@@ -308,31 +271,48 @@ void setup()
   printSensorArray();
   Debugln("========================================================================================");
 
-  readDataPoints();
+  //readDataPoints();
 
-  connectedToMux = setupI2C_Mux();
+  servoInit();
+  setupI2C_Mux();
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
+  
+  roomsInit();
 
 } // setup()
 
+void erix()
+{
+  DebugTf("Aangeroepen!\n");
+
+}
+int8_t fnindex=0;
 
 //===========================================================================================
 void loop()
 {
-  handleHeartBeat();                  // blink GREEN led
+  timeThis( handleHeartBeat() );       // blink GREEN led
   
   timeThis( MDNS.update() );
   timeThis( httpServer.handleClient() );
   timeThis( handleNTP() );
-  timeThis( checkI2C_Mux() );         // maybe call setupI2C_Mux() in the process (if needed) ..
-  timeThis( handleSensors() );        // update upper part of screen
-  timeThis( checkI2C_Mux() );         // handle Sensors may take a long time ..
-  timeThis( handleDatapoints() );     // update graph in lower screen half
-  
-  timeThis( checkDeltaTemps() );
-  timeThis( handleCycleServos() );
 
+  timeThis( checkI2C_Mux() );         //  call setupI2C_Mux() 
+  timeThis( handleSensors() );        // update return water temperature information
+  
+  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
+  timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
+  
+  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
+  timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
+
+  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
+  timeThis( handleDatapoints() );     // update datapoint for trends
+
+  timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
+
+  timeThis( servosAlign() );
 
 } 

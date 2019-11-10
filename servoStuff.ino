@@ -10,6 +10,7 @@
 */
 
 //#include <Wire.h>         // Include the I2C library (required)
+
 #include "I2C_MuxLib.h"
 
 #define CLOSE_SERVO         HIGH
@@ -20,6 +21,71 @@ I2CMUX    I2cExpander;   //Create instance of the I2CMUX object
 
 static uint32_t scanTimer;          // 
 
+DECLARE_TIMER(servoAlignment,60);
+
+void servoInit()
+{
+  for(uint8_t i=0 ; i < _MAX_SERVOS ; i++)
+  {
+    servoArray[i].servoState = SERVO_IS_OPEN;
+    servoArray[i].closeCount = 0;
+    servoArray[i].servoTimer = 0;
+  }
+}
+
+void servoClose(uint8_t s)
+{
+  I2cExpander.digitalWrite(s, CLOSE_SERVO); 
+  delay(100); 
+  servoArray[s].servoState = SERVO_IS_CLOSED;
+  servoArray[s].servoTimer = millis();
+  DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s, _PULSE_TIME);
+}
+
+void servoOpen(uint8_t s)
+{
+  I2cExpander.digitalWrite(s, OPEN_SERVO); 
+  delay(100); 
+  servoArray[s].servoState = SERVO_IN_LOOP;
+  servoArray[s].closeCount++;
+  servoArray[s].servoTimer = millis();
+  DebugTf("[%2d] change to LOOP state for [%d] minutes\n", s, (_REFLOW_TIME / _MIN));
+}
+
+void servoAlign(uint8_t s)
+{
+  // compare servo state with administrated servo state
+  
+  bool actualOpen = (I2cExpander.digitalRead(s) ==  OPEN_SERVO);
+  bool desiredOpen = false;
+
+  // dirty trick for servo 15
+
+  if (s > _MAX_SERVOS)
+    desiredOpen=true;
+  else if (servoArray[s].servoState == SERVO_IS_OPEN || servoArray[s].servoState == SERVO_IN_LOOP)
+    desiredOpen=true;
+  
+  if (actualOpen != desiredOpen) {
+    DebugTf("Misalignment in servo %d [actual=%c, desired=%c]\n", s, actualOpen ? 'T':'F', desiredOpen?'T':'F');
+    I2cExpander.digitalWrite(s, desiredOpen ? OPEN_SERVO : CLOSE_SERVO); 
+  }
+}
+
+void servosAlign()
+{
+  if (DUE(servoAlignment))
+  {
+    DebugTf("Aligning servos ...\n");
+  
+    for(uint8_t i=0 ; i < _MAX_SERVOS ; i++)
+    {
+      yield();
+      servoAlign(i);
+    }
+    servoAlign(15);
+  }
+}
 //=======================================================================
 void checkDeltaTemps() {
   if ((millis() - scanTimer) > (_DELTATEMP_CHECK * _MIN)) {
@@ -52,7 +118,7 @@ void checkDeltaTemps() {
     }
     Debugln();
     //DebugTf("reflowTime[%d]\n", (_REFLOW_TIME / _MIN));
-    switch(_SA[s].servoState) {
+    switch(servoArray[_SA[s].servoNr].servoState) {
       case SERVO_IS_OPEN:  
                   if (_SA[0].tempC > HEATER_ON_TEMP) {
                     //--- only if heater is heating -----
@@ -67,39 +133,25 @@ void checkDeltaTemps() {
                                                       , _SA[s].deltaTemp
                                                       , (_SA[0].tempC - _SA[s].tempC) );
                     if ( _SA[s].deltaTemp > (_SA[0].tempC - _SA[s].tempC)) {
-                      I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO); 
-                      delay(100); 
-                      _SA[s].servoState = SERVO_IS_CLOSED;
-                      _SA[s].servoTimer = millis();
-                      DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s
-                                                                               , (pulseTime / _MIN));
+                      servoClose(_SA[s].servoNr);
                     }
                     //--- heater is not heating ... -----
                   } else {  //--- open Servo/Valve ------
                     DebugTln("Flux In temp < HEATER_ON_TEMP*C");
-                    I2cExpander.digitalWrite(_SA[s].servoNr, OPEN_SERVO);  
-                    delay(100);
-                    _SA[s].servoState = SERVO_IS_OPEN;
-                    _SA[s].servoTimer = 0;
+                    servoOpen(_SA[s].servoNr);  
                   }
                   break;
                   
       case SERVO_IS_CLOSED: 
-                  if ((millis() - _SA[s].servoTimer) > pulseTime) {
-                    I2cExpander.digitalWrite(_SA[s].servoNr, OPEN_SERVO); 
-                    delay(100); 
-                    _SA[s].servoState = SERVO_IN_LOOP;
-                    _SA[s].closeCount++;
-                    _SA[s].servoTimer = millis();
-                    DebugTf("[%2d] change to LOOP state for [%d] minutes\n", s
-                                                                           , (_REFLOW_TIME / _MIN));
+                  if ((millis() - servoArray[_SA[s].servoNr].servoTimer) > pulseTime) {
+                    servoOpen(_SA[s].servoNr);
                   }
                   break;
                   
       case SERVO_IN_LOOP:
-                  if ((millis() - _REFLOW_TIME) > _SA[s].servoTimer) {
-                    _SA[s].servoState = SERVO_IS_OPEN;
-                    _SA[s].servoTimer = 0;
+                  if ((millis() - _REFLOW_TIME) > servoArray[_SA[s].servoNr].servoTimer) {
+                    servoArray[_SA[s].servoNr].servoState = SERVO_IS_OPEN;
+                    servoArray[_SA[s].servoNr].servoTimer = 0;
                     DebugTf("[%2d] change to normal operation (OPEN state)\n", s);
                   }
                   break;
@@ -117,7 +169,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
   if (cycleNr == 0) {
     cycleNr = 1;  // skip Flux In(0)
   } else {
-    if ((millis() - _SA[cycleNr].servoTimer) < _REFLOW_TIME) {
+    if ((millis() - servoArray[_SA[cycleNr].servoNr].servoTimer) < _REFLOW_TIME) {
       return;
     }
   }
@@ -131,29 +183,29 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
     }
     Debugln();
   
-    if (_SA[s].closeCount == 0) {  // never closed last 24 hours ..
-      switch(_SA[s].servoState) {  
+    if (servoArray[_SA[s].servoNr].closeCount == 0) {  // never closed last 24 hours ..
+      switch(servoArray[_SA[s].servoNr].servoState) {  
         case SERVO_IS_CLOSED:
         case SERVO_IN_LOOP:
                  DebugTf("[%2d] CYCLE [%s] SKIP!\n", s, _SA[s].name);
-                _SA[s].closeCount++;
+                servoArray[_SA[s].servoNr].closeCount++;
                 s++;  // skip this one, is already closed or in loop
                 break;
                 
         case SERVO_IS_OPEN:
                 I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO);  
-                _SA[s].servoState = SERVO_COUNT0_CLOSE;
-                _SA[s].servoTimer = millis();
+                servoArray[_SA[s].servoNr].servoState = SERVO_COUNT0_CLOSE;
+                servoArray[_SA[s].servoNr].servoTimer = millis();
                 DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%lu] seconds\n", s
                                                              , _SA[s].name
-                                                             , (_REFLOW_TIME - (millis() - _SA[s].servoTimer)) / 1000);
+                                                             , (_REFLOW_TIME - (millis() - servoArray[_SA[s].servoNr].servoTimer)) / 1000);
                 break;
                 
         case SERVO_COUNT0_CLOSE:
-                if ((millis() - _SA[s].servoTimer) > _REFLOW_TIME) {
+                if ((millis() - servoArray[_SA[s].servoNr].servoTimer) > _REFLOW_TIME) {
                   I2cExpander.digitalWrite(_SA[s].servoNr, OPEN_SERVO);  
-                  _SA[s].servoState = SERVO_IS_OPEN;
-                  _SA[s].closeCount++;
+                  servoArray[_SA[s].servoNr].servoState = SERVO_IS_OPEN;
+                  servoArray[_SA[s].servoNr].closeCount++;
                   DebugTf("[%2d] CYCLE [%s] to OPEN state\n", s, _SA[s].name);
                   }
                   s++;
@@ -162,7 +214,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
         default:  // it has some other state...
                   DebugTf("[%2d] CYCLE [%s] has an unknown state\n", s, _SA[s].name);
                   // check again after _REFLOW_TIME
-                  _SA[s].servoTimer = millis(); 
+                  servoArray[_SA[s].servoNr].servoTimer = millis(); 
                  
       } // switch ..
       cycleNr = s;
@@ -175,7 +227,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
   if (s >= noSensors) {
     DebugTln("Done Cycling through all Servo's! => Reset closeCount'ers");
     for (s=0; s<noSensors; s++) {
-      _SA[s].closeCount = 0;
+      servoArray[_SA[s].servoNr].closeCount = 0;
     }
     cycleAllSensors = false;
   }
@@ -198,7 +250,6 @@ void handleCycleServos()
 } // handleCycleServos()
 
 
-
 //===========================================================================================
 void checkI2C_Mux()
 {
@@ -217,19 +268,28 @@ void checkI2C_Mux()
   }
   
   //DebugTln("getWhoAmI() ..");
-  whoAmI       = I2cExpander.getWhoAmI();
-  if (!connectedToMux || (whoAmI != I2C_MUX_ADDRESS)) {
-    connectionMuxLostCount++;
-    digitalWrite(LED_RED, LED_ON);
-    connectedToMux = setupI2C_Mux();
-    if (connectedToMux)
-          errorCountUp = 0;
-    else  errorCountUp++;
-    return;
-  }
-  if (I2cExpander.digitalRead(0) == CLOSE_SERVO) {
-    I2cExpander.digitalWrite(0, OPEN_SERVO);
-  }
+  if( I2cExpander.connectedToMux())
+  {
+    if ( (whoAmI = I2cExpander.getWhoAmI()) == I2C_MUX_ADDRESS)
+    {
+      if (I2cExpander.digitalRead(0) == CLOSE_SERVO)
+        I2cExpander.digitalWrite(0, OPEN_SERVO);
+      return;
+    } else
+      DebugTf("Connected to different I2cExpander %x",whoAmI );
+  } else 
+      DebugTf("Connection lost to I2cExpander");
+  
+  connectionMuxLostCount++;
+  digitalWrite(LED_RED, LED_ON);
+
+  if (setupI2C_Mux())
+    errorCountUp = 0;
+  else  
+    errorCountUp++;
+  
+  
+
   //DebugTln("getMajorRelease() ..");
   //majorRelease = I2cExpander.getMajorRelease();
   //DebugTln("getMinorRelease() ..");
@@ -290,7 +350,7 @@ bool setupI2C_Mux()
   //-- reset state of all servo's --------------------------
   for (int s=0; s<noSensors; s++) {
     if (_SA[s].servoNr > 0) {
-      if (_SA[s].servoState == SERVO_IS_CLOSED) {
+      if (servoArray[_SA[s].servoNr].servoState == SERVO_IS_CLOSED) {
         I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO); 
         DebugTf("(re)Close servoNr[%d] for sensor[%s]\n", _SA[s].servoNr, _SA[s].name);
       } 

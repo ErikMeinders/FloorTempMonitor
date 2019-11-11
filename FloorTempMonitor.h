@@ -52,10 +52,4 @@ typedef struct _servoStruct {
 
 } servoStruct;
 
-typedef struct _dataStruct{
-  uint32_t  timestamp;
-  float     tempC[_MAX_SENSORS];
-  int8_t    servoStateV[_MAX_SENSORS];
-} dataStruct;
-
 #endif

@@ -1,7 +1,7 @@
 /*
 **  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v0.7.0 (27-10-2019)"
+#define _FW_VERSION "v0.9.1 (11-11-2019)"
 
 /*
 **  Copyright (c) 2019 Willem Aandewiel / Erik Meinders
@@ -62,8 +62,6 @@
 
 #define _PLOT_INTERVAL        120    // in seconds
 
-DECLARE_TIMER(graphUpdate, _PLOT_INTERVAL)
-
 DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
 DECLARE_TIMERm(sensorPoll,   1) // update sensors every 20s 
@@ -112,7 +110,6 @@ TimeChangeRule *tcr;         // pointer to the time change rule, use to get TZ a
 const char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
 sensorStruct  sensorArray[_MAX_SENSORS];
-dataStruct    dataStore[_MAX_DATAPOINTS+1];
 servoStruct   servoArray[_MAX_SERVOS];
 
 char      cMsg[150];
@@ -302,14 +299,9 @@ void loop()
   timeThis( checkI2C_Mux() );         //  call setupI2C_Mux() 
   timeThis( handleSensors() );        // update return water temperature information
   
-  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
   timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
   
-  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
   timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
-
-  timeThis( checkI2C_Mux() );         // extra call to handleMUX as handle Sensors may take a long time ..
-  timeThis( handleDatapoints() );     // update datapoint for trends
 
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 

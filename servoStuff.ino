@@ -83,7 +83,7 @@ void servosAlign()
       yield();
       servoAlign(i);
     }
-    servoAlign(15);
+    //servoAlign(15);
   }
 }
 //=======================================================================
@@ -136,15 +136,19 @@ void checkDeltaTemps() {
                       servoClose(_SA[s].servoNr);
                     }
                     //--- heater is not heating ... -----
-                  } else {  //--- open Servo/Valve ------
-                    DebugTln("Flux In temp < HEATER_ON_TEMP*C");
-                    servoOpen(_SA[s].servoNr);  
-                  }
+                  } 
                   break;
                   
       case SERVO_IS_CLOSED: 
+                  // if closed for more than pulseTime, open (via reflow)
                   if ((millis() - servoArray[_SA[s].servoNr].servoTimer) > pulseTime) {
                     servoOpen(_SA[s].servoNr);
+                  }
+                  // if not heating, open (via reflow)
+                  if (_SA[0].tempC < HEATER_ON_TEMP)
+                  {  //--- open Servo/Valve ------
+                    DebugTln("Flux In temp < HEATER_ON_TEMP*C");
+                    servoOpen(_SA[s].servoNr);  
                   }
                   break;
                   

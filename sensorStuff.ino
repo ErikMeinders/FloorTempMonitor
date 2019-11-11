@@ -9,11 +9,6 @@
 ***************************************************************************
 */
 
-// made changes to store raw data in dataStore
-
-// apply calibration when storing in struct (used by API and controller)
-// and when displaying
-
 // function to print a device address
 //===========================================================================================
 void getSensorID(DeviceAddress deviceAddress, char* devID)
@@ -56,9 +51,10 @@ float _calibrated(float tempR, int8_t devNr)
   return (tempR + _SA[devNr].tempOffset) * _SA[devNr].tempFactor;
 }
 
-// updateSensorData updates _S as well as dataStore
+// function to print the temperature for a device
 
 //===========================================================================================
+
 void updateSensorData(int8_t devNr)
 {
   float tempR = getRawTemp(devNr);
@@ -67,53 +63,7 @@ void updateSensorData(int8_t devNr)
   // store calibrated temp in struct _S
 
   _SA[devNr].tempC = tempC;
-
-  // overwrite _LAST_DATAPOINT data in dataStore
-
-  dataStore[_LAST_DATAPOINT].timestamp = now();
-  dataStore[_LAST_DATAPOINT].tempC[devNr] = tempR;
-
-  if (_SA[devNr].servoNr > 0) {
-    switch(servoArray[_SA[devNr].servoNr].servoState) {
-      case SERVO_IS_OPEN:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =  30 +devNr;
-                                break;
-      case SERVO_IN_LOOP:       dataStore[_LAST_DATAPOINT].servoStateV[devNr] =   5 +devNr;
-                                break;
-      case SERVO_COUNT0_CLOSE:  dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -20 +devNr;
-                                break;
-      case SERVO_IS_CLOSED:     dataStore[_LAST_DATAPOINT].servoStateV[devNr] = -25 +devNr;
-                                break;
-    } // switch() 
-
-  } else {
-    dataStore[_LAST_DATAPOINT].servoStateV[devNr] = 0;
-  }
-  
-} // updateSensorData()
-
-
-// function to print the temperature for a device
-
-//===========================================================================================
-void handleDatapoints()
-{
-  // time to refresh display of datapoints 
-  
-  if ( DUE(graphUpdate) ) {
-        
-    // after displaying, shift all points
-    
-    timeThis(shiftUpDatapoints());
-  }
-
-  // time for hourly writing datapoints
-  
-  if (hour() != lastSaveHour) {
-      lastSaveHour = hour();
-      writeDataPoints();
-  }
 }
-
 
 //===========================================================================================
 boolean _needToPoll()
@@ -188,104 +138,7 @@ void sortSensors()
 } // sortSensors()
 
 //=======================================================================
-void shiftUpDatapoints()
-{
-  for (int p = 0; p < _LAST_DATAPOINT; p++) {
-    dataStore[p] = dataStore[(p+1)];
-  }
-  
-} // shiftUpDatapoints()
 
-
-//=======================================================================
-int8_t editSensor(int8_t recNr)
-{
-  sensorStruct tmpRec = readIniFileByRecNr(recNr);
-  if (tmpRec.sensorID[0] == '-') {
-    DebugTf("Error: something wrong reading record [%d] from [/sensor.ini]\n", recNr);
-    return -1;
-  }
-  sprintf(cMsg, "msgType=editSensor,sensorNr=%d,sID=%s,sName=%s,sPosition=%d,sTempOffset=%.6f,sTempFactor=%.6f,sServo=%d,sDeltaTemp=%.1f"
-                              , recNr
-                              , tmpRec.sensorID
-                              , tmpRec.name
-                              , tmpRec.position
-                              , tmpRec.tempOffset
-                              , tmpRec.tempFactor
-                              , tmpRec.servoNr
-                              , tmpRec.deltaTemp);
-   DebugTln(cMsg);                           
-   return recNr;
-  
-} // editSensor()
-
-//=======================================================================
-void updSensor(char *payload)
-{
-  char*   pch;
-  int8_t  recNr;
-  sensorStruct tmpRec;
-  
-  DebugTf("payload[%s] \n", payload);
-
-  pch = strtok (payload, ",");
-  while (pch != NULL)  {
-    DebugTf ("%s ==> \n",pch);
-    if (strncmp(pch, "updSensorNr", 11) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        recNr = String(cMsg).toInt();
-        tmpRec = readIniFileByRecNr(recNr);
-    } else if (strncmp(pch, "sensorID", 8) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        memcpy(tmpRec.sensorID, cMsg, sizeof(cMsg));
-    } else if (strncmp(pch, "name", 4) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        memcpy(tmpRec.name, cMsg, sizeof(cMsg));
-        String(tmpRec.name).trim();
-        if (String(tmpRec.name).length() < 2) {
-          sprintf(tmpRec.name, "%s", "unKnown");
-        }
-    } else if (strncmp(pch, "position", 8) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        tmpRec.position = String(cMsg).toInt();
-      //if (tmpRec.position <  0) tmpRec.position = 0;
-        if (tmpRec.position > 99) tmpRec.position = 99;
-    } else if (strncmp(pch, "tempOffset", 10) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        tmpRec.tempOffset = String(cMsg).toFloat();
-    } else if (strncmp(pch, "tempFactor", 10) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        tmpRec.tempFactor = String(cMsg).toFloat();
-    } else if (strncmp(pch, "servoNr", 7) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        tmpRec.servoNr = String(cMsg).toInt();
-        if (tmpRec.servoNr < -1)  tmpRec.servoNr = -1;
-        if (tmpRec.servoNr > 15)  tmpRec.servoNr = 15;
-    } else if (strncmp(pch, "deltaTemp", 9) == 0) { 
-        sprintf(cMsg, "%s", splitFldVal(pch, '='));
-        tmpRec.deltaTemp = String(cMsg).toFloat();
-        if (tmpRec.deltaTemp < 0.0) tmpRec.deltaTemp = 20.0;
-    } else {
-        Debugf("Don't know what to do with[%s]\n", pch);
-    }
-    pch = strtok (NULL, ",");
-  }
-
-  Debugf("tmpRec ID[%s], name[%s], position[%d]\n   tempOffset[%.6f], tempFactor[%.6f]\n   Servo[%d], deltaTemp[%.1f]\n"
-                                                , tmpRec.sensorID
-                                                , tmpRec.name
-                                                , tmpRec.position
-                                                , tmpRec.tempOffset
-                                                , tmpRec.tempFactor
-                                                , tmpRec.servoNr
-                                                , tmpRec.deltaTemp);
-
-  recNr = updateIniRec(tmpRec);
-  if (recNr >= 0) {
-    editSensor(recNr);
-  }
-  
-} // updSensor()
 
 //===========================================================================================
 void setupDallasSensors()
@@ -405,30 +258,6 @@ void setupDallasSensors()
   } // for noSensors ...
   
 } // setupDallasSensors()
-
-//=======================================================================
-static char splitValue[50];
-
-char* splitFldVal(char *pair, char del)
-{
-  bool    isVal = false;
-  int8_t  inxVal = 0;
-
-  DebugTf("pair[%s] (length[%d]) del[%c] \n", pair, strlen(pair), del);
-
-  for(int i=0; i<(int)strlen(pair); i++) {
-    if (isVal) {
-      splitValue[inxVal++] = pair[i];
-      splitValue[inxVal]   = '\0';
-    } else if (pair[i] == del) {
-      isVal   = true;
-      inxVal  = 0;
-    }
-  }
-  DebugTf("Value [%s]\n", splitValue);
-  return splitValue;
-  
-} // splitFldVal()
 
 /***************************************************************************
 *

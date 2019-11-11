@@ -112,8 +112,6 @@ bool appendIniFile(int8_t index, char* devID)
 
 } // appendIniFile()
 
-
-//===========================================================================================
 int8_t updateIniRec(sensorStruct newRec)
 {
   char    fixedRec[150];
@@ -180,7 +178,6 @@ int8_t updateIniRec(sensorStruct newRec)
 
 } // updateIniRec()
 
-
 //===========================================================================================
 bool readIniFile(int8_t index, char* devID)
 {
@@ -228,177 +225,6 @@ bool readIniFile(int8_t index, char* devID)
   return false;
 
 } // readIniFile()
-
-
-//===========================================================================================
-sensorStruct readIniFileByRecNr(int8_t &recNr)
-{
-  File          dataFile;
-  sensorStruct  tmpRec;
-  String        tmpS;
-  int8_t        recsInFile;
-  
-  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
-
-  if (recNr < 0)  recNr = 0;
-
-  DebugTf("From '/sensors.ini' .. read recNr[%d] \r\n", recNr);
-  
-  sprintf(tmpRec.sensorID, "%s", "-");
-
-  if (!SPIFFSmounted) {
-    DebugTln("No SPIFFS filesystem..\r");
-    return tmpRec;
-  }
-
-  dataFile = SPIFFS.open("/sensors.ini", "r");
-  //--- don't read byond last record!
-  recsInFile  = ((dataFile.size() +1) / _FIX_SETTINGSREC_LEN);  // records in file
-  DebugTf("fileSize[%d] bytes, records in file[%d]\n", dataFile.size()
-                                                     , recsInFile);
-  while ((recNr > 0 ) && (recNr > (recsInFile -1))) {
-    recNr--;
-    DebugTf("step down to recNr[%d]\n", recNr);
-  }
-  
-  dataFile.seek((recNr * _FIX_SETTINGSREC_LEN), SeekSet);
-  while (dataFile.available() > 0) {
-    tmpS                = dataFile.readStringUntil(';'); // first field is sensorID
-    tmpS.trim();
-    DebugTf("Processing [%s]\n", tmpS.c_str());
-    sprintf(tmpRec.sensorID, "%s", tmpS.c_str());
-    tmpRec.position     = dataFile.readStringUntil(';').toInt();
-    tmpS                = dataFile.readStringUntil(';');
-    tmpS.trim();
-    sprintf(tmpRec.name, "%s", tmpS.c_str());
-    tmpRec.tempOffset   = dataFile.readStringUntil(';').toFloat();
-    tmpRec.tempFactor   = dataFile.readStringUntil(';').toFloat();
-    tmpRec.servoNr      = dataFile.readStringUntil(';').toInt();
-    tmpRec.deltaTemp    = dataFile.readStringUntil(';').toFloat();
-    dataFile.close();
-    digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
-    return tmpRec;
-  }
-
-  dataFile.close();
-
-  DebugTln(" .. Done not found!\r");
-
-  return tmpRec;
-
-} // readIniFileByRecNr()
-
-
-//===========================================================================================
-bool writeDataPoints()
-{
-  int recsOut = 0;
-  
-  DebugT("writeDataPoints(/dataPoints.csv) ..");
-  
-  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
-
-  if (!SPIFFSmounted) {
-    Debugln("\nNo SPIFFS filesystem..ABORT!!!\r");
-    return false;
-  }
-
-  // --- check if the file exists and can be opened ---
-  File dataFile  = SPIFFS.open("/dataPoints.csv", "w");    // open for writing
-  if (!dataFile) {
-    DebugTln("\nSome error opening [/dataPoints.csv] .. bailing out!");
-    return false;
-  } // if (!dataFile)
-
-  yield();
-  recsOut = 0;
-  for (int p=_LAST_DATAPOINT; p >= 0 ; p--) {  // last dataPoint is alway's zero
-    //dataFile.print(p);                        dataFile.print(";");
-    if (dataStore[p].timestamp == 0) {
-      continue; // skip!
-    }
-    recsOut++;
-    dataFile.print(dataStore[p].timestamp);
-    dataFile.print(";");
-    for(int s=0; s < noSensors; s++) {
-      dataFile.print(s);            
-      dataFile.print(";");
-      dataFile.print(dataStore[p].tempC[s]);
-      dataFile.print(";");
-      dataFile.print(dataStore[p].servoStateV[s]);
-      dataFile.print(";");
-    }
-    dataFile.println();
-  }
-  dataFile.println("EOF");
-
-  dataFile.close();
-
-  Debugf("wrote [%d] records! .. Done\r\n", recsOut);
-
-  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
-
-  return true;
-
-} // writeDataPoints()
-
-
-//===========================================================================================
-bool readDataPoints()
-{
-  String tmpS;
-  float tempC;
-  int32_t sID, timeStamp, servoStateV;
-  int16_t plotNr, recsIn;
-
-  DebugT("readDataPoints(/dataPoints.csv) ..");
-
-  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
-
-  if (!SPIFFSmounted) {
-    Debugln("\nNo SPIFFS filesystem..ABORT!!!\r");
-    return false;
-  }
-
-  // --- check if the file exists and can be opened ---
-  File dataFile  = SPIFFS.open("/dataPoints.csv", "r");    // open for reading
-  if (!dataFile) {
-    Debugln("\nSome error opening [/dataPoints.csv] .. bailing out!");
-    return false;
-  } // if (!dataFile)
-
-  plotNr  = _MAX_DATAPOINTS;
-  recsIn  = 0;
-  while ((dataFile.available() > 0) && (plotNr > 0)) {
-    plotNr--;
-    yield();
-    tmpS     = dataFile.readStringUntil('\n');
-    //Debugf("Record[%d][%s]\n", plotNr, tmpS.c_str());
-    if (tmpS == "EOF") break;
-    recsIn++;
-    
-    extractFieldFromCsv(tmpS, timeStamp);
-    dataStore[plotNr].timestamp = timeStamp;
-    //DebugTf("[%d][%d] ", plotNr, dataStore[plotNr].timestamp);
-    while ((timeStamp > 1) && extractFieldFromCsv(tmpS, sID)) {
-      yield();
-      extractFieldFromCsv(tmpS, tempC);
-      dataStore[plotNr].tempC[sID] = tempC;
-      extractFieldFromCsv(tmpS, servoStateV);
-      dataStore[plotNr].servoStateV[sID] = servoStateV;
-      //Debugf(",T[%4.2f],V[%2d]", dataStore[plotNr].tempC[sID],dataStore[plotNr].servoStateV[sID]);
-    }
-    //Debugln();
-  }
-
-  dataFile.close();
-
-  Debugf(" read [%d] records .. Done \r\n", recsIn);
-  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
-
-  return true;
-
-} // readDataPoints()
 
 
 //===========================================================================================

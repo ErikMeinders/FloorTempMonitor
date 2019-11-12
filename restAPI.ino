@@ -282,6 +282,10 @@ void handleAPI_get_status()
   toRetDoc["ESPhfrag"] = ESP.getHeapFragmentation();
   toRetDoc["ESPhmax"] = ESP.getMaxFreeBlockSize();
 
+  toRetDoc["FWversion"] =  _FW_VERSION;
+  toRetDoc["CompiledData"] = __DATE__;
+  toRetDoc["CompiledTime"] = __TIME__;
+
   _returnJSON( toRetDoc.as<JsonObject>() );
 
 }
@@ -297,6 +301,7 @@ void handleAPI_room_temperature()
 {
   _returnJSON400("Not implemented yet");
 }
+
 void handleAPI_room_list()
 {
   toRetDoc.clear();
@@ -322,13 +327,6 @@ void handleAPI_room_list()
     {
       if(room.Servos[i]<0)
         break;
-/*
-      DynamicJsonDocument s(256);
-      
-      s.clear();
-      s["servoNr"] = room.Servos[i];
-      s["index"] = i;
-*/
       servos.add(room.Servos[i]);
     }
     r["servocount"] = i;

@@ -89,10 +89,7 @@ void handleRoot()                       // HTML FSexplorer
   FSexplorerHTML += "    <input type='submit' class='button' name='SUBMIT' value='select Firmware' DISABLED/>";
 #endif
   FSexplorerHTML += "  </form>";
-    
-  FSexplorerHTML += "  <form style='float: right;' action='/sensorEdit.html'><big>Edit Sensoren </big>";
-  FSexplorerHTML += "    <input type='submit' class='button' name='SUBMIT' value='Edit'/>";
-  FSexplorerHTML += "  </form>";
+  
   FSexplorerHTML += "</div>";
 
   FSexplorerHTML += "<br><hr>";
@@ -186,7 +183,6 @@ void handleReBoot()
   httpServer.send(200, "text/html", redirectHTML);
 
   DebugTf("ReBoot %s ..\r\n", _HOSTNAME);
-  writeDataPoints();
   TelnetStream.flush();
   delay(1000);
   ESP.reset();
@@ -296,11 +292,3 @@ void handleFileUpload()
   }
 
 } // handleFileUpload()
-
-
-//===========================================================================================
-//void formatSpiffs() 
-//{      
-//  SPIFFS.format();  // Format SPIFFS
-//  handleRoot();
-//}

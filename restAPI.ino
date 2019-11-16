@@ -402,6 +402,31 @@ void handleAPI_servo_reasonarray()
   _returnJSON(toRetDoc.as<JsonObject>());
 }
 
+void handleAPI_room_put()
+{
+  const char * room=httpServer.arg("room").c_str();
+  const char * temp=httpServer.arg("temp").c_str();
+
+  toRetDoc.clear();
+  toRetDoc["room"] = room;
+
+  DebugTf("PUT %s to %s\n", room, temp);
+
+  for( int8_t  v=0 ; v < noRooms ; v++)
+  {
+    DebugTf("%s == %s ?\n", room, Rooms[v].Name);
+    if(!strcmp(room, Rooms[v].Name))
+    {
+      DebugTf("Room found, set temp\n");
+      Rooms[v].targetTemp = (10.0 * atof(temp))/10.0;
+      toRetDoc["targetTemp"]= temp;
+      DebugTf("now: %f\n", Rooms[v].targetTemp);
+      break;
+    }
+  }
+  _returnJSON(toRetDoc.as<JsonObject>());
+}
+
 void apiInit()
 {
   httpServer.on("/api",  nothingAtAll);
@@ -414,6 +439,8 @@ void apiInit()
   httpServer.on("/api/sensor/describe", handleAPI_describe_sensor);
   httpServer.on("/api/sensor/temperature", handleAPI_get_temperature);
   httpServer.on("/api/sensor/calibrate", handleAPI_calibrate_sensor);
+
+  httpServer.on("/api/room", HTTP_PUT, handleAPI_room_put);
 
   httpServer.on("/api/room/list", handleAPI_room_list);
   httpServer.on("/api/room/temperature", handleAPI_room_temperature);

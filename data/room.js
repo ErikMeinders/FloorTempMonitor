@@ -64,6 +64,7 @@ const app = document.getElementById('rooms_canvas');
 var requestRoom  = new XMLHttpRequest();
 var requestServo = new XMLHttpRequest();
 var requestSensor= new XMLHttpRequest();
+var requestPut   = new XMLHttpRequest();
 
 // requestRoom.open('GET', APIGW+'room/list', true);
 
@@ -174,9 +175,45 @@ requestRoom.onload = function () {
 
                 ul.appendChild(li1);
             }    
-            
+            // SLIDER
+            var d = document.createElement('div');
+            d.setAttribute("class","slidercontainer");
+
+            var sl = document.createElement('input');
+            sl.setAttribute("type", "range");
+            sl.setAttribute("min", "15");
+            sl.setAttribute("max", "25");
+            sl.setAttribute("value",room.target);
+            sl.setAttribute("step", "0.1");
+            sl.setAttribute("class", "slider");
+            sl.setAttribute("id", "sl_"+room.name);
+
+            //    <input type="range" min="15" max="25" value="50" class="slider" id="myRange"></input>
+
+            var vd = document.createElement('p');
+            var sp = document.createElement('span');
+            sp.setAttribute("id", "vd_"+room.name);
+            vd.appendChild(sp);
+
+            // <p>Value: <span id="demo"></span></p>
+            d.appendChild(sl);
+            d.appendChild(vd);
+
+            sp.innerHTML = sl.value;
+
+            sl.oninput = function() {
+                sp.innerHTML = this.value;
+            }
+
+            sl.onmouseup = function() {
+                console.log("mouse up");
+                requestPut.open('PUT', APIGW+'room?room='+room.name+'&temp='+this.value, true);
+                requestPut.send();  
+            }
+
             card.appendChild(h1);
             card.appendChild(newChart);
+            card.appendChild(d);
             card.appendChild(ul);
 
             var info_id = 'info_'+room.name;

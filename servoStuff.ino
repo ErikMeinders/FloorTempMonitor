@@ -138,27 +138,21 @@ void checkDeltaTemps() {
     }
     int8_t servo=_SA[s].servoNr;
 
+    if (_SA[0].tempC > HEATER_ON_TEMP) 
+    {      
+      if ( _SA[s].deltaTemp > (_SA[0].tempC - _SA[s].tempC)) 
+      {
+        servoClose(servo, WATER_HOT);
+      }
+          //--- heater is not heating ... -----
+    } 
+
     Debugln();
     //DebugTf("reflowTime[%d]\n", (_REFLOW_TIME / _MIN));
     switch(servoArray[servo].servoState) {
+      
       case SERVO_IS_OPEN:  
-        if (_SA[0].tempC > HEATER_ON_TEMP) {
-          //--- only if heater is heating -----
-          DebugTf("[%2d] tempC-flux[%.1f] -/- tempC[%.1f] = [%.1f] < deltaTemp[%.1f]?\n"
-            , s
-            , _SA[0].tempC
-            , _SA[s].tempC
-            , (_SA[0].tempC - _SA[s].tempC)
-            , _SA[s].deltaTemp);
-          DebugTf("[%2d] heater is On! deltaTemp[%.1f] > [%.1f]?\n"
-            , s
-            , _SA[s].deltaTemp
-            , (_SA[0].tempC - _SA[s].tempC) );
-          if ( _SA[s].deltaTemp > (_SA[0].tempC - _SA[s].tempC)) {
-            servoClose(servo, WATER_HOT);
-          }
-          //--- heater is not heating ... -----
-        } 
+        
         break;
                   
       case SERVO_IS_CLOSED: 
@@ -166,14 +160,6 @@ void checkDeltaTemps() {
         if ((millis() - servoArray[servo].servoTimer) > pulseTime) {
           servoOpen(servo, WATER_HOT);
         }
-        // if not heating, open (via reflow) --> disabled for now!
-        /*
-        if (_SA[0].tempC < HEATER_ON_TEMP)
-        {  //--- open Servo/Valve ------
-          DebugTln("Flux In temp < HEATER_ON_TEMP*C");
-          servoOpen(_SA[s].servoNr, WATER_HOT);  
-        }
-        */
         break;
         
       case SERVO_IN_LOOP:
@@ -216,34 +202,34 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
       switch(servoArray[servo].servoState) {  
         case SERVO_IS_CLOSED:
         case SERVO_IN_LOOP:
-                 DebugTf("[%2d] CYCLE [%s] SKIP!\n", s, _SA[s].name);
-                servoArray[servo].closeCount++;
-                s++;  // skip this one, is already closed or in loop
-                break;
+          DebugTf("[%2d] CYCLE [%s] SKIP!\n", s, _SA[s].name);
+          servoArray[servo].closeCount++;
+          s++;  // skip this one, is already closed or in loop
+          break;
                 
         case SERVO_IS_OPEN:
-                I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO);  
-                servoArray[servo].servoState = SERVO_COUNT0_CLOSE;
-                servoArray[servo].servoTimer = millis();
-                DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%lu] seconds\n", s
-                                                             , _SA[s].name
-                                                             , (_REFLOW_TIME - (millis() - servoArray[_SA[s].servoNr].servoTimer)) / 1000);
-                break;
+          I2cExpander.digitalWrite(_SA[s].servoNr, CLOSE_SERVO);  
+          servoArray[servo].servoState = SERVO_COUNT0_CLOSE;
+          servoArray[servo].servoTimer = millis();
+          DebugTf("[%2d] CYCLE [%s] to CLOSED state for [%lu] seconds\n", s
+                                                        , _SA[s].name
+                                                        , (_REFLOW_TIME - (millis() - servoArray[_SA[s].servoNr].servoTimer)) / 1000);
+          break;
                 
         case SERVO_COUNT0_CLOSE:
-                if ((millis() - servoArray[_SA[s].servoNr].servoTimer) > _REFLOW_TIME) {
-                  I2cExpander.digitalWrite(_SA[s].servoNr, OPEN_SERVO);  
-                  servoArray[servo].servoState = SERVO_IS_OPEN;
-                  servoArray[servo].closeCount++;
-                  DebugTf("[%2d] CYCLE [%s] to OPEN state\n", s, _SA[s].name);
-                  }
-                  s++;
-                  break;
-                  
+          if ((millis() - servoArray[_SA[s].servoNr].servoTimer) > _REFLOW_TIME) {
+            I2cExpander.digitalWrite(_SA[s].servoNr, OPEN_SERVO);  
+            servoArray[servo].servoState = SERVO_IS_OPEN;
+            servoArray[servo].closeCount++;
+            DebugTf("[%2d] CYCLE [%s] to OPEN state\n", s, _SA[s].name);
+          }
+          s++;
+          break;
+          
         default:  // it has some other state...
-                  DebugTf("[%2d] CYCLE [%s] has an unknown state\n", s, _SA[s].name);
-                  // check again after _REFLOW_TIME
-                  servoArray[servo].servoTimer = millis(); 
+          DebugTf("[%2d] CYCLE [%s] has an unknown state\n", s, _SA[s].name);
+          // check again after _REFLOW_TIME
+          servoArray[servo].servoTimer = millis(); 
                  
       } // switch ..
       cycleNr = s;

@@ -64,7 +64,7 @@
 
 DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
-DECLARE_TIMERm(sensorPoll,   1) // update sensors every 20s 
+DECLARE_TIMERm(sensorPoll,   1)  
 
 DECLARE_TIMERm(UptimeDisplay,1)
 

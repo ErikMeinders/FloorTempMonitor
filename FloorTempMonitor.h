@@ -30,7 +30,8 @@ room_t Rooms[MAXROOMS];
 int noRooms = 0;
 
 
-enum   e_servoState { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0_CLOSE, ERROR };
+enum  e_servoState { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0_CLOSE, ERROR };
+enum  e_close_reason { ROOM_HOT = 0x01, WATER_HOT = 0x02};
 
 typedef struct _sensorStruct {
   int8_t    index;
@@ -49,7 +50,7 @@ typedef struct _servoStruct {
   uint8_t   servoState;     
   uint32_t  servoTimer;
   uint8_t   closeCount;
-
+  uint8_t   closeReason; 
 } servoStruct;
 
 #endif

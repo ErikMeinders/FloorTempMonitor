@@ -10,6 +10,8 @@ String apiEndpoint = "http://192.168.2.24/geheim1967/telist";
 
 DECLARE_TIMERs(roomUpdate,60);
 
+#define tempMargin 0.2
+
 void roomsInit(){
 
     const char *rInit[MAXROOMS];
@@ -89,7 +91,7 @@ void handleRoomTemps()
             float jsonTemp;
             bool  nameFound=false;
 
-            DebugTf("ptr = >%s<\n", ptr);
+            //DebugTf("ptr = >%s<\n", ptr);
 
             timeCritical();
             
@@ -122,9 +124,15 @@ void handleRoomTemps()
                     byte s;
                     for(byte i=0 ; (s=Rooms[roomIndex].Servos[i]) > 0 ; i++)
                     {
-                        if (Rooms[roomIndex].actualTemp > Rooms[roomIndex].targetTemp+0.2 && servoArray[s].servoState == 0)
+                        // close servos based on room temperature?
+                        if (Rooms[roomIndex].actualTemp > Rooms[roomIndex].targetTemp+tempMargin )
                         {
-                            servoClose(s);
+                            servoClose(s,ROOM_HOT);
+                        }
+                        // open servos based on room temperature
+                        if (Rooms[roomIndex].actualTemp < Rooms[roomIndex].targetTemp-tempMargin)
+                        {
+                            servoOpen(s,ROOM_HOT);
                         }
                     }
 

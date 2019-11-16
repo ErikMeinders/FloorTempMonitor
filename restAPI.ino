@@ -353,7 +353,8 @@ void handleAPI_servo_status()
 
   toRetDoc["servo"] = i;
   toRetDoc["status"]  = servoArray[i].servoState;
-  
+  toRetDoc["reason"]  = servoArray[i].closeReason;
+
   switch(servoArray[i].servoState) {
     case SERVO_IS_OPEN:       
       statusText = "OPEN";
@@ -388,6 +389,19 @@ void handleAPI_servo_statusarray()
   _returnJSON(toRetDoc.as<JsonObject>());
 }
 
+void handleAPI_servo_reasonarray()
+{
+  toRetDoc.clear();
+
+  JsonArray servos = toRetDoc.createNestedArray("reason");
+
+  for (byte i=0 ; i < 10; i++)
+  {  
+      servos.add(servoArray[i].closeReason);
+  }
+  _returnJSON(toRetDoc.as<JsonObject>());
+}
+
 void apiInit()
 {
   httpServer.on("/api",  nothingAtAll);
@@ -406,5 +420,6 @@ void apiInit()
 
   httpServer.on("/api/servo/status", handleAPI_servo_status);
   httpServer.on("/api/servo/statusarray", handleAPI_servo_statusarray);
+  httpServer.on("/api/servo/reasonarray", handleAPI_servo_reasonarray);
 
 }

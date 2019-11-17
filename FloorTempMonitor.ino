@@ -1,7 +1,7 @@
 /*
 **  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v0.9.1 (11-11-2019)"
+#define _FW_VERSION "v1.0.0 (17-11-2019)"
 
 /*
 **  Copyright (c) 2019 Willem Aandewiel / Erik Meinders

@@ -425,6 +425,7 @@ void handleAPI_room_put()
     }
   }
   _returnJSON(toRetDoc.as<JsonObject>());
+  roomsWrite(); // write new target temp to SPIFF for persistence after reboot.
 }
 
 void apiInit()

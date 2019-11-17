@@ -12,8 +12,54 @@ DECLARE_TIMERs(roomUpdate,60);
 
 #define tempMargin 0.2
 
-void roomsInit(){
+void roomsRead()
+{
+    File file = SPIFFS.open("/rooms.ini", "r");
+    int i = 0;
 
+    char buffer[64];
+    while (file.available()) {
+        int l = file.readBytesUntil('\n', buffer, sizeof(buffer));
+        buffer[l] = 0;
+    
+        sscanf(buffer,"%[^;];%d,%d;%f", 
+            Rooms[i].Name, 
+            &Rooms[i].Servos[0],
+            &Rooms[i].Servos[1],
+            &Rooms[i].targetTemp);
+        
+        timeCritical();
+        roomDump(i);
+        i++;
+    }
+    noRooms = i;
+    file.close();
+}
+
+void roomsWrite()
+{
+    File file = SPIFFS.open("/rooms.ini", "w");
+    char buffer[64];
+
+    for (int8_t i=0 ; i < noRooms ; i++)
+    {    
+        sprintf(buffer,"%s;%d,%d;%f\n", 
+            Rooms[i].Name, 
+            Rooms[i].Servos[0],
+            Rooms[i].Servos[1],
+            Rooms[i].targetTemp);
+        
+        timeCritical();
+        file.write(buffer, strlen(buffer));
+        roomDump(i);
+    }
+    file.close(); //
+}
+
+void roomsInit()
+{
+
+    /*
     const char *rInit[MAXROOMS];
 
     // hardcoded for now, should come from rooms.ini file
@@ -39,11 +85,13 @@ void roomsInit(){
         timeCritical();
         dumpRoom(i);
     }
+    */
+   roomsRead();
 }
 
-void dumpRoom(byte i)
+void roomDump(byte i)
 {
-    DebugTf("RoomDump: Name: %s Servos [%d,%d] Target/ActualTemp %f/%f \n",  
+    DebugTf("roomDump: Name: %s Servos [%d,%d] Target/ActualTemp %f/%f \n",  
             Rooms[i].Name, 
             Rooms[i].Servos[0],
             Rooms[i].Servos[1],
@@ -120,7 +168,7 @@ void handleRoomTemps()
                     //DebugTf("Match for room %s (%f) in room %s\n", jsonName, jsonTemp, Rooms[roomIndex].Name);
 
                     nameFound=true;
-                    dumpRoom(roomIndex);
+                    roomDump(roomIndex);
                     byte s;
                     for(byte i=0 ; (s=Rooms[roomIndex].Servos[i]) > 0 ; i++)
                     {

@@ -90,6 +90,7 @@ function verbalState(i)
     }
 }
 var influx=30.0;
+
 requestSensor.onload = function()
 {
     var data = JSON.parse(this.response);
@@ -211,6 +212,12 @@ requestRoom.onload = function () {
                 requestPut.send();  
             }
 
+            sl.ontouchend = function() {
+                console.log("touch end");
+                requestPut.open('PUT', APIGW+'room?room='+room.name+'&temp='+this.value, true);
+                requestPut.send();  
+            }
+
             card.appendChild(h1);
             card.appendChild(newChart);
             card.appendChild(d);
@@ -283,9 +290,12 @@ requestRoom.onload = function () {
             var pg1=document.getElementById( "progress-"+room.servos[i]);
             pg1.setAttribute('value', t);   
             pg1.setAttribute('optimum', o);
-        }   
+        }  
         
-        
+        //  update slider (might have been changed from other browser)
+
+        document.getElementById("sl_"+room.name).value = room.target; 
+        document.getElementById("vd_"+room.name).innerHTML = room.target; 
     });
   } else {
     const errorMessage = document.createElement('marquee');
@@ -295,14 +305,15 @@ requestRoom.onload = function () {
 }
 
 function refreshRoomData() {
+    requestServo.open('GET', APIGW+'servo/statusarray', true);
+    requestServo.send();
+ 
+    requestSensor.open('GET', APIGW+'sensor/list', true);
+    requestSensor.send();
+
     requestRoom.open('GET', APIGW+'room/list', true);
     requestRoom.send();
 
-    requestServo.open('GET', APIGW+'servo/statusarray', true);
-    requestServo.send();
-
-    requestSensor.open('GET', APIGW+'sensor/list', true);
-    requestSensor.send();
 };
 
 // requestRoom.send();

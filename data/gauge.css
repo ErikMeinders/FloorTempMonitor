@@ -67,7 +67,7 @@ h1 {
 }
   
 p {	
-	padding: 0 0.5rem 2.5rem;
+	padding: 0 2.5rem 0;
 	margin: 0;
 	border-radius: 6px;
 
@@ -91,7 +91,7 @@ p {
 }
  .valve-list {
 	 list-style: none;
-	 margin: 0;
+	 margin: 0.5em;
 	 padding: 1em;
 }
  .valve {
@@ -133,20 +133,34 @@ p {
 	}
 }
 
-.slidecontainer {
-  width: 100%;
+.slidercontainer {
+	width: 298px;
+    height: 25px;
 }
 
+
+.slidercontainer span {
+	 color : red;
+	 left: 0.1em;
+	 line-height: 1;
+	 position: relative;
+	 top: -1.8em;
+}
 .slider {
   -webkit-appearance: none;
-  width: 100%;
+  width: 248px;
   height: 15px;
   border-radius: 5px;
-  background: #d3d3d3;
+  background: #702070;	 
+  background-image: linear-gradient(to right,yellow, orange, red);
+  
   outline: none;
   opacity: 0.7;
   -webkit-transition: .2s;
   transition: opacity .2s;
+  padding: 1em 1em;
+  margin-left: 25px;
+
 }
 
 .slider:hover {

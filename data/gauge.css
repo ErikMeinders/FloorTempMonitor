@@ -89,6 +89,13 @@ p {
 	 height: 25px;
 	 width: 250px;
 }
+
+meter::-webkit-meter-bar {
+	/*background: #EEE;
+	box-shadow: 0 2px 3px rgba(0,0,0,0.2) inset;*/
+	border-radius: 5px;
+}
+
  .valve-list {
 	 list-style: none;
 	 margin: 0.5em;
@@ -100,7 +107,7 @@ p {
 }
  .valve p {
 	 color: #030;
-	 left: 0.1em;
+	 left: -1.5em;
 	 line-height: 1;
 	 position: absolute;
 	 top: 0.3em;
@@ -140,12 +147,13 @@ p {
 
 
 .slidercontainer span {
-	 color : red;
+	 color :#A04;
 	 left: 0.1em;
 	 line-height: 1;
 	 position: relative;
 	 top: -1.8em;
 }
+
 .slider {
   -webkit-appearance: none;
   width: 248px;

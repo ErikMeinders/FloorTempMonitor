@@ -1,3 +1,5 @@
+const APIGW='http://'+window.location.host+'/api/';
+
 var gaugeOptions = {
 
     chart: {

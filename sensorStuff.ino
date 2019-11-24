@@ -11,12 +11,15 @@
 
 // function to print a device address
 //===========================================================================================
-void getSensorID(DeviceAddress deviceAddress, char* devID)
+char * sensorIDFormat(DeviceAddress deviceAddress)
 {
+  static char devID[24];
+
   sprintf(devID, "0x%02x%02x%02x%02x%02x%02x%02x%02x", deviceAddress[0], deviceAddress[1]
           , deviceAddress[2], deviceAddress[3]
           , deviceAddress[4], deviceAddress[5]
           , deviceAddress[6], deviceAddress[7]);
+  return devID;
 } // getSensorID()
 
 
@@ -108,37 +111,15 @@ void handleSensors()
 void printSensorArray()
 {
   for(int8_t s=0; s<noSensors; s++) {
-    Debugf("[%2d] => [%2d], [%02d], [%s], [%-20.20s], [%7.6f], [%7.6f]\n", s
+    Debugf("[%2d] => [%2d], [%s], [%-20.20s], [%7.6f], [%7.6f]\n", s
            , _SA[s].index
-           , _SA[s].position
            , _SA[s].sensorID
            , _SA[s].name
            , _SA[s].tempOffset
            , _SA[s].tempFactor);
-     servoArray[_SA[s].servoNr].servoState = SERVO_IS_OPEN; // initial state
+     
   }
 } // printSensorArray()
-
-//=======================================================================
-void sortSensors()
-{
-  for (int8_t y = 0; y < noSensors; y++) {
-    yield();
-    for (int8_t x = y + 1; x < noSensors; x++)  {
-      //DebugTf("y[%d], x[%d] => seq[x][%d] ", y, x, _SA[x].position);
-      if (_SA[x].position < _SA[y].position)  {
-        sensorStruct temp = _SA[y];
-        _SA[y] = _SA[x];
-        _SA[x] = temp;
-      } /* end if */
-      //Debugln();
-    } /* end for */
-  } /* end for */
-
-} // sortSensors()
-
-//=======================================================================
-
 
 //===========================================================================================
 void setupDallasSensors()
@@ -152,6 +133,10 @@ void setupDallasSensors()
   noSensors = sensors.getDeviceCount();
   DebugTf("Locating devices...found %d devices\n", noSensors);
 
+  if(noSensors != noSensorRecs)
+  {
+    DebugTf("Change in sensors detected: got %d records for %d sensors\n", noSensorRecs, noSensors);
+  }
   oneWire.reset_search();
   for(int sensorNr = 0; sensorNr <= noSensors; sensorNr++) {
     Debugln();
@@ -165,11 +150,7 @@ void setupDallasSensors()
       break;
     }
 
-    DebugT("ROM =");
-    for( i = 0; i < 8; i++) {
-      Debug(' ');
-      Debug(DS18B20[i], HEX);
-    }
+    DebugTf("ROM = %s", sensorIDFormat(DS18B20));
 
     if (OneWire::crc8(DS18B20, 7) != DS18B20[7]) {
       Debugln(" => CRC is not valid!");
@@ -248,16 +229,128 @@ void setupDallasSensors()
       Debug(fahrenheit);
       Debugln(" Fahrenheit");
       
-      getSensorID(DS18B20, cMsg);
-      DebugTf("Device [%2d] sensorID: [%s] ..\n", sensorNr, cMsg);
-      if (!readIniFile(sensorNr, cMsg)) {
-        appendIniFile(sensorNr, cMsg);
-      }
+      DebugTf("Device [%2d] sensorID: [%s] ..\n", sensorNr, sensorIDFormat(DS18B20));
+      
+      sensorMatchOrAdd(sensorIDFormat(DS18B20)); // add sensor to _SA if not read from .ini file
+
     } // CRC is OK
   
   } // for noSensors ...
   
 } // setupDallasSensors()
+
+void sensorsInit()
+{
+
+  sensorsRead();
+  setupDallasSensors();
+  sensorsWrite();
+
+}
+//===========================================================================================
+bool sensorMatchOrAdd(char* devID)
+{ 
+  // see if sensor detected on bus can be matched with existing record in .ini (_SA)
+
+  for (int8_t i=0 ; i < noSensorRecs ; i++)
+  {
+    if(!strcmp(_SA[i].sensorID, devID))
+    {
+      DebugTf("Match found for %s in %s\n", devID, _SA[i].name);
+      return true;
+    }
+  }
+
+  // the sensor found on the bus is new!
+
+  yield();
+
+  _SA[noSensorRecs].index = noSensorRecs;
+  
+  sprintf(_SA[noSensorRecs].sensorID, "%s", devID);
+  sprintf(_SA[noSensorRecs].name, "new Sensor");
+  _SA[noSensorRecs].tempOffset = 0.00000;
+  _SA[noSensorRecs].tempFactor = 1.00000;
+  _SA[noSensorRecs].servoNr    = -1; // not attached to a servo
+  _SA[noSensorRecs].deltaTemp  = 20.0;
+
+  noSensorRecs++;
+
+  return false;
+
+} 
+
+void sensorsWrite()
+{
+    File file = SPIFFS.open("/sensors.ini", "w");
+    char buffer[80];
+
+    for (int8_t i=0 ; i < noSensorRecs ; i++)
+    {    
+      sprintf(buffer,"%s;%s;%f;%f;%d;%f\n",
+        _SA[i].sensorID, 
+        _SA[i].name,
+        _SA[i].tempOffset, 
+        _SA[i].tempFactor,
+        _SA[i].servoNr,
+        _SA[i].deltaTemp);
+    
+      timeCritical();
+      file.write(buffer, strlen(buffer));
+        
+    }
+    file.close(); //
+
+}
+
+//===========================================================================================
+void sensorsRead()
+{
+  File  file;
+  char  buffer[80];
+
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+
+  DebugTf("readIniFile(/sensors.ini) \r\n");
+
+  if (!SPIFFSmounted) {
+    DebugTln("No SPIFFS filesystem..\r");
+    return;
+  }
+  noSensorRecs=0;
+
+  file = SPIFFS.open("/sensors.ini", "r");
+
+  while (file.available() ) {
+    int servoNr;
+    int l = file.readBytesUntil('\n', buffer, sizeof(buffer));
+    buffer[l] = 0;
+    
+    if(l < 2)
+      break;
+      
+    yield();
+
+    sscanf(buffer,"%[^;];%[^;];%f;%f;%d;%f\n",
+       _SA[noSensorRecs].sensorID, 
+       _SA[noSensorRecs].name,
+      &_SA[noSensorRecs].tempOffset, 
+      &_SA[noSensorRecs].tempFactor,
+      &servoNr,
+      &_SA[noSensorRecs].deltaTemp
+    );
+
+    _SA[noSensorRecs].servoNr     = (int8_t) servoNr;
+    _SA[noSensorRecs].index       = noSensorRecs;
+    _SA[noSensorRecs].tempC       = -99;
+
+    noSensorRecs++;
+  }
+
+  file.close();
+  digitalWrite(LED_BUILTIN, LED_BUILTIN_OFF);
+
+}
 
 /***************************************************************************
 *

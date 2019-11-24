@@ -16,23 +16,24 @@
  
 #ifndef PROFILING_INCLUDED
 #define PROFILING_INCLUDED
+
 #ifdef PROFILING
 
-#ifndef PROFILING_THRESHOLD
-#define PROFILING_THRESHOLD 3
-#endif
+        #ifndef PROFILING_THRESHOLD
+        #define PROFILING_THRESHOLD 3
+        #endif
 
-#define timeThis(FN)    ({ unsigned long start_time=millis(); \
-                           FN; \
-                           yield(); \
-                           unsigned long duration=millis() - start_time; \
-                           if (duration >= PROFILING_THRESHOLD) \
-                            DebugTf("Function %s [called from %s:%d] took %lu ms\n",\
-                                    #FN, __FUNCTION__, __LINE__, duration); \
-                        })
+        #define timeThis(FN)    ({ unsigned long start_time=millis(); \
+                                FN; \
+                                yield(); \
+                                unsigned long duration=millis() - start_time; \
+                                if (duration >= PROFILING_THRESHOLD) \
+                                DebugTf("Function %s [called from %s:%d] took %lu ms\n",\
+                                        #FN, __FUNCTION__, __LINE__, duration); \
+                                })
 #else // PROFILING
 
-#define timeThis(FN)    FN ;
+        #define timeThis(FN)    FN ;
 
 #endif // PROFILING
 

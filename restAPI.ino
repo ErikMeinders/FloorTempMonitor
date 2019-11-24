@@ -47,7 +47,6 @@ void _cacheJSON()
     DynamicJsonDocument so(512);
         
     so["index"]       = sensorArray[s].index;
-    so["position"]    = sensorArray[s].position;
     so["sensorID"]    = sensorArray[s].sensorID;
     so["name"]        = sensorArray[s].name;
     so["offset"]      = sensorArray[s].tempOffset;
@@ -149,8 +148,6 @@ void calibrate_low(int sensorIndex, float lowCalibratedTemp)
 
   calibrations.add(c);
   
-  updateIniRec(_SA[sensorIndex]);
-
 }
 
 void calibrate_high(int sensorIndex, float hiCalibratedTemp)
@@ -175,7 +172,6 @@ void calibrate_high(int sensorIndex, float hiCalibratedTemp)
   c["factor"] = _SA[sensorIndex].tempFactor;
 
   calibrations.add(c);
-  updateIniRec(_SA[sensorIndex]);
 }
 
 void calibrate_sensor(int sensorIndex, float realTemp)
@@ -231,7 +227,8 @@ void handleAPI_calibrate_sensor()
       calibrate_sensor(sensorToCalibrate, actualTemp);
 
   }
-  
+  sensorsWrite();
+
   _returnJSON(toRetDoc.as<JsonObject>());
 }
 

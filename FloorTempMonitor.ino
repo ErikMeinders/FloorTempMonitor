@@ -1,7 +1,7 @@
 /*
 **  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v1.0.0 (17-11-2019)"
+#define _FW_VERSION "v1.0.1 (24-11-2019)"
 
 /*
 **  Copyright (c) 2019 Willem Aandewiel / Erik Meinders
@@ -59,8 +59,6 @@
 #define LED_GREEN             13      // D7 - ONLY USE FOR HEARTBEAT!!
 #define LED_ON                HIGH
 #define LED_OFF               LOW
-
-#define _PLOT_INTERVAL        120    // in seconds
 
 DECLARE_TIMER(heartBeat,     3) // flash LED_GREEN 
 
@@ -127,9 +125,9 @@ bool      cycleAllSensors     = false;
 
 
 //===========================================================================================
-String upTime()
+char * upTime()
 {
-  char    calcUptime[20];
+  static char calcUptime[20];
   uint32_t  upTimeNow = now() - startTimeNow; // upTimeNow = seconds
 
   sprintf(calcUptime, "%d[d] %02d:%02d" 
@@ -153,7 +151,7 @@ void handleHeartBeat()
   }
 
   if ( DUE (UptimeDisplay))
-    DebugTf("Running %s\n",upTime().c_str());
+    DebugTf("Running %s\n",upTime());
 } 
 
 //===========================================================================================
@@ -237,7 +235,7 @@ void setup()
   sensors.begin();
 
   delay(5000); // time to start telnet
-  setupDallasSensors();
+  sensorsInit();
 
 #ifdef TESTDATA                                       // TESTDATA
   noSensors = 11;                                              // TESTDATA
@@ -245,47 +243,34 @@ void setup()
     sprintf(_SA[s].name, "Sensor %d", (s+2));                  // TESTDATA
     sprintf(_SA[s].sensorID, "0x2800ab0000%02x", (s*3) + 3);   // TESTDATA
     _SA[s].servoNr     =  (s+1);                               // TESTDATA
-    _SA[s].position    = s+2;                                  // TESTDATA
-    //_SA[s].closeCount  =  0;                                   // TESTDATA
     _SA[s].deltaTemp   = 15 + s;                               // TESTDATA
     _SA[s].tempFactor  = 1.0;                                  // TESTDATA
     _SA[s].servoTimer  = millis();                             // TESTDATA
   }                                                            // TESTDATA
-  sprintf(_SA[5].name, "*Flux IN");                            // TESTDATA
-  _SA[5].position      =  0;                                   // TESTDATA
-  _SA[5].deltaTemp     =  2; // is _PULSE_TIME                 // TESTDATA
-  _SA[5].servoNr       = -1;                                   // TESTDATA
-  sprintf(_SA[6].name, "*Flux RETOUR");                        // TESTDATA
-  _SA[6].position      =  1;                                   // TESTDATA
-  _SA[6].deltaTemp     =  0;                                   // TESTDATA
-  _SA[6].servoNr       = -1;                                   // TESTDATA
+  sprintf(_SA[0].name, "*Flux IN");                            // TESTDATA
+  _SA[0].position      =  0;                                   // TESTDATA
+  _SA[0].deltaTemp     =  2; // is _PULSE_TIME                 // TESTDATA
+  _SA[0].servoNr       = -1;                                   // TESTDATA
+  sprintf(_SA[1].name, "*Flux RETOUR");                        // TESTDATA
+  _SA[1].position      =  1;                                   // TESTDATA
+  _SA[1].deltaTemp     =  0;                                   // TESTDATA
+  _SA[1].servoNr       = -1;                                   // TESTDATA
   sprintf(_SA[7].name, "*Room Temp.");                         // TESTDATA
   _SA[7].servoNr       = -1;                                   // TESTDATA
 #endif                                                // TESTDATA
 
   Debugln("========================================================================================");
-  sortSensors();
   printSensorArray();
   Debugln("========================================================================================");
 
-  //readDataPoints();
-
   servoInit();
   setupI2C_Mux();
+  roomsInit();
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
   
-  roomsInit();
-
 } // setup()
-
-void erix()
-{
-  DebugTf("Aangeroepen!\n");
-
-}
-int8_t fnindex=0;
 
 //===========================================================================================
 void loop()
@@ -296,7 +281,7 @@ void loop()
   timeThis( httpServer.handleClient() );
   timeThis( handleNTP() );
 
-  timeThis( checkI2C_Mux() );         //  call setupI2C_Mux() 
+  timeThis( checkI2C_Mux() );         // check I2C_Mux communication with servo board
   timeThis( handleSensors() );        // update return water temperature information
   
   timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
@@ -305,6 +290,6 @@ void loop()
 
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 
-  timeThis( servosAlign() );
+  timeThis( servosAlign() );          // re-align servos after servo-board reset
 
 } 

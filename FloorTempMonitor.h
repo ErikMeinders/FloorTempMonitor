@@ -36,7 +36,6 @@ enum  e_close_reason { ROOM_HOT = 0x01, WATER_HOT = 0x02};
 typedef struct _sensorStruct {
   int8_t    index;
   char      sensorID[20];
-  uint8_t   position;
   char      name[_MAX_NAME_LEN];
   float     tempOffset;     // calibration
   float     tempFactor;     // calibration
@@ -45,6 +44,9 @@ typedef struct _sensorStruct {
   float     tempC;          //-- not in sensors.ini
  
 } sensorStruct;
+
+int  noSensorRecs=0;
+
 
 typedef struct _servoStruct {
   uint8_t   servoState;     

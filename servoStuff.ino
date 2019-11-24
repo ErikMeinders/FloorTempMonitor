@@ -129,7 +129,7 @@ void checkDeltaTemps() {
   // Sensor 0 is output from heater (heater-out)
   // Sensor 1 is retour to heater
   // deltaTemp is the difference from heater-out and sensor
-  for (int8_t s=1; s < noSensors; s++) {
+  for (int8_t s=2; s < noSensors; s++) {
     DebugTf("[%2d] servoNr of [%s] ==> [%d]", s, _SA[s].name
                                                , _SA[s].servoNr);
     if (_SA[s].servoNr < 0) {
@@ -303,15 +303,6 @@ void checkI2C_Mux()
   else  
     errorCountUp++;
   
-  
-
-  //DebugTln("getMajorRelease() ..");
-  //majorRelease = I2cExpander.getMajorRelease();
-  //DebugTln("getMinorRelease() ..");
-  //minorRelease = I2cExpander.getMinorRelease();
-
-  //DebugTf("\nSlave say's he's [0x%02x] Release[%d.%d]\n", whoAmI, majorRelease, minorRelease);
-
 } // checkI2C_MUX();
 
 

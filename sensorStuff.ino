@@ -37,7 +37,7 @@ float getRawTemp(int8_t devNr)
   } else  
     tempR = (random(201.20, 308.8) / 10.02);               
 #else
-  tempR = sensors.getTempCByIndex(_SA[devNr].index);
+  tempR = sensors.getTempCByIndex(_SA[devNr].sensorIndex);
 #endif
 
   if (tempR < -2.0 || tempR > 102.0) {
@@ -112,7 +112,7 @@ void printSensorArray()
 {
   for(int8_t s=0; s<noSensors; s++) {
     Debugf("[%2d] => [%2d], [%s], [%-20.20s], [%7.6f], [%7.6f]\n", s
-           , _SA[s].index
+           , _SA[s].sensorIndex
            , _SA[s].sensorID
            , _SA[s].name
            , _SA[s].tempOffset
@@ -231,7 +231,7 @@ void setupDallasSensors()
       
       DebugTf("Device [%2d] sensorID: [%s] ..\n", sensorNr, sensorIDFormat(DS18B20));
       
-      sensorMatchOrAdd(sensorIDFormat(DS18B20)); // add sensor to _SA if not read from .ini file
+      sensorMatchOrAdd(sensorIDFormat(DS18B20),sensorNr); // add sensor to _SA if not read from .ini file & update .index to sensorNr
 
     } // CRC is OK
   
@@ -248,7 +248,7 @@ void sensorsInit()
 
 }
 //===========================================================================================
-bool sensorMatchOrAdd(char* devID)
+bool sensorMatchOrAdd(char* devID, int sensorNr)
 { 
   // see if sensor detected on bus can be matched with existing record in .ini (_SA)
 
@@ -257,6 +257,7 @@ bool sensorMatchOrAdd(char* devID)
     if(!strcmp(_SA[i].sensorID, devID))
     {
       DebugTf("Match found for %s in %s\n", devID, _SA[i].name);
+      _SA[i].sensorIndex = sensorNr;
       return true;
     }
   }
@@ -265,7 +266,7 @@ bool sensorMatchOrAdd(char* devID)
 
   yield();
 
-  _SA[noSensorRecs].index = noSensorRecs;
+  _SA[noSensorRecs].sensorIndex = sensorNr;
   
   sprintf(_SA[noSensorRecs].sensorID, "%s", devID);
   sprintf(_SA[noSensorRecs].name, "new Sensor");
@@ -341,7 +342,7 @@ void sensorsRead()
     );
 
     _SA[noSensorRecs].servoNr     = (int8_t) servoNr;
-    _SA[noSensorRecs].index       = noSensorRecs;
+    _SA[noSensorRecs].sensorIndex = noSensorRecs;     // will be overridden by sensorMatchOrAdd !!
     _SA[noSensorRecs].tempC       = -99;
 
     noSensorRecs++;

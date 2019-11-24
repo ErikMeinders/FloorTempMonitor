@@ -34,7 +34,7 @@ enum  e_servoState { SERVO_IS_OPEN, SERVO_IS_CLOSED, SERVO_IN_LOOP, SERVO_COUNT0
 enum  e_close_reason { ROOM_HOT = 0x01, WATER_HOT = 0x02};
 
 typedef struct _sensorStruct {
-  int8_t    index;
+  int8_t    sensorIndex;          // index on CB bus NOT index in _SA array!
   char      sensorID[20];
   char      name[_MAX_NAME_LEN];
   float     tempOffset;     // calibration

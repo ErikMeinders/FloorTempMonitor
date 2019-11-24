@@ -46,14 +46,13 @@ void _cacheJSON()
   {
     DynamicJsonDocument so(512);
         
-    so["index"]       = sensorArray[s].index;
+    so["sensorIndex"] = sensorArray[s].sensorIndex;
     so["sensorID"]    = sensorArray[s].sensorID;
     so["name"]        = sensorArray[s].name;
     so["offset"]      = sensorArray[s].tempOffset;
     so["factor"]      = sensorArray[s].tempFactor;
     so["temperature"] = sensorArray[s].tempC;
     so["servonr"]     = sensorArray[s].servoNr;
-    // so["servostate"]  = sensorArray[s].servoNr < 0 ? 0 : servoArray[sensorArray[s].servoNr].servoState;
     so["deltatemp"]   = sensorArray[s].deltaTemp;
     so["counter"]     = s;
     
@@ -134,7 +133,7 @@ void calibrate_low(int sensorIndex, float lowCalibratedTemp)
 
   DynamicJsonDocument c(64);
   
-  float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].index);
+  float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].sensorIndex);
 
   // this should be lowTemp, change tempOffset
   // so that reading + offset equals lowTemp
@@ -152,7 +151,7 @@ void calibrate_low(int sensorIndex, float lowCalibratedTemp)
 
 void calibrate_high(int sensorIndex, float hiCalibratedTemp)
 {
-  float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].index);
+  float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].sensorIndex);
   DynamicJsonDocument c(64);
 
   // calculate correction factor

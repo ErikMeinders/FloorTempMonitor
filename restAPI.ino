@@ -3,7 +3,7 @@
 
 DECLARE_TIMER(cacheRefresh, 60)
 
-#define CALIBRATE_HIGH 25
+#define CALIBRATE_HIGH 25.0
 
 // global vars
 
@@ -38,7 +38,7 @@ void _cacheJSON()
     return;
   }
   cacheEmpty = false;
-  
+
   DebugTf("Time to populate the JSON cache\n");
 
   _cache.clear();
@@ -65,13 +65,10 @@ void _cacheJSON()
 
 int _find_sensorIndex_in_query() // api/describe_sensor?[name|sensorID]=<string>
 {  
-   _cacheJSON(); // first update cache - if necessary
-
-  JsonArray arr = _cache["sensors"];
-
+ 
   // describe_sensor takes name= or sensorID= as query parameters
   // e.g. api/describe_sensor?sensorID=0x232323232323
-  // returns the JSON struct of the requested sensor
+  // returns index in _SA 
   
   const char * Keys[]= {"name", "sensorID" };
 
@@ -92,15 +89,15 @@ int _find_sensorIndex_in_query() // api/describe_sensor?[name|sensorID]=<string>
       
       // loop over the array entries to find object that contains Key/Value pair
       
-      for(JsonObject obj : arr)
+      for(int8_t i=0 ; i < noSensorRecs ; i++)
       {
-        Debugf("Comparing %s with %s\n", obj[Key].as<char*>(), Value);
+        Debugf("Comparing %s/%s with %s\n", _SA[i].name, _SA[i].sensorID, Value);
         
-        if ( !strcmp(obj[Key],Value))
+        if ( !strcmp(_SA[i].name,Value) || !strcmp(_SA[i].sensorID,Value))
         {
             // first record with matching K/V pair is returned
             //_returnJSON(obj);
-            return(obj["counter"].as<int>());
+            return i;
         }
       }
 
@@ -136,17 +133,22 @@ void calibrate_low(int sensorIndex, float lowCalibratedTemp)
 
   DynamicJsonDocument c(64);
   
+
   float tempRaw = sensors.getTempCByIndex(_SA[sensorIndex].sensorIndex);
 
   // this should be lowTemp, change tempOffset
   // so that reading + offset equals lowTemp
-  // that is, offset = lowTemp - raw reading 
+  // that is, offset = lowTemp - raw reading
+
+  _SA[sensorIndex].tempC = tempRaw;
 
   _SA[sensorIndex].tempOffset = lowCalibratedTemp - tempRaw;
   _SA[sensorIndex].tempFactor = 1.0;
   
-  c["index"]  = sensorIndex;
-  c["offset"] = _SA[sensorIndex].tempOffset;
+  c["idx"] = sensorIndex;
+  c["raw"] = tempRaw;
+  c["off"] = _SA[sensorIndex].tempOffset;
+  c["fct"] = _SA[sensorIndex].tempFactor;
 
   calibrations.add(c);
   
@@ -168,20 +170,26 @@ void calibrate_high(int sensorIndex, float hiCalibratedTemp)
   // make sure to use the calibrated reading, 
   // so add the offset!
   
+  _SA[sensorIndex].tempC = tempRaw;
   _SA[sensorIndex].tempFactor = hiCalibratedTemp  / ( tempRaw + _SA[sensorIndex].tempOffset );
 
-  c["index"]  = sensorIndex;
-  c["factor"] = _SA[sensorIndex].tempFactor;
+  c["idx"] = sensorIndex;
+  c["raw"] = tempRaw;
+  c["off"] = _SA[sensorIndex].tempOffset;
+  c["fct"] = _SA[sensorIndex].tempFactor;
 
   calibrations.add(c);
 }
 
 void calibrate_sensor(int sensorIndex, float realTemp)
 {
+
   if ( realTemp < CALIBRATE_HIGH )
-    calibrate_low(sensorIndex, realTemp);
-  else
-    calibrate_high(sensorIndex, realTemp);
+  {
+    timeThis(calibrate_low(sensorIndex, realTemp));
+  } else {
+    timeThis(calibrate_high(sensorIndex, realTemp));
+  }
 }
 
 
@@ -190,7 +198,9 @@ void handleAPI_calibrate_sensor()
 {
   //DynamicJsonDocument toRetCalDoc(512);
 
+  DebugTf("starting handleAPI_calibrate_sensor()");
   toRetDoc.clear();
+  timeThis(sensors.requestTemperatures());  // update sensors! 
 
   // a temperature should be given and optionally a sensor(name or ID)
   // when sensor is missing, all sensors are calibrated
@@ -220,13 +230,14 @@ void handleAPI_calibrate_sensor()
       strlen(httpServer.arg("sensorID").c_str()) > 0)
   {
     int sensorToCalibrate = _find_sensorIndex_in_query();
+    DebugTf("About to calibrate %s sensor with %f\n", _SA[sensorToCalibrate].name, actualTemp);
 
     calibrate_sensor(sensorToCalibrate, actualTemp);
       
   } else {
 
     // otherwise, calibrate all sensors
-    
+    DebugTf("About to calibrate all sensors with %f\n", actualTemp);
     for (int sensorToCalibrate=0 ; sensorToCalibrate < noSensors ; sensorToCalibrate++)
       calibrate_sensor(sensorToCalibrate, actualTemp);
 

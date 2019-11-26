@@ -97,6 +97,8 @@ void handleSensors()
 {
   if (_needToPoll())
   {
+    cacheEmpty = true; // force cache refresh upon next use
+
     for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) 
     {
       yield();

@@ -10,6 +10,8 @@ DECLARE_TIMER(cacheRefresh, 60)
 static DynamicJsonDocument _cache(4096);   // the cache for sensors
 static DynamicJsonDocument toRetDoc(1024);  // generic doc to return, clear() before use!
 
+boolean cacheEmpty = true;
+
 // some helper functions
 
 void _returnJSON(JsonObject obj);
@@ -30,12 +32,13 @@ void _returnJSON400(const char * message)
 
 void _cacheJSON()
 {
-  if(!DUE(cacheRefresh)) 
+  if(!DUE(cacheRefresh) && !cacheEmpty) 
   {
     DebugTf("No need to refresh JSON cache\n");
     return;
   }
-
+  cacheEmpty = false;
+  
   DebugTf("Time to populate the JSON cache\n");
 
   _cache.clear();
@@ -203,8 +206,10 @@ void handleAPI_calibrate_sensor()
      _returnJSON400("temp is mandatory query parameter in calibration function");
      return;
   }
+  cacheEmpty = true;  // invalidate cache forcefully
+
   float actualTemp = atof(actualTempString);
-  
+
   // prepare some JSON stuff to return
   
   calibrations = toRetDoc.createNestedArray("calibrations");

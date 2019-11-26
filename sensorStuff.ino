@@ -298,7 +298,7 @@ void sensorsWrite()
         _SA[i].servoNr,
         _SA[i].deltaTemp);
     
-      timeCritical();
+      yield();
       file.write(buffer, strlen(buffer));
         
     }

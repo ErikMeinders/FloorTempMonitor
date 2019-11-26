@@ -28,7 +28,7 @@ void roomsRead()
             &Rooms[i].Servos[1],
             &Rooms[i].targetTemp);
         
-        timeCritical();
+        yield();
         roomDump(i);
         i++;
     }
@@ -49,7 +49,7 @@ void roomsWrite()
             Rooms[i].Servos[1],
             Rooms[i].targetTemp);
         
-        timeCritical();
+        yield();
         file.write(buffer, strlen(buffer));
         roomDump(i);
     }
@@ -59,33 +59,6 @@ void roomsWrite()
 void roomsInit()
 {
 
-    /*
-    const char *rInit[MAXROOMS];
-
-    // hardcoded for now, should come from rooms.ini file
-
-    rInit[0] = "Living;1,7;22.5";
-    rInit[1] = "Hallway;2,-1;22.5";
-    rInit[2] = "Kitchen;3,5;21.5";
-    rInit[3] = "Basement;4,-1;17.5";
-    rInit[4] = "Dining;6,-1;22.5";
-    rInit[5] = "Office;8,-1;20.5";
-    rInit[6] = "Utility;9,-1;18.5";
-
-    noRooms = 7;
-
-    for(byte i=0 ; i < noRooms ; i++)
-    {
-        sscanf(rInit[i],"%[^;];%d,%d;%f", 
-            Rooms[i].Name, 
-            &Rooms[i].Servos[0],
-            &Rooms[i].Servos[1],
-            &Rooms[i].targetTemp);
-        
-        timeCritical();
-        dumpRoom(i);
-    }
-    */
    roomsRead();
 }
 
@@ -98,8 +71,6 @@ void roomDump(byte i)
             Rooms[i].targetTemp,
             Rooms[i].actualTemp);
 }
-
-#define QuotedString(x) "\"##x##\""
 
 void handleRoomTemps()
 {
@@ -141,7 +112,7 @@ void handleRoomTemps()
 
             //DebugTf("ptr = >%s<\n", ptr);
 
-            timeCritical();
+            yield();
             
             sscanf(ptr,"\"name\":\"%[^\"]", jsonName);
             ptr = (char*) &ptr[7];
@@ -160,7 +131,7 @@ void handleRoomTemps()
 
             for( int8_t roomIndex=0 ; roomIndex < noRooms ; roomIndex++)
             {
-                timeCritical();
+                yield();
 
                 if(!strcmp(Rooms[roomIndex].Name,jsonName))
                 {

@@ -25,8 +25,8 @@
 
         #define timeThis(FN)    ({ unsigned long start_time=millis(); \
                                 FN; \
-                                yield(); \
                                 unsigned long duration=millis() - start_time; \
+                                yield(); \
                                 if (duration >= PROFILING_THRESHOLD) \
                                 DebugTf("Function %s [called from %s:%d] took %lu ms\n",\
                                         #FN, __FUNCTION__, __LINE__, duration); \

@@ -3,7 +3,7 @@
 
 #include "FloorTempMonitor.h"
 
-HTTPClient apiClient;
+//HTTPClient apiClient;
 WiFiClient apiWiFiclient;
 
 String apiEndpoint = "http://192.168.2.24/geheim1967/telist";
@@ -80,37 +80,46 @@ void handleRoomTemps()
         return;
 
     // Make API call
+    byte IP[] = { 192, 168, 2, 24};
+    
+    DebugTf("IP %d %d %d %d\n", IP[0], IP[1], IP[2], IP[3]);
 
-    timeThis(apiClient.begin(apiWiFiclient, apiEndpoint));
-
-    timeThis(apiRC=apiClient.GET());
-    if ( apiRC > 0)    // OK
+    //timeThis(apiClient.begin(apiWiFiclient, apiEndpoint));
+    timeThis(apiRC=apiWiFiclient.connect(IP,80));
+    yield();
+    timeThis(apiWiFiclient.print("GET /geheim1967/telist HTTP/1.0\r\n"));
+    //apiWiFiclient.println("User-Agent: FTM");
+    //apiWiFiclient.println("Accept: application/json");
+    timeThis(apiWiFiclient.print("\r\n"));
+    yield();
+    delay(500);
+    //timeThis(apiRC=apiClient.GET());
+    int seen=0;
+    if ( apiWiFiclient.available()  && apiWiFiclient.find("response"))    // OK
     {
+      char Response[1024];
+
+      while(seen < noRooms && apiWiFiclient.available() && apiWiFiclient.find("{") )
+      {
         const char *ptr;    
-        String Response;
-        // get response
+        
+        yield();
+        timeThis(apiWiFiclient.readBytesUntil('}',  Response, sizeof(Response)));
+        
+        ptr=Response;
 
-        timeThis(Response = apiClient.getString()); 
-
-        // process all records in resonse (name, te) pairs
-
-        Response.trim();
-        ptr=&Response.c_str()[0];
-
-        if (!strlen(ptr) || ptr[strlen(ptr)-1] != '}')
+        if (!strlen(ptr))
         {
-            DebugTf("[HomeWizard] No response or last char not '}'\n");
-            // just a warning, do proceed to find usable values in result
+            DebugTf("[HomeWizard] No response (left))\n");
+            break;
         }
 
-        DebugTf("ptr = >%s<\n", ptr);
+        // DebugTf("ptr = >%s<\n", ptr);
         while( (ptr=strstr(ptr,"\"name\"")))
         {
             char jsonName[20];
             float jsonTemp;
             bool  nameFound=false;
-
-            //DebugTf("ptr = >%s<\n", ptr);
 
             yield();
             
@@ -154,17 +163,18 @@ void handleRoomTemps()
                             servoOpen(s,ROOM_HOT);
                         }
                     }
-
-                    break;
+                    seen++;
+                    break; // found, lets not continue
                 }
             }
             
             if(!nameFound)
                 DebugTf("No match for room %s (%f)\n", jsonName, jsonTemp);   
-        }  
+        } 
+      } 
     } else 
         DebugTf("[HomeWizard] API call failed with rc %d\n", apiRC);
     
-    apiClient.end();  
+    timeThis(apiWiFiclient.stop());  
 }
 

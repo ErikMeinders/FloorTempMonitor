@@ -3,14 +3,11 @@
 
 #include "FloorTempMonitor.h"
 
-//HTTPClient apiClient;
 WiFiClient apiWiFiclient;
-
-String apiEndpoint = "http://192.168.2.24/geheim1967/telist";
 
 DECLARE_TIMERs(roomUpdate,60);
 
-#define tempMargin 0.2
+#define tempMargin 0.1
 
 void roomsRead()
 {
@@ -82,14 +79,11 @@ void handleRoomTemps()
     // Make API call
     byte IP[] = { 192, 168, 2, 24};
     
-    DebugTf("IP %d %d %d %d\n", IP[0], IP[1], IP[2], IP[3]);
+    // DebugTf("IP %d %d %d %d\n", IP[0], IP[1], IP[2], IP[3]);
 
-    //timeThis(apiClient.begin(apiWiFiclient, apiEndpoint));
     timeThis(apiRC=apiWiFiclient.connect(IP,80));
     yield();
     timeThis(apiWiFiclient.print("GET /geheim1967/telist HTTP/1.0\r\n"));
-    //apiWiFiclient.println("User-Agent: FTM");
-    //apiWiFiclient.println("Accept: application/json");
     timeThis(apiWiFiclient.print("\r\n"));
     yield();
     delay(500);

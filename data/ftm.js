@@ -143,13 +143,17 @@ requestRoom.onload = function () {
 
             app.appendChild(card);
 
-            var h1 = document.createElement('h1');
-            h1.setAttribute('id', 'h1_'+room.name);
-            h1.textContent = room.name;
+            var header = document.createElement('h1');
+            header.setAttribute('id', 'h1_'+room.name);
+            header.textContent = room.name;
             
-            const newChart = document.createElement('div');
-            newChart.setAttribute("class","chart-container");
-            newChart.setAttribute("id", 'container-'+room.name);
+            const chartContainer = document.createElement('div');
+            chartContainer.setAttribute("class","chart-container");
+            chartContainer.setAttribute("id", 'container-'+room.name);
+
+            const valveContainer = document.createElement('div');
+            valveContainer.setAttribute("class","valve-list-container");
+            valveContainer.setAttribute("id", 'vl-container-'+room.name);
 
             var ul = document.createElement('ul');
             ul.setAttribute('class','valve-list');
@@ -179,8 +183,8 @@ requestRoom.onload = function () {
                 ul.appendChild(li1);
             }    
             // SLIDER
-            var d = document.createElement('div');
-            d.setAttribute("class","slidercontainer");
+            var sliderContainer = document.createElement('div');
+            sliderContainer.setAttribute("class","slidercontainer");
 
             var sl = document.createElement('input');
             sl.setAttribute("type", "range");
@@ -199,8 +203,8 @@ requestRoom.onload = function () {
             vd.appendChild(sp);
 
             // <p>Value: <span id="demo"></span></p>
-            d.appendChild(sl);
-            d.appendChild(vd);
+            sliderContainer.appendChild(sl);
+            sliderContainer.appendChild(vd);
 
             sp.innerHTML = sl.value;
 
@@ -219,11 +223,12 @@ requestRoom.onload = function () {
                 requestPut.open('PUT', APIGW+'room?room='+room.name+'&temp='+this.value, true);
                 requestPut.send();  
             }
+            valveContainer.appendChild(ul);
 
-            card.appendChild(h1);
-            card.appendChild(newChart);
-            card.appendChild(d);
-            card.appendChild(ul);
+            card.appendChild(header);
+            card.appendChild(chartContainer);
+            card.appendChild(sliderContainer);
+            card.appendChild(valveContainer);
 
             var info_id = 'info_'+room.name;
 
@@ -270,7 +275,7 @@ requestRoom.onload = function () {
         
         // update large display temperature
 
-        if (t > room.target+0.2)
+        if (t > room.target)
         {
             temptext=t+">"+room.target+" [CLOSED]";
         } else {
@@ -324,3 +329,13 @@ refreshRoomData(); // initial
 
 var timer = setInterval(refreshRoomData, 15 * 1000); // repeat every 15s
 
+$(".advanced").click(function() {
+    if($(this).is(":checked")) 
+    {
+          console.log("checked");
+          $(".valve-list-container").show();
+      } else {
+         console.log("not checked");
+          $(".valve-list-container").hide();
+      }
+});

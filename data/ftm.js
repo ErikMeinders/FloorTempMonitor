@@ -135,95 +135,97 @@ requestRoom.onload = function () {
 
         // when no chart for room, create one else just update based on IDs
 
-        if( ( document.getElementById('container-'+room.name)) == null )
+        if( ( document.getElementById('card_'+room.name)) == null )
         {
             const card  = document.createElement('div');
             card.setAttribute('class', 'card');
             card.setAttribute('id', 'card_'+room.name);
 
-            app.appendChild(card);
+            app.appendChild(card);  // add the card to the canvas
 
+// HEADER
             var header = document.createElement('h1');
             header.setAttribute('id', 'h1_'+room.name);
             header.textContent = room.name;
-            
+// CHART
             const chartContainer = document.createElement('div');
             chartContainer.setAttribute("class","chart-container");
             chartContainer.setAttribute("id", 'container-'+room.name);
-
-            const valveContainer = document.createElement('div');
-            valveContainer.setAttribute("class","valve-list-container");
-            valveContainer.setAttribute("id", 'vl-container-'+room.name);
-
-            var ul = document.createElement('ul');
-            ul.setAttribute('class','valve-list');
-            
-            for (i=0 ; i < room.servocount ; i++)
-            {
-                var li1 = document.createElement('li');
-                li1.setAttribute('class', 'valve');
-                    
-                var h31 = document.createElement('p');
-                h31.setAttribute( 'id', "valve-txt-"+room.servos[i]);
-                h31.innerHTML = "30 &#8451; | "+verbalState(room.servos[i]);
-        
-                var pg1 = document.createElement('meter');
-                pg1.setAttribute( 'id', "progress-"+room.servos[i]);
-                pg1.setAttribute('class', 'valve-1');
-                pg1.setAttribute('max', 35);
-                pg1.setAttribute('min', 15);
-                pg1.setAttribute('high',32);
-                pg1.setAttribute('low', 20);
-
-                pg1.setAttribute('value', 20);
-                
-                li1.appendChild(h31);
-                li1.appendChild(pg1);
-
-                ul.appendChild(li1);
-            }    
-            // SLIDER
+// SLIDER
             var sliderContainer = document.createElement('div');
             sliderContainer.setAttribute("class","slidercontainer");
 
-            var sl = document.createElement('input');
-            sl.setAttribute("type", "range");
-            sl.setAttribute("min", "15");
-            sl.setAttribute("max", "25");
-            sl.setAttribute("value",room.target);
-            sl.setAttribute("step", "0.1");
-            sl.setAttribute("class", "slider");
-            sl.setAttribute("id", "sl_"+room.name);
+            var slider = document.createElement('input');
+            slider.setAttribute("type", "range");
+            slider.setAttribute("min", "15");
+            slider.setAttribute("max", "25");
+            slider.setAttribute("value",room.target);
+            slider.setAttribute("step", "0.1");
+            slider.setAttribute("class", "slider");
+            slider.setAttribute("id", "sl_"+room.name);
 
             //    <input type="range" min="15" max="25" value="50" class="slider" id="myRange"></input>
 
-            var vd = document.createElement('p');
-            var sp = document.createElement('span');
-            sp.setAttribute("id", "vd_"+room.name);
-            vd.appendChild(sp);
+            var valuedisplay = document.createElement('p');
+            var span = document.createElement('span');
+            span.setAttribute("id", "vd_"+room.name);
+            valuedisplay.appendChild(span);
 
             // <p>Value: <span id="demo"></span></p>
-            sliderContainer.appendChild(sl);
-            sliderContainer.appendChild(vd);
+            sliderContainer.appendChild(slider);
+            sliderContainer.appendChild(valuedisplay);
 
-            sp.innerHTML = sl.value;
+            span.innerHTML = slider.value;
 
-            sl.oninput = function() {
-                sp.innerHTML = this.value;
+            slider.oninput = function() {
+                span.innerHTML = this.value;
             }
 
-            sl.onmouseup = function() {
+            slider.onmouseup = function() {
                 console.log("mouse up");
                 requestPut.open('PUT', APIGW+'room?room='+room.name+'&temp='+this.value, true);
                 requestPut.send();  
             }
 
-            sl.ontouchend = function() {
+            slider.ontouchend = function() {
                 console.log("touch end");
                 requestPut.open('PUT', APIGW+'room?room='+room.name+'&temp='+this.value, true);
                 requestPut.send();  
             }
-            valveContainer.appendChild(ul);
+// VALVES            
+            const valveContainer = document.createElement('div');
+            valveContainer.setAttribute("class","valve-list-container");
+            valveContainer.setAttribute("id", 'vl-container-'+room.name);
+
+            var valvelist = document.createElement('ul');
+            valvelist.setAttribute('class','valve-list');
+            
+            for (i=0 ; i < room.servocount ; i++)
+            {
+                var valve = document.createElement('li');
+                valve.setAttribute('class', 'valve');
+                    
+                var valvetext = document.createElement('p');
+                valvetext.setAttribute( 'id', "valve-txt-"+room.servos[i]);
+                valvetext.innerHTML = "30 &#8451; | "+verbalState(room.servos[i]);
+        
+                var progress = document.createElement('meter');
+                progress.setAttribute( 'id', "progress-"+room.servos[i]);
+                progress.setAttribute('class', 'valve-1');
+                progress.setAttribute('max', 35);
+                progress.setAttribute('min', 15);
+                /*
+                progress.setAttribute('high',32);
+                progress.setAttribute('low', 20);
+                */
+                progress.setAttribute('value', 20);
+                
+                valve.appendChild(valvetext);
+                valve.appendChild(progress);
+
+                valvelist.appendChild(valve);
+            }    
+            valveContainer.appendChild(valvelist);
 
             card.appendChild(header);
             card.appendChild(chartContainer);
@@ -237,7 +239,7 @@ requestRoom.onload = function () {
                     min: 15,
                     max: 25,
                     title: {
-                        text: `${room.name}`
+                        text: 'room temperature'
                     }
                 },
             
@@ -291,12 +293,15 @@ requestRoom.onload = function () {
             var o=influx-sensorInfo[room.servos[i]].targetdelta;
 
             console.log("updating progress for "+room.name+" with "+i+" "+servoState[ room.servos[i]] );
-            var h31=document.getElementById("valve-txt-"+room.servos[i]);
-            h31.innerHTML = sensorInfo[room.servos[i]].text+" | "+verbalState(room.servos[i]);
-        
-            var pg1=document.getElementById( "progress-"+room.servos[i]);
-            pg1.setAttribute('value', t);   
-            pg1.setAttribute('optimum', o);
+            var valvetext=document.getElementById("valve-txt-"+room.servos[i]);
+            valvetext.innerHTML = sensorInfo[room.servos[i]].text+" | "+verbalState(room.servos[i]);
+            
+            /*
+            var progress=document.getElementById( "progress-"+room.servos[i]);
+    
+            progress.setAttribute('value', t);   
+            progress.setAttribute('optimum', o);
+            */
         }  
         
         //  update slider (might have been changed from other browser)
@@ -328,14 +333,3 @@ function refreshRoomData() {
 refreshRoomData(); // initial
 
 var timer = setInterval(refreshRoomData, 15 * 1000); // repeat every 15s
-
-$(".advanced").click(function() {
-    if($(this).is(":checked")) 
-    {
-          console.log("checked");
-          $(".valve-list-container").show();
-      } else {
-         console.log("not checked");
-          $(".valve-list-container").hide();
-      }
-});

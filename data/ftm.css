@@ -187,12 +187,15 @@ input[type=checkbox]:checked ~  .outer > .card > .valve-list-container {
 
 .valve ::-webkit-meter-value {
 	-webkit-animation: bar-fill 2s;
+	animation: bar-fill 2s;
 	width: 0px;
 	background-image: linear-gradient(to right, orange, red);
 }
 
 .valve-1::-webkit-meter-value {
 	-webkit-animation: bar-fill 2s;
+	animation: bar-fill 2s;
+
 	width: 0px;
 	background-image: linear-gradient(to right, orange, red);
 }

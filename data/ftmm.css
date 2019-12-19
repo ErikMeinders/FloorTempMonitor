@@ -15,7 +15,7 @@ html {
 .outer {
     display: grid;
     grid-gap: 15px;
-    grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
 }
 
 .card {
@@ -35,21 +35,22 @@ html {
 
 .card p.roomname {	
 	display: block;
-    font-size: 2em;
-    margin-block-start: 0.67em;
+    font-size: 1.2em;
+    margin-block-start: 0.2em;
     margin-block-end: 0.67em;
     margin-inline-start: 0px;
     margin-inline-end: 0px;
     font-weight: lighter;
     text-align: center;
+    text-transform: uppercase;
 }
 
 .card p.actual {
     font-weight: bold;
     text-align: center;
-    font-size: 2rem;   
+    font-size: 1.8rem;   
     margin-block-start: 0.5em;
-    margin-block-end: 0.5em;
+    margin-block-end: -0.5em;
         
 }
 
@@ -57,5 +58,6 @@ html {
     text-indent: 1em;
     background-color: aqua;
     margin-block-end: 0;
-    line-height: 3em;
+    line-height: 2em;
+    width: 50%;
 }

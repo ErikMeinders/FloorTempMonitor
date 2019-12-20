@@ -49,8 +49,8 @@ requestRoom.onload = function () {
       
         // update display temperatures
 
-        document.getElementById("actual_"+room.name).innerHTML= String(actual);
-        document.getElementById("target_"+room.name).innerHTML= String(target);
+        document.getElementById("actual_"+room.name).innerHTML= String(actual)+"&#176;";
+        document.getElementById("target_"+room.name).innerHTML= String(target)+"&#176;";
     });
   } else {
     const errorMessage = document.createElement('marquee');

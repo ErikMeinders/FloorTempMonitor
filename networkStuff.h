@@ -3,7 +3,7 @@
 **  Program  : networkStuff.h, part of FloorTempMonitor
 **  Version  : v0.5.0
 **
-**  Copyright (c) 2019 Willem Aandewiel
+**  Copyright (c) 2020 Willem Aandewiel
 **
 **  TERMS OF USE: MIT License. See bottom of file.                                                            
 ***************************************************************************      
@@ -13,11 +13,12 @@
 #include <ESP8266WebServer.h>   // Version 1.0.0 - part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <WiFiUdp.h>            // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <ESP8266mDNS.h>        // part of ESP8266 Core https://github.com/esp8266/Arduino
+#include <TelnetStream.h>       // Version 0.0.1 - https://github.com/jandrassy/TelnetStream
 #ifdef USE_UPDATE_SERVER
-  #include <ESP8266HTTPUpdateServer.h>
+  #include <ModUpdateServer.h>  // install https://github.com/mrWheel/ModUpdateServer
+  #include "UpdateServerHtml.h"
 #endif
 #include <WiFiManager.h>        // version 0.14.0 - https://github.com/tzapu/WiFiManager
-#include <TelnetStream.h>       // Version 0.0.1 - https://github.com/jandrassy/TelnetStream
 
 ESP8266WebServer        httpServer (80);
 #ifdef USE_UPDATE_SERVER
@@ -56,7 +57,7 @@ void startWiFi()
   
   //fetches ssid and pass and tries to connect
   //if it does not connect it starts an access point with the specified name
-  //here  "DSMR-WS-<MAC>"
+  //here  "FloorTempMonitor-<MAC>"
   //and goes into a blocking loop awaiting configuration
   if (!manageWiFi.autoConnect(thisAP.c_str())) {
     DebugTln("failed to connect and hit timeout");
@@ -72,9 +73,10 @@ void startWiFi()
     oled_Clear();
 #endif
 
-
 #ifdef USE_UPDATE_SERVER
   httpUpdater.setup(&httpServer);
+  httpUpdater.setIndexPage(UpdateServerIndex);
+  httpUpdater.setSuccessPage(UpdateServerSuccess);
 #endif
   
 } // startWiFi()

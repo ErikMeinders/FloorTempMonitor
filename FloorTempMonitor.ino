@@ -1,31 +1,37 @@
 /*
 **  Program   : FloorTempMonitor
 */
-#define _FW_VERSION "v1.1.0 (26-11-2019)"
+#define _FW_VERSION "v1.2.0 (07-01-2020)"
 
 /*
-**  Copyright (c) 2019 Willem Aandewiel / Erik Meinders
+**  Copyright (c) 2020 Willem Aandewiel / Erik Meinders
 **
 **  TERMS OF USE: MIT License. See bottom of file.
 ***************************************************************************
-  Arduino-IDE settings for this program:
+  Use Boards Manager to install Arduino ESP8266 core 2.6.3  (https://github.com/esp8266/Arduino/releases)
+  
+  Arduino-IDE settings for FloorTempMonitor:
 
     - Board: "Generic ESP8266 Module"
-    - Flash mode: "DIO" | "DOUT"    // if you change from one to the other OTA will fail!
-    - Flash size: "4M (1M SPIFFS)"  // ESP-01 "1M (256K SPIFFS)"  // PUYA flash chip won't work
+    - Buildin Led: "2"  // ESP-01 (Black) GPIO01 - Pin 2 // "2" for Wemos and ESP-01S
+    - Upload Speed: "115200"  -  "460800"                                                                                                                                                                                                                                               
+    - CPU Frequency: "80 MHz"
+    - Crystal Frequency: "26 MHz" 
+    - Flash size: "4MB (FS: 1MB OTA:~1019KB)"  
+    > Flash size: "4MB (FS: 2MB OTA:~1019KB)"  this would be better but you first have to save your files!
+    - Flash mode: "DOUT" | "DIO"    // if you change from one to the other OTA may fail!
+    - Flash Frequency: "80MHz"
+    - Reset Method: "no dtr (aka ck)"   // but will depend on the programmer!
     - DebugT port: "Disabled"
     - DebugT Level: "None"
     - IwIP Variant: "v2 Lower Memory"
-    - Reset Method: "none"   // but will depend on the programmer!
-    - Crystal Frequency: "26 MHz"
     - VTables: "Flash"
-    - Flash Frequency: "40MHz"
-    - CPU Frequency: "80 MHz"
-    - Buildin Led: "2"  //  "2" for Wemos and ESP-12
-    - Upload Speed: "115200"
     - Erase Flash: "Only Sketch"
+    - Espressif FW: "nonos-sdk 2.2.1 (legacy)"
+    - SSL Support: "All SSL ciphers (most compatible)"
     - Port: <select correct port>
 */
+
 #define _HOSTNAME "FloorTempMonitor"
 /******************** compiler options  ********************************************/
 #define USE_NTP_TIME
@@ -36,7 +42,7 @@
 #define PROFILING             // comment this line out if you want not profiling 
 #define PROFILING_THRESHOLD 45 // defaults to 3ms - don't show any output when duration below TH
 
-#//  define TESTDATA
+//  #define TESTDATA
 /******************** don't change anything below this comment **********************/
 
 #include <Timezone.h>           // https://github.com/JChristensen/Timezone
@@ -204,26 +210,25 @@ void setup()
   httpServer.serveStatic("/favicon.ico",      SPIFFS, "/favicon.ico");
   httpServer.serveStatic("/favicon-32x32.png",SPIFFS, "/favicon-32x32.png");
   httpServer.serveStatic("/favicon-16x16.png",SPIFFS, "/favicon-16x16.png");
-  
-  httpServer.on("/ReBoot", handleReBoot);
 
 #if defined (HAS_FSEXPLORER)
-  httpServer.on("/FSexplorer", HTTP_POST, handleFileDelete);
-  httpServer.on("/FSexplorer", handleRoot);
-  httpServer.on("/FSexplorer/upload", HTTP_POST, []() {
-    httpServer.send(200, "text/plain", "");
-  }, handleFileUpload);
+    setupFSexplorer();
+//  httpServer.on("/FSexplorer", HTTP_POST, handleFileDelete);
+//  httpServer.on("/FSexplorer", handleRoot);
+//  httpServer.on("/FSexplorer/upload", HTTP_POST, []() {
+//    httpServer.send(200, "text/plain", "");
+//  }, handleFileUpload);
 #endif
-  httpServer.onNotFound([]() {
-    if (httpServer.uri() == "/update") {
-      httpServer.send(200, "text/html", "/update" );
-    } else {
-      DebugTf("onNotFound(%s)\r\n", httpServer.uri().c_str());
-    }
-    if (!handleFileRead(httpServer.uri())) {
-      httpServer.send(404, "text/plain", "FileNotFound");
-    }
-  });
+//  httpServer.onNotFound([]() {
+//    if (httpServer.uri() == "/update") {
+//      httpServer.send(200, "text/html", "/update" );
+//    } else {
+//      DebugTf("onNotFound(%s)\r\n", httpServer.uri().c_str());
+//    }
+//    if (!handleFileRead(httpServer.uri())) {
+//      httpServer.send(404, "text/plain", "FileNotFound");
+//    }
+//  });
 
   DebugTln( "HTTP server gestart\r" );
   digitalWrite(LED_GREEN, LED_OFF);
@@ -245,14 +250,24 @@ void setup()
     _SA[s].servoNr     =  (s+1);                               // TESTDATA
     _SA[s].deltaTemp   = 15 + s;                               // TESTDATA
     _SA[s].tempFactor  = 1.0;                                  // TESTDATA
-    _SA[s].servoTimer  = millis();                             // TESTDATA
+    _SA[s].tempOffset  = 0.01;                                 // TESTDATA
+    _SA[s].tempC       = 18.01;                                // TESTDATA
+    /**
+  int8_t    sensorIndex;          // index on CB bus NOT index in _SA array!
+  char      sensorID[20];
+  char      name[_MAX_NAME_LEN];
+  float     tempOffset;     // calibration
+  float     tempFactor;     // calibration
+  int8_t    servoNr;        // index in servoArray
+  float     deltaTemp;      //-- in S0 -> closeTime
+  float     tempC;          //-- not in sensors.ini
+  **/
+
   }                                                            // TESTDATA
   sprintf(_SA[0].name, "*Flux IN");                            // TESTDATA
-  _SA[0].position      =  0;                                   // TESTDATA
   _SA[0].deltaTemp     =  2; // is _PULSE_TIME                 // TESTDATA
   _SA[0].servoNr       = -1;                                   // TESTDATA
   sprintf(_SA[1].name, "*Flux RETOUR");                        // TESTDATA
-  _SA[1].position      =  1;                                   // TESTDATA
   _SA[1].deltaTemp     =  0;                                   // TESTDATA
   _SA[1].servoNr       = -1;                                   // TESTDATA
   sprintf(_SA[7].name, "*Room Temp.");                         // TESTDATA

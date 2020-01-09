@@ -286,13 +286,9 @@ void doRedirect(String msg, int wait, const char* URL, bool reboot)
 //===========================================================================================
 bool compare(String x, String y) 
 { 
-  // Map to store the characters with their order 
-  // in the new alphabetical order 
-    char h[21] = ""; 
     for (int i = 0; i < min(x.length(), y.length()); i++) { 
-        if (h[x[i]] == h[y[i]]) 
-            continue; 
-        return h[x[i]] < h[y[i]]; 
+      if (x[i] != y[i]) 
+        return (bool)(x[i] < y[i]); 
     } 
     return x.length() < y.length(); 
     

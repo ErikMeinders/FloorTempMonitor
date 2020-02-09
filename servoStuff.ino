@@ -140,11 +140,11 @@ void checkDeltaTemps() {
 
     if (_SA[0].tempC > HEATER_ON_TEMP) 
     {      
-      if ( _SA[s].deltaTemp > (_SA[0].tempC - _SA[s].tempC)) 
+      
+      if( _SA[s].tempC > HOTTEST_RETURN)
       {
         servoClose(servo, WATER_HOT);
       }
-          //--- heater is not heating ... -----
     } 
 
     Debugln();

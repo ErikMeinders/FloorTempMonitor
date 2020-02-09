@@ -51,13 +51,14 @@
 #include "timing.h"
 #include "networkStuff.h"
 #include "FloorTempMonitor.h"
+#include "FTMConfig.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 #define _SA                   sensorArray
 #define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
-#define HEATER_ON_TEMP        47.0
+
 #define LED_BUILTIN_ON        LOW
 #define LED_BUILTIN_OFF       HIGH
 #define LED_WHITE             14      // D5

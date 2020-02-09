@@ -16,6 +16,9 @@
         "tuple": "cpp",
         "filesystem": "cpp",
         "regex": "cpp",
-        "cstddef": "cpp"
+        "cstddef": "cpp",
+        "__locale": "cpp",
+        "__string": "cpp",
+        "string_view": "cpp"
     }
 }

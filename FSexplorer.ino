@@ -286,7 +286,7 @@ void doRedirect(String msg, int wait, const char* URL, bool reboot)
 //===========================================================================================
 bool compare(String x, String y) 
 { 
-    for (int i = 0; i < min(x.length(), y.length()); i++) { 
+    for (uint i = 0; i < min(x.length(), y.length()); i++) { 
       if (x[i] != y[i]) 
         return (bool)(x[i] < y[i]); 
     } 

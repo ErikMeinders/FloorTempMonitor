@@ -16,10 +16,12 @@
 #define CLOSE_SERVO         HIGH
 #define OPEN_SERVO          LOW
 #define I2C_MUX_ADDRESS     0x48    // the 7-bit address 
+#define HEAT_RELAIS         14
 
 I2CMUX    I2cExpander;   //Create instance of the I2CMUX object
 
 static uint32_t scanTimer;          // 
+static uint8_t  globalClosedServosCount=0;
 
 DECLARE_TIMER(servoAlignment,60);
 
@@ -33,6 +35,17 @@ void servoInit()
     servoArray[i].closeReason = 0;
   }
 }
+
+void demandForHeatCheck()
+{
+  /* as long as there is any open servo ... */
+  bool demand = (globalClosedServosCount < (_MAX_SERVOS - 1));
+  
+  DebugTf("globalClosedServosCount now is %d [%d]\n", globalClosedServosCount, (int) demand);
+
+  I2cExpander.digitalWrite(HEAT_RELAIS, demand); 
+}
+
 void servoClose(uint8_t s, uint8_t reason)
 {
   servoArray[s].closeReason |= reason; 
@@ -48,6 +61,9 @@ void servoClose(uint8_t s)
   servoArray[s].servoState = SERVO_IS_CLOSED;
   servoArray[s].servoTimer = millis();
   DebugTf("[%2d] change to CLOSED state for [%d] minutes\n", s, _PULSE_TIME);
+  globalClosedServosCount++;
+  demandForHeatCheck();
+
 }
 
 void servoOpen(uint8_t s, uint8_t reason)
@@ -57,7 +73,6 @@ void servoOpen(uint8_t s, uint8_t reason)
 
   if(servoArray[s].closeReason == 0 && servoArray[s].servoState == SERVO_IS_CLOSED)
     servoOpen(s); 
-
 }
 
 void servoOpen(uint8_t s)
@@ -70,6 +85,8 @@ void servoOpen(uint8_t s)
   servoArray[s].closeCount++;
   servoArray[s].servoTimer = millis();
   DebugTf("[%2d] change to LOOP state for [%d] minutes\n", s, (_REFLOW_TIME / _MIN));
+  globalClosedServosCount--;
+  demandForHeatCheck();
 }
 
 void servoAlign(uint8_t s)

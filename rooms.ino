@@ -143,8 +143,8 @@ void handleRoomTemps()
 
                     nameFound=true;
                     roomDump(roomIndex);
-                    byte s;
-                    for(byte i=0 ; (s=Rooms[roomIndex].Servos[i]) > 0 ; i++)
+                    int8_t s;
+                    for(byte i=0 ; (s=Rooms[roomIndex].Servos[i]) > 0 && i < 2; i++)
                     {
                         // close servos based on room temperature?
                         if (Rooms[roomIndex].actualTemp > Rooms[roomIndex].targetTemp+tempMargin )

@@ -23,6 +23,9 @@ typedef struct _troom {
     int     Servos[MAX_UFHLOOPS_PER_ROOM];     // array of indices in Servos array (max 2)
     float   targetTemp;                        // target temp for room
     float   actualTemp;                        // actual room temp
+    float   knxActual, knxTarget;
+    bool    knxState=false;
+    address_t GA_actual, GA_target, GA_state;
 } room_t;
 
 room_t Rooms[MAXROOMS];

@@ -50,6 +50,8 @@
 #include "Debug.h"
 #include "timing.h"
 #include "networkStuff.h"
+#include <esp-knx-ip.h>
+
 #include "FloorTempMonitor.h"
 #include "FTMConfig.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
@@ -282,6 +284,7 @@ void setup()
   servoInit();
   setupI2C_Mux();
   roomsInit();
+  myKNX_init();
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
@@ -307,5 +310,7 @@ void loop()
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 
   timeThis( servosAlign() );          // re-align servos after servo-board reset
+
+  timeThis( myKNX_loop() );           // allign KNX bus and respond to queries over KNX
 
 } 

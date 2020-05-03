@@ -3,7 +3,7 @@
 
 #include "FloorTempMonitor.h"
 
-WiFiClient apiWiFiclient;
+static WiFiClient apiWiFiclient;
 
 DECLARE_TIMERs(roomUpdate,60);
 
@@ -18,13 +18,21 @@ void roomsRead()
     while (file.available()) {
         int l = file.readBytesUntil('\n', buffer, sizeof(buffer));
         buffer[l] = 0;
-    
-        sscanf(buffer,"%[^;];%d,%d;%f", 
+        int al,aa,am,tl,ta,tm,sl,sa,sm;
+
+        sscanf(buffer,"%[^;];%d,%d;%f;%d/%d/%d;%d/%d/%d;%d/%d/%d", 
             Rooms[i].Name, 
             &Rooms[i].Servos[0],
             &Rooms[i].Servos[1],
-            &Rooms[i].targetTemp);
+            &Rooms[i].targetTemp,
+            &aa, &al, &am,
+            &ta, &tl, &tm,
+            &sa, &sl, &sm);
         
+        Rooms[i].GA_actual = knx.GA_to_address (aa, al, am);
+        Rooms[i].GA_target = knx.GA_to_address (ta, tl, tm);
+        Rooms[i].GA_state  = knx.GA_to_address (sa, sl, sm);
+
         yield();
         roomDump(i);
         i++;
@@ -40,11 +48,22 @@ void roomsWrite()
 
     for (int8_t i=0 ; i < noRooms ; i++)
     {    
-        sprintf(buffer,"%s;%d,%d;%f\n", 
+
+        sprintf(buffer,"%s;%d,%d;%f;%d/%d/%d;%d/%d/%d;%d/%d/%d\n", 
             Rooms[i].Name, 
             Rooms[i].Servos[0],
             Rooms[i].Servos[1],
-            Rooms[i].targetTemp);
+            Rooms[i].targetTemp,
+            Rooms[i].GA_actual.ga.area,
+            Rooms[i].GA_actual.ga.line,
+            Rooms[i].GA_actual.ga.member,
+            Rooms[i].GA_target.ga.area,
+            Rooms[i].GA_target.ga.line,
+            Rooms[i].GA_target.ga.member,
+            Rooms[i].GA_state.ga.area,
+            Rooms[i].GA_state.ga.line,
+            Rooms[i].GA_state.ga.member
+            );
         
         yield();
         file.write(buffer, strlen(buffer));
@@ -61,12 +80,21 @@ void roomsInit()
 
 void roomDump(byte i)
 {
-    DebugTf("roomDump: Name: %s Servos [%d,%d] Target/ActualTemp %f/%f \n",  
+    DebugTf(" %-10.10s [%2d %2d] Target/ActualTemp %4.1f/%4.1f knx %d/%d/%d | %d/%d/%d | %d/%d/%d\n",  
             Rooms[i].Name, 
             Rooms[i].Servos[0],
             Rooms[i].Servos[1],
             Rooms[i].targetTemp,
-            Rooms[i].actualTemp);
+            Rooms[i].actualTemp,
+            Rooms[i].GA_actual.ga.area,
+            Rooms[i].GA_actual.ga.line,
+            Rooms[i].GA_actual.ga.member,
+            Rooms[i].GA_target.ga.area,
+            Rooms[i].GA_target.ga.line,
+            Rooms[i].GA_target.ga.member,
+            Rooms[i].GA_state.ga.area,
+            Rooms[i].GA_state.ga.line,
+            Rooms[i].GA_state.ga.member);
 }
 
 void handleRoomTemps()
@@ -86,7 +114,9 @@ void handleRoomTemps()
     timeThis(apiWiFiclient.print("GET /geheim1967/telist HTTP/1.0\r\n"));
     timeThis(apiWiFiclient.print("\r\n"));
     yield();
-    delay(500);
+
+    for( int8_t x=0 ; !apiWiFiclient.available() && x < 10 ; x++)
+        delay(100);
     //timeThis(apiRC=apiClient.GET());
     int seen=0;
     if ( apiWiFiclient.available()  && apiWiFiclient.find("response"))    // OK

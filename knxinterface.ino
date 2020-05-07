@@ -38,6 +38,8 @@ void myKNX_init() {
   }
   // Start knx
   knx.start(nullptr);
+
+  myKNX_update();
 }
 
 bool ok_fun()
@@ -50,73 +52,76 @@ void myKNX_loop()
   knx.loop();
   
   if ( DUE(knxUpdate) )
-  {
-    address_t GA;
-
-    // knx.write_1bit(knx.GA_to_address(1,0,60), 1);
-
-    for( int8_t Room=0 ; Room < KNXROOMS ; Room++)
-    {
-      if (!occasionally || (Rooms[Room].knxActual != Rooms[Room].actualTemp))
-      {
-        // update actual temp on KNX bus
-        Rooms[Room].knxActual = Rooms[Room].actualTemp;
-        DebugTf("writing to %d/%d/%d actual temp %4.1f\n", 
-                Rooms[Room].GA_actual.ga.area,
-                Rooms[Room].GA_actual.ga.line,
-                Rooms[Room].GA_actual.ga.member,
-                Rooms[Room].knxActual);
-        knx.write_2byte_float(Rooms[Room].GA_actual, Rooms[Room].knxActual);
-        delay(50);
-      }
-      if (!occasionally || (Rooms[Room].knxTarget != Rooms[Room].targetTemp))
-      {
-        // update target on KNX bus
-        Rooms[Room].knxTarget = Rooms[Room].targetTemp;
-        DebugTf("writing to %d/%d/%d target temp %4.1f\n", 
-                Rooms[Room].GA_target.ga.area,
-                Rooms[Room].GA_target.ga.line,
-                Rooms[Room].GA_target.ga.member,
-                Rooms[Room].knxTarget);
-        knx.write_2byte_float(Rooms[Room].GA_target, Rooms[Room].knxTarget);
-         delay(50);
-      }
-
-      bool isHeating = false;
-
-      for (int8_t k=0 ; k < 2 ; k++)
-        if( Rooms[Room].Servos[k] >= 0)
-        { 
-          DebugTf("Servo[%d] state Room[%d] is %d\n", Rooms[Room].Servos[k], 
-                                                      Room,
-                                                      servoArray[Rooms[Room].Servos[k]].servoState );
-          if( servoArray[Rooms[Room].Servos[k]].servoState != SERVO_IS_CLOSED )
-            isHeating = true;
-        }
-        
-      if( !occasionally || (Rooms[Room].knxState != isHeating ))
-      {
-        Rooms[Room].knxState = isHeating;
-
-        DebugTf("writing to %d/%d/%d state heating is %s\n", 
-                Rooms[Room].GA_state.ga.area,
-                Rooms[Room].GA_state.ga.line,
-                Rooms[Room].GA_state.ga.member,
-                isHeating ? "on" : "off");
-
-        knx.write_1bit(Rooms[Room].GA_state, isHeating);
- 
-        // DebugTf("writing to 10/%d/3 heating is %s\n", Room, isHeating ? "on" : "off");
-        // knx.write_1bit(knx.GA_to_address(10, Room, 3), isHeating);
-        delay(50);
-      }
-    }
-    if(++occasionally == 3)
-      occasionally = 0;
-
-  }
-  
+    myKNX_update();
 }
+
+void myKNX_update()
+{
+  address_t GA;
+
+  // knx.write_1bit(knx.GA_to_address(1,0,60), 1);
+
+  for( int8_t Room=0 ; Room < KNXROOMS ; Room++)
+  {
+    if (!occasionally || (Rooms[Room].knxActual != Rooms[Room].actualTemp))
+    {
+      // update actual temp on KNX bus
+      Rooms[Room].knxActual = Rooms[Room].actualTemp;
+      DebugTf("writing to %d/%d/%d actual temp %4.1f\n", 
+              Rooms[Room].GA_actual.ga.area,
+              Rooms[Room].GA_actual.ga.line,
+              Rooms[Room].GA_actual.ga.member,
+              Rooms[Room].knxActual);
+      knx.write_2byte_float(Rooms[Room].GA_actual, Rooms[Room].knxActual);
+      delay(50);
+    }
+    if (!occasionally || (Rooms[Room].knxTarget != Rooms[Room].targetTemp))
+    {
+      // update target on KNX bus
+      Rooms[Room].knxTarget = Rooms[Room].targetTemp;
+      DebugTf("writing to %d/%d/%d target temp %4.1f\n", 
+              Rooms[Room].GA_target.ga.area,
+              Rooms[Room].GA_target.ga.line,
+              Rooms[Room].GA_target.ga.member,
+              Rooms[Room].knxTarget);
+      knx.write_2byte_float(Rooms[Room].GA_target, Rooms[Room].knxTarget);
+        delay(50);
+    }
+
+    bool isHeating = false;
+
+    for (int8_t k=0 ; k < 2 ; k++)
+      if( Rooms[Room].Servos[k] >= 0)
+      { 
+        DebugTf("Servo[%d] state Room[%d] is %d\n", Rooms[Room].Servos[k], 
+                                                    Room,
+                                                    servoArray[Rooms[Room].Servos[k]].servoState );
+        if( servoArray[Rooms[Room].Servos[k]].servoState == SERVO_IS_OPEN || servoArray[Rooms[Room].Servos[k]].servoState == SERVO_IS_OPENING )
+          isHeating = true;
+      }
+      
+    if( !occasionally || (Rooms[Room].knxState != isHeating ))
+    {
+      Rooms[Room].knxState = isHeating;
+
+      DebugTf("writing to %d/%d/%d state heating is %s\n", 
+              Rooms[Room].GA_state.ga.area,
+              Rooms[Room].GA_state.ga.line,
+              Rooms[Room].GA_state.ga.member,
+              isHeating ? "on" : "off");
+
+      knx.write_1bit(Rooms[Room].GA_state, isHeating);
+
+      // DebugTf("writing to 10/%d/3 heating is %s\n", Room, isHeating ? "on" : "off");
+      // knx.write_1bit(knx.GA_to_address(10, Room, 3), isHeating);
+      delay(50);
+    }
+  }
+  if(++occasionally == 3)
+    occasionally = 0;
+
+}
+  
 
 void temp_cb(message_t const &msg, void *arg)
 {

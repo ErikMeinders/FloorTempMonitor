@@ -9,6 +9,18 @@ DECLARE_TIMERs(roomUpdate,60);
 
 #define tempMargin 0.1
 
+void roomsInit()
+{
+   roomsRead();
+   handleRoomTemps();
+}
+
+void roomsLoop()
+{
+    if (DUE(roomUpdate))
+        handleRoomTemps();
+}
+
 void roomsRead()
 {
     File file = SPIFFS.open("/rooms.ini", "r");
@@ -72,12 +84,6 @@ void roomsWrite()
     file.close(); //
 }
 
-void roomsInit()
-{
-
-   roomsRead();
-}
-
 void roomDump(byte i)
 {
     DebugTf(" %-10.10s [%2d %2d] Target/ActualTemp %4.1f/%4.1f knx %d/%d/%d | %d/%d/%d | %d/%d/%d\n",  
@@ -100,9 +106,6 @@ void roomDump(byte i)
 void handleRoomTemps()
 {
     int apiRC;
-
-    if (!DUE(roomUpdate))
-        return;
 
     // Make API call
     byte IP[] = { 192, 168, 2, 24};

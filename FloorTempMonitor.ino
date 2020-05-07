@@ -281,7 +281,7 @@ void setup()
   printSensorArray();
   Debugln("========================================================================================");
 
-  servoInit();
+  servosInit();
   setupI2C_Mux();
   roomsInit();
   myKNX_init();
@@ -301,11 +301,12 @@ void loop()
   timeThis( handleNTP() );
 
   timeThis( checkI2C_Mux() );         // check I2C_Mux communication with servo board
-  timeThis( handleSensors() );        // update return water temperature information
+
+  timeThis( sensorsLoop() );        // update return water temperature information
   
-  timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
+  timeThis( servosLoop() );      // check for hotter than wanted return water temperatures
   
-  timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
+  timeThis( roomsLoop() );      // check room temperatures and operate servos when necessary
 
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 

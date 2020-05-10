@@ -9,6 +9,20 @@
 ***************************************************************************
 */
 
+void sensorsInit()
+{
+
+  sensorsRead();
+  setupDallasSensors();
+  sensorsWrite();
+  handleSensors();
+}
+
+void sensorsLoop()
+{
+  if (_needToPoll())
+    handleSensors();
+}
 // function to print a device address
 //===========================================================================================
 char * sensorIDFormat(DeviceAddress deviceAddress)
@@ -95,8 +109,7 @@ boolean _needToPoll()
 //===========================================================================================
 void handleSensors()
 {
-  if (_needToPoll())
-  {
+  
     cacheEmpty = true; // force cache refresh upon next use
 
     for(int sensorNr = 0; sensorNr < noSensors; sensorNr++) 
@@ -105,7 +118,7 @@ void handleSensors()
       timeThis(updateSensorData(sensorNr));
     }
       
-  }
+  
 } // handleSensors()
 
 
@@ -241,14 +254,7 @@ void setupDallasSensors()
   
 } // setupDallasSensors()
 
-void sensorsInit()
-{
 
-  sensorsRead();
-  setupDallasSensors();
-  sensorsWrite();
-
-}
 //===========================================================================================
 bool sensorMatchOrAdd(char* devID, int sensorNr)
 { 

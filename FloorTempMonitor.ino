@@ -50,14 +50,17 @@
 #include "Debug.h"
 #include "timing.h"
 #include "networkStuff.h"
+#include <esp-knx-ip.h>
+
 #include "FloorTempMonitor.h"
+#include "FTMConfig.h"
 #include <FS.h>                 // part of ESP8266 Core https://github.com/esp8266/Arduino
 #include <OneWire.h>            // https://github.com/PaulStoffregen/OneWire
 #include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 #define _SA                   sensorArray
 #define _PULSE_TIME           (uint32_t)sensorArray[0].deltaTemp
-#define HEATER_ON_TEMP        47.0
+
 #define LED_BUILTIN_ON        LOW
 #define LED_BUILTIN_OFF       HIGH
 #define LED_WHITE             14      // D5
@@ -278,9 +281,10 @@ void setup()
   printSensorArray();
   Debugln("========================================================================================");
 
-  servoInit();
+  servosInit();
   setupI2C_Mux();
   roomsInit();
+  myKNX_init();
 
   String DT = buildDateTimeString();
   DebugTf("Startup complete! @[%s]\r\n\n", DT.c_str());
@@ -297,14 +301,17 @@ void loop()
   timeThis( handleNTP() );
 
   timeThis( checkI2C_Mux() );         // check I2C_Mux communication with servo board
-  timeThis( handleSensors() );        // update return water temperature information
+
+  timeThis( sensorsLoop() );        // update return water temperature information
   
-  timeThis( checkDeltaTemps() );      // check for hotter than wanted return water temperatures
+  timeThis( servosLoop() );      // check for hotter than wanted return water temperatures
   
-  timeThis( handleRoomTemps() );      // check room temperatures and operate servos when necessary
+  timeThis( roomsLoop() );      // check room temperatures and operate servos when necessary
 
   timeThis( handleCycleServos() );    // ensure servos are cycled daily (and not all at once?)
 
   timeThis( servosAlign() );          // re-align servos after servo-board reset
+
+  timeThis( myKNX_loop() );           // allign KNX bus and respond to queries over KNX
 
 } 

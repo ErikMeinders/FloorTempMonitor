@@ -371,11 +371,11 @@ void handleAPI_servo_status()
     case SERVO_IS_OPEN:       
       statusText = "OPEN";
       break;
-    case SERVO_IN_LOOP:       
-      statusText = "LOOP";
+    case SERVO_IS_OPENING:       
+      statusText = "OPENING";
       break;
-    case SERVO_COUNT0_CLOSE:  
-      statusText = "COUNT0";
+    case SERVO_IS_CLOSING:  
+      statusText = "CLOSING";
       break;
     case SERVO_IS_CLOSED:     
       statusText = "CLOSED";

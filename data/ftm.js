@@ -86,7 +86,9 @@ function verbalState(i)
         case 1:
             return sn+" Closed";
         case 2:
-            return sn+" Reflow";
+            return sn+" Opening";
+        case 3:
+            return sn+" Closing";
         default:
             return sn+" Special"
     }

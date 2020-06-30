@@ -59,6 +59,8 @@ void demandForHeatCheck()
   DebugTf("Open loop count now is %d\n", openLoop);
 
   I2cExpander.digitalWrite(HEAT_RELAIS, openLoop > 0); 
+  informBoiler(openLoop > 0 );
+
 }
 
 // servoOpen & servoClose with reason parameter do NOT actually open/close servo
@@ -210,6 +212,7 @@ void cycleAllNotUsedServos(int8_t &cycleNr)
 {
   DebugTf("lubricate starting at %d?\n", cycleNr);
 
+  
   if( servoArray[cycleNr].servoState == SERVO_IS_OPENING || 
       servoArray[cycleNr].servoState == SERVO_IS_CLOSING ) {
       DebugTf("servo in motion\n");

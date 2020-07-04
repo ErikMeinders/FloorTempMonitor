@@ -1,4 +1,6 @@
 
+#define ERIXREPO
+
 DECLARE_TIMER(Boiler, 60);
 
 #define OT "http://192.168.2.107/api/v0/override/"

@@ -353,7 +353,7 @@ void handleAPI_room_list()
 
 void handleAPI_servo_status()
 {
-  const char* statusText;
+  char statusText[16];
   const char* Value=httpServer.arg("id").c_str();
   
   if(!strlen(Value))
@@ -367,18 +367,30 @@ void handleAPI_servo_status()
   toRetDoc["status"]  = servoArray[i].servoState;
   toRetDoc["reason"]  = servoArray[i].closeReason;
 
+  char reasonTxt[3] = {'r','w', '\0'};
+
+  if (servoArray[i].closeReason & ROOM_HOT)
+    reasonTxt[0] = 'R';
+  else
+    reasonTxt[0] = '-';
+
+ if (servoArray[i].closeReason & WATER_HOT)
+    reasonTxt[1] = 'W';
+ else
+    reasonTxt[1] = '-';
+
   switch(servoArray[i].servoState) {
     case SERVO_IS_OPEN:       
-      statusText = "OPEN";
+      strcpy(statusText,"OPEN");
       break;
     case SERVO_IS_OPENING:       
-      statusText = "OPENING";
+      strcpy(statusText,"OPENING");
       break;
     case SERVO_IS_CLOSING:  
-      statusText = "CLOSING";
+      sprintf(statusText, "CLOSING [%s]",reasonTxt);
       break;
     case SERVO_IS_CLOSED:     
-      statusText = "CLOSED";
+      sprintf(statusText, "CLOSED [%s]",reasonTxt);
       break;
   } 
 

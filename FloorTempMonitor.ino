@@ -314,4 +314,6 @@ void loop()
 
   timeThis( myKNX_loop() );           // allign KNX bus and respond to queries over KNX
 
+  timeThis( updateBoiler() );
+
 } 

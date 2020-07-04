@@ -56,7 +56,9 @@ var gaugeOptions = {
 };
 
 var Rooms = [];
-var servoState = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+var servoState = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var servoReason= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
 //var sensorTemp = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 //var sensorText = ["","","","","","","","","","",""];
 var sensorInfo = [{},{},{},{},{},{},{},{},{},{},{}];
@@ -65,6 +67,8 @@ const app = document.getElementById('rooms_canvas');
 
 var requestRoom  = new XMLHttpRequest();
 var requestServo = new XMLHttpRequest();
+var requestReason= new XMLHttpRequest();
+
 var requestSensor= new XMLHttpRequest();
 var requestPut   = new XMLHttpRequest();
 
@@ -74,24 +78,27 @@ function verbalState(i)
 {
     //sn="valve "+i;
     sn="";
+    reason="";
     console.log("display servoState for servo "+i+"from servoState"+servoState);
 
-    // servoState array starts at 0, where 0 is relais 16
-    // ToDo: add remaining time for Closed/Loop
-    //       add taget dt for Open
-
+    if( servoReason[i] & 0x01)
+        reason="R";
+    if( servoReason[i] & 0x02)
+        reason+="W";
+        
     switch(servoState[i]) {
         case 0:
             return sn+" Open";
         case 1:
-            return sn+" Closed";
+            return sn+" Closed "+reason;
         case 2:
             return sn+" Opening";
         case 3:
-            return sn+" Closing";
+            return sn+" Closing "+reason;
         default:
             return sn+" Special"
     }
+        
 }
 var influx=30.0;
 
@@ -109,7 +116,7 @@ requestSensor.onload = function()
                     temperature: temperature,
                     targetdelta: sensor.deltatemp,
                     delta: delta,
-                    text: "&Delta;t<sub>"+sensor.servonr+"</sub>: "+influx+"-"+temperature+"="+delta+" | " + sensor.deltatemp  
+                    text: "&Delta;t<sub>"+sensor.servonr+"</sub>: "+influx+"-"+temperature+"="+delta+" " 
                 };
             }
             if (sensor.name == "influx")
@@ -125,6 +132,17 @@ requestServo.onload = function() {
         servoState = data["servos"];
     }
 }
+requestReason.onload = function() {
+
+    var data = JSON.parse(this.response);
+    if (requestReason.status >= 200 && requestReason.status < 400) {
+        servoReason = data["reason"];
+    }
+}
+
+
+
+
 requestRoom.onload = function () {
 
   // Begin accessing JSON data here
@@ -319,9 +337,14 @@ requestRoom.onload = function () {
 }
 
 function refreshRoomData() {
+
+    requestReason.open('GET', APIGW+'servo/reasonarray', true);
+    requestReason.send();
+ 
     requestServo.open('GET', APIGW+'servo/statusarray', true);
     requestServo.send();
- 
+
+
     requestSensor.open('GET', APIGW+'sensor/list', true);
     requestSensor.send();
 

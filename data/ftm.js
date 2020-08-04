@@ -16,8 +16,8 @@ var gaugeOptions = {
         background: {
             backgroundColor:
                 Highcharts.defaultOptions.legend.backgroundColor || '#EEE',
-            innerRadius: '60%',
-            outerRadius: '100%',
+            innerRadius: '70%',
+            outerRadius: '105%',
             shape: 'arc'
         }
     },
@@ -34,18 +34,20 @@ var gaugeOptions = {
             [0.9, '#DF5353'] // red
         ],
         lineWidth: 1,
-        minorTickInterval: null,
-        tickAmount: 8,
+        minorTicks: true,
+        tickAmount: 11,
         title: {
-            y: -70
+            y: -75
         },
         labels: {
-            y: 16
+            y: 5
         }
     },
 
     plotOptions: {
         solidgauge: {
+            innerRadius: '85%',
+            opacity: '60%',
             dataLabels: {
                 y: 5,
                 borderWidth: 0,
@@ -257,10 +259,8 @@ requestRoom.onload = function () {
             Rooms[room.id] = Highcharts.chart('container-'+room.name, Highcharts.merge(gaugeOptions, {
                 yAxis: {
                     min: 15,
-                    max: 25,
-                    title: {
-                        text: 'room temperature'
-                    }
+                    max: 25
+                    
                 },
             
                 credits: {
@@ -272,11 +272,24 @@ requestRoom.onload = function () {
                     data: [Math.floor(room.actual)],
                     dataLabels: {
                         format:
-                            '<div style="text-align:center">' +
-                            '<span style="font-size:25px">{y}&deg;C</span><br/>' +
-                            '<span style="font-size:10px;opacity:0.4" id='+info_id+'>degrees</span>' +
-                            '</div>'
+                            `<div style="text-align:center;font-size:25px">{y}&deg;C</div>`,
+                        enabled: true,
+                        y: 0
                     },
+                    tooltip: {
+                        valueSuffix: ' degrees'
+                    }
+                },{
+                    name: 'T',
+                    data: [Math.floor(room.actual)],
+                    dataLabels: {
+                        format:
+                            `<span style="text-align:center;font-size:10px;opacity:0.6" id=${info_id}>XXXXXXXXXX [XXXX]</span>`,     
+                        enabled: true,
+                        y: 25
+                    },
+                    innerRadius:'100%',
+                    radius: '105%',
                     tooltip: {
                         valueSuffix: ' degrees'
                     }
@@ -290,10 +303,12 @@ requestRoom.onload = function () {
         // update gauge with actual temperature
         
         var t = Math.floor(room.actual*10.0)/10.0;
-        var point = chart.series[0].points[0];
+        chart.series[0].points[0].update(t);
+        chart.series[1].points[0].update(room.target);
+
         var temptext="";
 
-        point.update(t);
+        
         
         // update large display temperature
 

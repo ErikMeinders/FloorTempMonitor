@@ -272,7 +272,7 @@ requestRoom.onload = function () {
                     data: [Math.floor(room.actual)],
                     dataLabels: {
                         format:
-                            `<div style="text-align:center;font-size:25px">{y}&deg;C</div>`,
+                            `<div class="actual_label">{y}&deg;C</div>`,
                         enabled: true,
                         y: 0
                     },
@@ -284,7 +284,7 @@ requestRoom.onload = function () {
                     data: [Math.floor(room.actual)],
                     dataLabels: {
                         format:
-                            `<span style="text-align:center;font-size:10px;opacity:0.6" id=${info_id}>XXXXXXXXXX [XXXX]</span>`,     
+                            `<div class="status_label" id=${info_id}>21.0 = 21.0 [OPEN]</div>`,     
                         enabled: true,
                         y: 25
                     },
@@ -306,20 +306,20 @@ requestRoom.onload = function () {
         chart.series[0].points[0].update(t);
         chart.series[1].points[0].update(room.target);
 
-        var temptext="";
+        var label_text="";
 
-        
-        
-        // update large display temperature
+        // update status label
 
         if (t > room.target)
         {
-            temptext=t+">"+room.target+" [CLOSED]";
+            label_text=`${t}>${room.target} | CLOSED` ;
         } else {
-            temptext=t+"<"+room.target+" [OPEN]";
+            label_text=`${t}<${room.target} | OPEN`;
         }
-        document.getElementById ("info_"+room.name).innerHTML=temptext;
-        
+        div = document.getElementById ("info_"+room.name)
+        div.innerHTML=label_text;
+        //div.style.textAlign = 'left';
+
         // update UGFH loop info
 
         for (i=0 ; i < room.servocount ; i++)

@@ -1,8 +1,10 @@
 #include <esp-knx-ip.h>
 
 #define KNXROOMS noRooms
+#define OCCASIONALLY 1
 
 DECLARE_TIMERs(knxUpdate,60);
+
 
 int8_t occasionally=0;
 
@@ -16,7 +18,7 @@ void myKNX_init() {
   targetCallBackId = knx.callback_register("Target", target_cb, nullptr, ok_fun);
   stateCallBackId = knx.callback_register("State", state_cb, nullptr, ok_fun);
 
-  for( int8_t Room=0 ; Room < KNXROOMS ; Room++) // HJM HJM fix in juiste aantal!
+  for( int8_t Room=0 ; Room < KNXROOMS ; Room++) 
   {
     
     DebugTf("teCB %d taCB %d & stBC %d\n", tempCallBackId,targetCallBackId,stateCallBackId );
@@ -33,7 +35,7 @@ void myKNX_init() {
     
     Rooms[Room].knxState = false;
     // GA = knx.GA_to_address(10, Room, 3); // state = 3
-    knx.callback_assign (stateCallBackId, Rooms[Room].GA_target);
+    knx.callback_assign (stateCallBackId, Rooms[Room].GA_state);
 
   }
   // Start knx
@@ -117,7 +119,7 @@ void myKNX_update()
       delay(50);
     }
   }
-  if(++occasionally == 3)
+  if(++occasionally > OCCASIONALLY)
     occasionally = 0;
 
 }

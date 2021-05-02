@@ -3,7 +3,7 @@
 
 #include "FloorTempMonitor.h"
 
-static WiFiClient apiWiFiclient;
+// static WiFiClient apiWiFiclient;
 
 DECLARE_TIMERs(roomUpdate,60);
 
@@ -106,16 +106,19 @@ void roomDump(byte i)
 void handleRoomTemps()
 {
     int apiRC;
+    static WiFiClient apiWiFiclient;
 
     // Make API call
     byte IP[] = { 192, 168, 2, 24};
     
     // DebugTf("IP %d %d %d %d\n", IP[0], IP[1], IP[2], IP[3]);
 
-    timeThis(apiRC=apiWiFiclient.connect(IP,80));
-    yield();
-    timeThis(apiWiFiclient.print("GET /geheim1967/telist HTTP/1.0\r\n"));
-    timeThis(apiWiFiclient.print("\r\n"));
+    timeThis(apiRC=apiWiFiclient.connect(IP, 80));
+    //yield();
+    delay(500);
+
+    timeThis(apiWiFiclient.print("GET /geheim1967/telist HTTP/1.0\r\n\r\n"));
+    //timeThis(apiWiFiclient.print("\r\n"));
     yield();
 
     for( int8_t x=0 ; !apiWiFiclient.available() && x < 10 ; x++)
